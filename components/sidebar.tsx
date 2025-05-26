@@ -92,12 +92,12 @@ export default function Sidebar() {
       href: "/reports",
       active: pathname === "/reports",
     },
-    {
-      label: "Invoices",
-      icon: FileText,
-      href: "/invoices",
-      active: pathname === "/invoices",
-    },
+    // {
+    //   label: "Invoices",
+    //   icon: FileText,
+    //   href: "/invoices",
+    //   active: pathname === "/invoices",
+    // },
     {
       label: "Promotions",
       icon: Tag,

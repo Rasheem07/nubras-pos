@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, Save, Package, Upload, X } from "lucide-react"
+import { SupplierCreateModal } from "@/components/supplier-create-modal"
 
 export default function AddInventoryItemPage() {
   const router = useRouter()
@@ -27,15 +28,21 @@ export default function AddInventoryItemPage() {
     inStock: 0,
     minStock: 0,
     costPrice: 0,
-    sellingPrice: 0,
     supplier: "",
     location: "",
     barcode: "",
     weight: "",
     dimensions: "",
     notes: "",
+    uom: "",
+    reorderPoint: 0,
   })
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [suppliers, setSuppliers] = useState([
+    { id: 1, name: "Dubai Textile Co." },
+    { id: 2, name: "Luxury Textiles LLC" },
+    { id: 3, name: "Al Noor Garments" },
+  ])
 
   const handleChange = (field: string, value: string | number) => {
     setFormData({
@@ -70,14 +77,6 @@ export default function AddInventoryItemPage() {
 
   const categories = ["Fabrics", "Ready-made", "Accessories", "Packaging"]
   const types = ["fabric", "ready-made", "accessory", "packaging"]
-  const suppliers = [
-    "Dubai Textile Co.",
-    "Luxury Textiles LLC",
-    "Al Noor Garments",
-    "Elegant Abayas LLC",
-    "Fashion Accessories Trading",
-    "Packaging Solutions",
-  ]
 
   return (
     <div className="flex flex-col gap-5">
@@ -207,19 +206,6 @@ export default function AddInventoryItemPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="sellingPrice">
-                          Selling Price (AED) <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="sellingPrice"
-                          type="number"
-                          placeholder="0.00"
-                          value={formData.sellingPrice || ""}
-                          onChange={(e) => handleChange("sellingPrice", Number.parseFloat(e.target.value) || 0)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
                         <Label htmlFor="inStock">
                           Current Stock <span className="text-red-500">*</span>
                         </Label>
@@ -246,19 +232,30 @@ export default function AddInventoryItemPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="supplier">Supplier</Label>
-                        <Select value={formData.supplier} onValueChange={(value) => handleChange("supplier", value)}>
-                          <SelectTrigger id="supplier">
-                            <SelectValue placeholder="Select supplier" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {suppliers.map((supplier) => (
-                              <SelectItem key={supplier} value={supplier}>
-                                {supplier}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="reorderPoint">
+                          Reorder Point <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="reorderPoint"
+                          type="number"
+                          placeholder="0"
+                          value={formData.reorderPoint || ""}
+                          onChange={(e) => handleChange("reorderPoint", Number.parseInt(e.target.value) || 0)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="uom">
+                          Unit of Measurement <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="uom"
+                          type="text"
+                          placeholder="e.g., meters, pieces"
+                          value={formData.uom || ""}
+                          onChange={(e) => handleChange("uom", e.target.value)}
+                          required
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="location">Storage Location</Label>
@@ -268,6 +265,29 @@ export default function AddInventoryItemPage() {
                           value={formData.location}
                           onChange={(e) => handleChange("location", e.target.value)}
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="supplier">Supplier</Label>
+                        <div className="flex gap-2">
+                          <Select value={formData.supplier} onValueChange={(value) => handleChange("supplier", value)}>
+                            <SelectTrigger id="supplier" className="flex-1">
+                              <SelectValue placeholder="Select supplier" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {suppliers.map((supplier) => (
+                                <SelectItem key={supplier.id} value={supplier.name}>
+                                  {supplier.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <SupplierCreateModal
+                            onSupplierCreated={(newSupplier) => {
+                              setSuppliers([...suppliers, newSupplier])
+                              handleChange("supplier", newSupplier.name)
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -382,13 +402,6 @@ export default function AddInventoryItemPage() {
                     <span className="text-muted-foreground">Cost Price:</span>
                     <span className="font-medium">
                       {formData.costPrice ? `AED ${formData.costPrice.toFixed(2)}` : "Not set"}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Selling Price:</span>
-                    <span className="font-medium">
-                      {formData.sellingPrice ? `AED ${formData.sellingPrice.toFixed(2)}` : "Not set"}
                     </span>
                   </div>
                   <Separator />

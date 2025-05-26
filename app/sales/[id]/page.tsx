@@ -47,6 +47,358 @@ const mockSale = {
 8. Delivery: Standard delivery 7-10 business days, rush orders 3-5 days
 9. Measurements: Customer responsible for accurate measurements
 10. Disputes: Any disputes subject to Dubai Courts jurisdiction`,
+  measurements: {
+    neck: 40,
+    shoulder: 48,
+    chest: 100,
+    waist: 90,
+    hips: 102,
+    sleeveLength: 62,
+    kanduraLength: 150,
+  },
+  isCustomOrder: true, // Flag to indicate if it's a custom order
+}
+
+const generateArabicInvoice = (sale: any) => {
+  return `
+      <!DOCTYPE html>
+      <html lang="en" dir="rtl">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Invoice ${sale.id}</title>
+        <style>
+          /* Reset styles */
+          body, html {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            direction: rtl; /* Right-to-left */
+            background: #fff;
+            color: #333;
+          }
+
+          /* Invoice container */
+          .invoice-container {
+            width: 210mm; /* A4 width */
+            min-height: 297mm; /* A4 height */
+            margin: 0 auto;
+            padding: 20mm;
+            box-sizing: border-box;
+            background: #fff;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+          }
+
+          /* Header styles */
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+          }
+
+          .logo img {
+            max-width: 150px;
+          }
+
+          .invoice-info {
+            text-align: left;
+          }
+
+          .invoice-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+
+          .invoice-meta {
+            font-size: 12px;
+            color: #777;
+          }
+
+          /* Customer and Company Info */
+          .customer-company-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+          }
+
+          .customer-info, .company-info {
+            width: 48%;
+            padding: 10px;
+            border: 1px solid #eee;
+            box-sizing: border-box;
+          }
+
+          .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+
+          /* Table styles */
+          .table-container {
+            overflow: auto;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            table-layout: fixed;
+          }
+
+          th, td {
+            border: 1px solid #eee;
+            padding: 8px;
+            text-align: right;
+            word-wrap: break-word;
+          }
+
+          th {
+            background-color: #f7f7f7;
+            font-weight: bold;
+          }
+
+          /* Totals */
+          .totals {
+            text-align: left;
+            margin-bottom: 20px;
+          }
+
+          .totals-table {
+            width: 50%;
+            margin-left: auto;
+            border: 1px solid #eee;
+            padding: 10px;
+          }
+
+          .totals-table tr {
+            display: flex;
+            justify-content: space-between;
+          }
+
+          .totals-table td {
+            border: none;
+            padding: 5px;
+            text-align: right;
+          }
+
+          .total-amount {
+            font-weight: bold;
+          }
+
+          /* Measurements */
+          .measurements {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+          }
+
+          .measurement-diagram {
+            width: 45%;
+          }
+
+          .measurement-diagram img {
+            max-width: 100%;
+            height: auto;
+          }
+
+          .measurement-list {
+            width: 45%;
+          }
+
+          .measurement-list ul {
+            list-style: none;
+            padding: 0;
+          }
+
+          .measurement-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+          }
+
+          /* Notes and Terms */
+          .notes, .terms {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #eee;
+          }
+
+          /* Footer */
+          .footer {
+            text-align: center;
+            font-size: 10px;
+            color: #777;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+          }
+
+          /* RTL adjustments */
+          body {
+            font-family: 'Arial', sans-serif;
+          }
+
+          /* Print styles */
+          @media print {
+            body, html {
+              background: #fff;
+              color: #000;
+            }
+
+            .invoice-container {
+              box-shadow: none;
+              margin: 0;
+              padding: 10mm;
+            }
+
+            /* Add more print-specific adjustments as needed */
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-container">
+          <div class="header">
+            <div class="logo">
+              <img src="https://via.placeholder.com/150x50" alt="Logo">
+            </div>
+            <div class="invoice-info">
+              <div class="invoice-title">فاتورة / Invoice</div>
+              <div class="invoice-meta">
+                رقم الفاتورة / Invoice Number: #${sale.id}<br>
+                تاريخ الفاتورة / Invoice Date: ${format(sale.date, "dd/MM/yyyy")}<br>
+                تاريخ الاستحقاق / Due Date: ${format(sale.dueDate, "dd/MM/yyyy")}
+              </div>
+            </div>
+          </div>
+
+          <div class="customer-company-info">
+            <div class="customer-info">
+              <div class="section-title">معلومات العميل / Customer Information</div>
+              ${sale.customer.name}<br>
+              ${sale.customer.email}<br>
+              ${sale.customer.phone}<br>
+              ${sale.customer.address}
+            </div>
+            <div class="company-info">
+              <div class="section-title">معلومات الشركة / Company Information</div>
+              Nubras Tailoring<br>
+              123 Al Wasl Road<br>
+              Dubai, UAE<br>
+              +971 50 123 4567<br>
+              info@nubrastailoring.com
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>الوصف / Description</th>
+                  <th>الرمز / SKU</th>
+                  <th>الكمية / Qty</th>
+                  <th>السعر / Price</th>
+                  <th>الإجمالي / Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sale.items
+                  .map(
+                    (item: any) => `
+                  <tr>
+                    <td>${item.name}</td>
+                    <td>${item.sku}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.price}</td>
+                    <td>${item.total}</td>
+                  </tr>
+                `,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="totals">
+            <table class="totals-table">
+              <tr>
+                <td>المجموع الفرعي / Subtotal:</td>
+                <td>${sale.subtotal}</td>
+              </tr>
+              <tr>
+                <td>الخصم / Discount (${sale.discountPercentage}%):</td>
+                <td>-${sale.discountAmount}</td>
+              </tr>
+              <tr>
+                <td>الضريبة / Tax (5%):</td>
+                <td>${sale.tax}</td>
+              </tr>
+              <tr>
+                <td>المجموع الكلي / Total:</td>
+                <td class="total-amount">${sale.total}</td>
+              </tr>
+              <tr>
+                <td>المدفوع / Amount Paid:</td>
+                <td>${sale.amountPaid}</td>
+              </tr>
+              <tr>
+                <td>المتبقي / Amount Due:</td>
+                <td class="total-amount">${sale.amountDue}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="measurements">
+            <div class="measurement-diagram">
+              <img src="https://via.placeholder.com/300x400" alt="Measurement Diagram">
+            </div>
+            <div class="measurement-list">
+              <div class="section-title">المقاسات / Measurements</div>
+              <ul>
+                <li><span>الرقبة / Neck:</span><span>${sale.measurements.neck} cm</span></li>
+                <li><span>الكتف / Shoulder:</span><span>${sale.measurements.shoulder} cm</span></li>
+                <li><span>الصدر / Chest:</span><span>${sale.measurements.chest} cm</span></li>
+                <li><span>الخصر / Waist:</span><span>${sale.measurements.waist} cm</span></li>
+                <li><span>الأرداف / Hips:</span><span>${sale.measurements.hips} cm</span></li>
+                <li><span>طول الكم / Sleeve Length:</span><span>${sale.measurements.sleeveLength} cm</span></li>
+                <li><span>طول الثوب / Kandura Length:</span><span>${sale.measurements.kanduraLength} cm</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="notes">
+            <div class="section-title">ملاحظات / Notes</div>
+            ${sale.notes}
+          </div>
+  
+          <div class="terms">
+            <div class="section-title">الشروط والأحكام / Terms & Conditions</div>
+            ${sale.termsAndConditions
+              .split("\n")
+              .map((term: any) => `<div>${term}</div>`)
+              .join("")}
+          </div>
+
+          <div class="footer">
+            © 2024 Nubras Tailoring. All rights reserved.
+          </div>
+        </div>
+        <script>
+          window.onload = function() {
+            window.print();
+            window.onfocus = function() {
+              setTimeout(() => window.close(), 500);
+            }
+          }
+        </script>
+      </body>
+      </html>
+    `
 }
 
 export default function SalesOrderPage({ params }: { params: { id: string } }) {
@@ -64,266 +416,436 @@ export default function SalesOrderPage({ params }: { params: { id: string } }) {
     const printWindow = window.open("", "_blank")
     if (!printWindow) return
 
+    // Check if order contains custom items
+    const hasCustomItems = sale.items.some((item) => item.name.toLowerCase().includes("custom"))
+
     printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Invoice ${sale.id}</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-              line-height: 1.4;
-              color: #2d3748;
-              background: white;
-            }
-            .invoice { 
-              max-width: 800px; 
-              margin: 0 auto; 
-              padding: 30px;
-              background: white;
-            }
-            .header { 
-              display: flex; 
-              justify-content: space-between; 
-              align-items: flex-start;
-              margin-bottom: 40px;
-              padding-bottom: 20px;
-              border-bottom: 2px solid #e2e8f0;
-            }
-            .company { font-size: 24px; font-weight: 700; color: #1a202c; }
-            .company-info { margin-top: 8px; font-size: 13px; color: #4a5568; line-height: 1.5; }
-            .invoice-info { text-align: right; }
-            .invoice-number { font-size: 20px; font-weight: 600; color: #1a202c; margin-bottom: 8px; }
-            .invoice-meta { font-size: 13px; color: #4a5568; }
-            .status { 
-              display: inline-block; 
-              padding: 4px 12px; 
-              border-radius: 20px; 
-              font-size: 11px; 
-              font-weight: 600; 
-              text-transform: uppercase;
-              margin-top: 8px;
-              background: #c6f6d5; 
-              color: #22543d;
-            }
-            .billing { margin-bottom: 30px; }
-            .section-title { 
-              font-size: 14px; 
-              font-weight: 600; 
-              color: #2d3748; 
-              margin-bottom: 8px;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            }
-            .customer-info { 
-              background: #f7fafc; 
-              padding: 15px; 
-              border-radius: 6px;
-              font-size: 13px;
-              line-height: 1.5;
-            }
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin: 30px 0;
-              font-size: 13px;
-            }
-            th { 
-              background: #edf2f7; 
-              padding: 12px 8px; 
-              text-align: left; 
-              font-weight: 600;
-              color: #2d3748;
-              border-bottom: 1px solid #cbd5e0;
-            }
-            td { 
-              padding: 12px 8px; 
-              border-bottom: 1px solid #e2e8f0;
-              vertical-align: top;
-            }
-            .text-right { text-align: right; }
-            .totals { 
-              margin-top: 30px;
-              display: flex;
-              justify-content: flex-end;
-            }
-            .totals-table { 
-              background: #f7fafc;
-              padding: 20px;
-              border-radius: 6px;
-              min-width: 350px;
-            }
-            .total-row { 
-              display: flex; 
-              justify-content: space-between; 
-              padding: 6px 0;
-              font-size: 13px;
-            }
-            .total-row.discount { color: #e53e3e; font-weight: 600; }
-            .total-row.due { 
-              font-size: 16px; 
-              font-weight: 700; 
-              color: #e53e3e;
-              padding-top: 12px;
-              margin-top: 8px;
-              border-top: 2px solid #cbd5e0;
-            }
-            .total-row.final { 
-              font-size: 16px; 
-              font-weight: 700; 
-              color: #1a202c;
-              padding-top: 12px;
-              margin-top: 8px;
-              border-top: 2px solid #cbd5e0;
-            }
-            .terms { 
-              margin-top: 40px; 
-              padding: 20px;
-              background: #f7fafc;
-              border-radius: 6px;
-            }
-            .terms h4 { 
-              font-size: 14px; 
-              font-weight: 600; 
-              margin-bottom: 12px;
-              color: #2d3748;
-            }
-            .terms-list { 
-              font-size: 12px; 
-              line-height: 1.6;
-              color: #4a5568;
-            }
-            .footer { 
-              margin-top: 40px; 
-              text-align: center; 
-              font-size: 12px; 
-              color: #718096;
-              padding-top: 20px;
-              border-top: 1px solid #e2e8f0;
-            }
-            @media print {
-              body { print-color-adjust: exact; }
-              .invoice { padding: 20px; }
-              @page { margin: 0.5cm; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="invoice">
-            <div class="header">
-              <div>
-                <div class="company">Nubras Tailoring</div>
-                <div class="company-info">
-                  123 Al Wasl Road<br>
-                  Dubai, UAE<br>
-                  +971 50 123 4567<br>
-                  info@nubrastailoring.com<br>
-                  TRN: 100123456789003
-                </div>
-              </div>
-              <div class="invoice-info">
-                <div class="invoice-number">Invoice #${sale.id}</div>
-                <div class="invoice-meta">
-                  Date: ${format(sale.date, "MMM dd, yyyy")}<br>
-                  Due: ${format(sale.dueDate, "MMM dd, yyyy")}
-                </div>
-                <div class="status">${sale.status}</div>
-              </div>
-            </div>
-            
-            <div class="billing">
-              <div class="section-title">Bill To</div>
-              <div class="customer-info">
-                <strong>${sale.customer.name}</strong><br>
-                ${sale.customer.email}<br>
-                ${sale.customer.phone}<br>
-                ${sale.customer.address}
-              </div>
-            </div>
-            
-            <table>
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th>SKU</th>
-                  <th class="text-right">Qty</th>
-                  <th class="text-right">Price</th>
-                  <th class="text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${sale.items
-                  .map(
-                    (item) => `
-                  <tr>
-                    <td>${item.name}</td>
-                    <td>${item.sku}</td>
-                    <td class="text-right">${item.quantity}</td>
-                    <td class="text-right">AED ${item.price}</td>
-                    <td class="text-right">AED ${item.total}</td>
-                  </tr>
-                `,
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-            
-            <div class="totals">
-              <div class="totals-table">
-                <div class="total-row">
-                  <span>Subtotal:</span>
-                  <span>AED ${sale.subtotal}</span>
-                </div>
-                <div class="total-row discount">
-                  <span>Discount (${sale.discountPercentage}%):</span>
-                  <span>-AED ${sale.discountAmount}</span>
-                </div>
-                <div class="total-row">
-                  <span>Tax (5%):</span>
-                  <span>AED ${sale.tax}</span>
-                </div>
-                <div class="total-row final">
-                  <span>Total:</span>
-                  <span>AED ${sale.total}</span>
-                </div>
-                <div class="total-row">
-                  <span>Amount Paid:</span>
-                  <span>AED ${sale.amountPaid}</span>
-                </div>
-                <div class="total-row due">
-                  <span>Amount Due:</span>
-                  <span>AED ${sale.amountDue}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="terms">
-              <h4>Terms & Conditions</h4>
-              <div class="terms-list">
-                ${sale.termsAndConditions
-                  .split("\n")
-                  .map((term) => `<div>${term}</div>`)
-                  .join("")}
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Invoice ${sale.id}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.4;
+            color: #2d3748;
+            background: white;
+          }
+          .invoice { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 30px;
+            background: white;
+          }
+          .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+          }
+          .company { font-size: 24px; font-weight: 700; color: #1a202c; }
+          .company-info { margin-top: 8px; font-size: 13px; color: #4a5568; line-height: 1.5; }
+          .invoice-info { text-align: right; }
+          .invoice-number { font-size: 20px; font-weight: 600; color: #1a202c; margin-bottom: 8px; }
+          .invoice-meta { font-size: 13px; color: #4a5568; }
+          .status { 
+            display: inline-block; 
+            padding: 4px 12px; 
+            border-radius: 20px; 
+            font-size: 11px; 
+            font-weight: 600; 
+            text-transform: uppercase;
+            margin-top: 8px;
+            background: #c6f6d5; 
+            color: #22543d;
+          }
+          .billing { margin-bottom: 30px; }
+          .section-title { 
+            font-size: 14px; 
+            font-weight: 600; 
+            color: #2d3748; 
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .customer-info { 
+            background: #f7fafc; 
+            padding: 15px; 
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.5;
+          }
+          table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 30px 0;
+            font-size: 13px;
+          }
+          th { 
+            background: #edf2f7; 
+            padding: 12px 8px; 
+            text-align: left; 
+            font-weight: 600;
+            color: #2d3748;
+            border-bottom: 1px solid #cbd5e0;
+          }
+          td { 
+            padding: 12px 8px; 
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+          }
+          .text-right { text-align: right; }
+          .totals { 
+            margin-top: 30px;
+            display: flex;
+            justify-content: flex-end;
+          }
+          .totals-table { 
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 6px;
+            min-width: 350px;
+          }
+          .total-row { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 6px 0;
+            font-size: 13px;
+          }
+          .total-row.discount { color: #e53e3e; font-weight: 600; }
+          .total-row.due { 
+            font-size: 16px; 
+            font-weight: 700; 
+            color: #e53e3e;
+            padding-top: 12px;
+            margin-top: 8px;
+            border-top: 2px solid #cbd5e0;
+          }
+          .total-row.final { 
+            font-size: 16px; 
+            font-weight: 700; 
+            color: #1a202c;
+            padding-top: 12px;
+            margin-top: 8px;
+            border-top: 2px solid #cbd5e0;
+          }
+          .terms { 
+            margin-top: 40px; 
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 6px;
+          }
+          .terms h4 { 
+            font-size: 14px; 
+            font-weight: 600; 
+            margin-bottom: 12px;
+            color: #2d3748;
+          }
+          .terms-list { 
+            font-size: 12px; 
+            line-height: 1.6;
+            color: #4a5568;
+          }
+          .footer { 
+            margin-top: 40px; 
+            text-align: center; 
+            font-size: 12px; 
+            color: #718096;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+          }
+          
+          /* Measurement Section Styles */
+          .measurements-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            background: #fafafa;
+          }
+          .measurements-header {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+          }
+          .measurements-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+          }
+          .measurements-diagrams {
+            width: 45%;
+            display: flex;
+            justify-content: space-around;
+          }
+          .diagram {
+            text-align: center;
+            margin: 0 10px;
+          }
+          .diagram-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #4a5568;
+          }
+          .diagram-svg {
+            width: 120px;
+            height: 160px;
+            border: 1px solid #cbd5e0;
+            background: white;
+            margin-bottom: 10px;
+          }
+          .measurements-list {
+            width: 50%;
+            padding-left: 20px;
+          }
+          .measurement-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 12px;
+          }
+          .measurement-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 8px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+          }
+          .measurement-label {
+            font-weight: 500;
+            color: #4a5568;
+          }
+          .measurement-value {
+            font-weight: 600;
+            color: #2d3748;
+            min-width: 40px;
+            text-align: right;
+          }
+          .arabic-label {
+            font-size: 10px;
+            color: #718096;
+            font-style: italic;
+          }
+          
+          @media print {
+            body { print-color-adjust: exact; }
+            .invoice { padding: 20px; }
+            @page { margin: 0.5cm; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice">
+          <div class="header">
+            <div>
+              <div class="company">Nubras Tailoring</div>
+              <div class="company-info">
+                123 Al Wasl Road<br>
+                Dubai, UAE<br>
+                +971 50 123 4567<br>
+                info@nubrastailoring.com<br>
+                TRN: 100123456789003
               </div>
             </div>
-            
-            <div class="footer">
-              <p><strong>Payment Method:</strong> ${sale.paymentMethod}</p>
-              <p>Thank you for choosing Nubras Tailoring!</p>
+            <div class="invoice-info">
+              <div class="invoice-number">Invoice #${sale.id}</div>
+              <div class="invoice-meta">
+                Date: ${format(sale.date, "MMM dd, yyyy")}<br>
+                Due: ${format(sale.dueDate, "MMM dd, yyyy")}
+              </div>
+              <div class="status">${sale.status}</div>
             </div>
           </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.onfocus = function() {
-                setTimeout(() => window.close(), 500);
-              }
+          
+          <div class="billing">
+            <div class="section-title">Bill To</div>
+            <div class="customer-info">
+              <strong>${sale.customer.name}</strong><br>
+              ${sale.customer.email}<br>
+              ${sale.customer.phone}<br>
+              ${sale.customer.address}
+            </div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>SKU</th>
+                <th class="text-right">Qty</th>
+                <th class="text-right">Price</th>
+                <th class="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sale.items
+                .map(
+                  (item) => `
+                <tr>
+                  <td>${item.name}</td>
+                  <td>${item.sku}</td>
+                  <td class="text-right">${item.quantity}</td>
+                  <td class="text-right">AED ${item.price}</td>
+                  <td class="text-right">AED ${item.total}</td>
+                </tr>
+              `,
+                )
+                .join("")}
+            </tbody>
+          </table>
+          
+          ${
+            hasCustomItems
+              ? `
+          <div class="measurements-section">
+            <div class="measurements-header">
+              Body Measurements / قياسات الجسم
+            </div>
+            <div class="measurements-content">
+              <div class="measurements-diagrams">
+              <div class="diagram">
+              <img src="/diagram2.png" alt="diagram" style="height: 150px; width: 150px;"/>
+              </div>
+              <div class="diagram">
+                <img src="/diagram1.png" alt="diagram" style="height: 150px; width: 150px;"/>
+               </div>
+              </div>
+              
+              <div class="measurements-list">
+                <div class="measurement-grid">
+                  <div class="measurement-item">
+                    <span class="measurement-label">
+                      الطول أمام<br>
+                      <span class="arabic-label">Front Length</span>
+                    </span>
+                    <span class="measurement-value">${sale.measurements?.kanduraLength || "___"}</span>
+                  </div>
+                  
+                  <div class="measurement-item">
+                    <span class="measurement-label">
+                      الطول خلف<br>
+                      <span class="arabic-label">Back Length</span>
+                    </span>
+                    <span class="measurement-value">${sale.measurements?.kanduraLength || "___"}</span>
+                  </div>
+                  
+                  <div class="measurement-item">
+                    <span class="measurement-label">
+                      الكتف<br>
+                      <span class="arabic-label">Shoulder</span>
+                    </span>
+                    <span class="measurement-value">${sale.measurements?.shoulder || "___"}</span>
+                  </div>
+                  
+                  <div class="measurement-item">
+                    <span class="measurement-label">
+                      الأيدي<br>
+                      <span class="arabic-label">Arms</span>
+                    </span>
+                    <span class="measurement-value">${sale.measurements?.sleeveLength || "___"}</span>
+                  </div>
+                  
+                  <div class="measurement-item">
+                    <span class="measurement-label">
+                      الرقبة<br>
+                      <span class="arabic-label">Neck</span>
+                    </span>
+                    <span class="measurement-value">${sale.measurements?.neck || "___"}</span>
+                  </div>
+                  
+                  <div class="measurement-item">
+                    <span class="measurement-label">
+                      الوسط<br>
+                      <span class="arabic-label">Waist</span>
+                    </span>
+                    <span class="measurement-value">${sale.measurements?.waist || "___"}</span>
+                  </div>
+                  
+                  <div class="measurement-item">
+                    <span class="measurement-label">
+                      الصدر<br>
+                      <span class="arabic-label">Chest</span>
+                    </span>
+                    <span class="measurement-value">${sale.measurements?.chest || "___"}</span>
+                  </div>
+                  
+                  <div class="measurement-item">
+                    <span class="measurement-label">
+                      نهاية العرض<br>
+                      <span class="arabic-label">Width End</span>
+                    </span>
+                    <span class="measurement-value">${sale.measurements?.hips || "___"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          `
+              : ""
+          }
+          
+          <div class="totals">
+            <div class="totals-table">
+              <div class="total-row">
+                <span>Subtotal:</span>
+                <span>AED ${sale.subtotal}</span>
+              </div>
+              <div class="total-row discount">
+                <span>Discount (${sale.discountPercentage}%):</span>
+                <span>-AED ${sale.discountAmount}</span>
+              </div>
+              <div class="total-row">
+                <span>Tax (5%):</span>
+                <span>AED ${sale.tax}</span>
+              </div>
+              <div class="total-row final">
+                <span>Total:</span>
+                <span>AED ${sale.total}</span>
+              </div>
+              <div class="total-row">
+                <span>Amount Paid:</span>
+                <span>AED ${sale.amountPaid}</span>
+              </div>
+              <div class="total-row due">
+                <span>Amount Due:</span>
+                <span>AED ${sale.amountDue}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="terms">
+            <h4>Terms & Conditions</h4>
+            <div class="terms-list">
+              ${sale.termsAndConditions
+                .split("\n")
+                .map((term) => `<div>${term}</div>`)
+                .join("")}
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p><strong>Payment Method:</strong> ${sale.paymentMethod}</p>
+            <p>Thank you for choosing Nubras Tailoring!</p>
+          </div>
+        </div>
+        <script>
+          window.onload = function() {
+            window.print();
+            window.onfocus = function() {
+              setTimeout(() => window.close(), 500);
             }
-          </script>
-        </body>
-      </html>
-    `)
+          }
+        </script>
+      </body>
+    </html>
+  `)
     printWindow.document.close()
   }
 

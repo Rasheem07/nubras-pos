@@ -5,7 +5,6 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -18,111 +17,86 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   ArrowLeft,
   Edit,
   Trash2,
   Package,
   AlertTriangle,
-  History,
   TrendingUp,
   ArrowUpRight,
-  ArrowDownRight,
   Calendar,
   Printer,
   FileText,
+  Building,
 } from "lucide-react"
 
 export default function InventoryItemDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const [isRestockDialogOpen, setIsRestockDialogOpen] = useState(false)
-  const [restockQuantity, setRestockQuantity] = useState(0)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   // In a real app, this would fetch the item from the database using the ID
   const itemId = params.id as string
 
-  // Mock data for the inventory item
+  // Mock data matching your service structure
   const item = {
-    id: itemId,
+    id: Number(itemId),
     name: "White Linen Fabric",
     sku: "FAB-LIN-WHT-001",
     category: "Fabrics",
-    type: "fabric",
+    uom: "meter",
     description:
       "High-quality white linen fabric, perfect for premium kanduras and other garments. Sourced from the finest mills in Europe.",
-    inStock: 150,
+    cost: 30.0,
+    stock: 150,
     minStock: 50,
-    costPrice: 30,
-    sellingPrice: 60,
-    supplier: "Dubai Textile Co.",
-    location: "Shelf A1",
-    lastRestocked: "2024-04-15",
-    status: "in-stock",
+    reorderPoint: 75,
     barcode: "5901234123457",
+    supplierId: 1,
     weight: "200g per meter",
-    dimensions: "150cm width",
     notes: "Popular during summer months. Consider increasing minimum stock level during peak season.",
-    image: "/placeholder.svg?key=6k1n3",
+    createdAt: new Date("2024-01-15"),
+    updatedAt: new Date("2024-04-15"),
+
+    // Nested restocks from your service
+    restocks: [
+      {
+        id: 1,
+        itemId: Number(itemId),
+        qty: 50,
+        cost: 30.0,
+        total: 1500.0,
+        supplierId: 1,
+        invNo: "INV-2024-001",
+        restockDate: new Date("2024-04-15"),
+        notes: "Regular monthly restock",
+        createdAt: new Date("2024-04-15"),
+        updatedAt: new Date("2024-04-15"),
+      },
+      {
+        id: 2,
+        itemId: Number(itemId),
+        qty: 100,
+        cost: 28.0,
+        total: 2800.0,
+        supplierId: 1,
+        invNo: "INV-2024-002",
+        restockDate: new Date("2024-03-20"),
+        notes: "Initial stock",
+        createdAt: new Date("2024-03-20"),
+        updatedAt: new Date("2024-03-20"),
+      },
+    ],
   }
 
-  // Mock data for stock history
-  const stockHistory = [
-    {
-      id: "SH-001",
-      date: "2024-04-15",
-      type: "restock",
-      quantity: 50,
-      user: "Mohammed Ali",
-      notes: "Regular monthly restock",
-    },
-    {
-      id: "SH-002",
-      date: "2024-04-10",
-      type: "sale",
-      quantity: -10,
-      user: "Aisha Mahmood",
-      notes: "Bulk order for Al Noor Garments",
-    },
-    {
-      id: "SH-003",
-      date: "2024-04-05",
-      type: "adjustment",
-      quantity: -5,
-      user: "Khalid Rahman",
-      notes: "Inventory count adjustment",
-    },
-    { id: "SH-004", date: "2024-03-20", type: "restock", quantity: 100, user: "Mohammed Ali", notes: "Initial stock" },
-  ]
-
-  // Mock data for price history
-  const priceHistory = [
-    {
-      id: "PH-001",
-      date: "2024-04-01",
-      costPrice: 30,
-      sellingPrice: 60,
-      user: "Mohammed Ali",
-      notes: "Price increase due to supplier changes",
-    },
-    {
-      id: "PH-002",
-      date: "2024-01-15",
-      costPrice: 28,
-      sellingPrice: 55,
-      user: "Mohammed Ali",
-      notes: "Initial pricing",
-    },
-  ]
-
-  const handleRestock = () => {
-    // In a real app, this would update the database
-    console.log(`Restocking ${restockQuantity} units of ${item.name}`)
-    setIsRestockDialogOpen(false)
-    // Refresh the page or update the state
+  // Mock supplier data
+  const supplier = {
+    id: 1,
+    name: "Dubai Textile Co.",
+    phone: "+971501234567",
+    location: "Dubai Textile Souk, Bur Dubai",
+    email: "orders@dubaitextile.ae",
   }
 
   const handleDelete = () => {
@@ -132,18 +106,21 @@ export default function InventoryItemDetailPage() {
     router.push("/inventory")
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "in-stock":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">In Stock</Badge>
-      case "low-stock":
-        return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Low Stock</Badge>
-      case "out-of-stock":
-        return <Badge variant="destructive">Out of Stock</Badge>
-      default:
-        return null
+  const getStockStatus = () => {
+    if (item.stock === 0) {
+      return <Badge variant="destructive">Out of Stock</Badge>
+    } else if (item.stock <= item.minStock) {
+      return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Low Stock</Badge>
+    } else if (item.stock <= item.reorderPoint) {
+      return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Reorder Point</Badge>
+    } else {
+      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">In Stock</Badge>
     }
   }
+
+  const totalRestockValue = item.restocks.reduce((sum, restock) => sum + restock.total, 0)
+  const totalRestockQty = item.restocks.reduce((sum, restock) => sum + restock.qty, 0)
+  const avgCostPrice = totalRestockQty > 0 ? totalRestockValue / totalRestockQty : item.cost
 
   return (
     <div className="flex flex-col gap-5">
@@ -157,6 +134,12 @@ export default function InventoryItemDetailPage() {
           <h1 className="text-3xl font-bold tracking-tight">{item.name}</h1>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href={`/inventory/${itemId}/restock`}>
+              <Package className="mr-2 h-4 w-4" />
+              Restock
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link href={`/inventory/${itemId}/edit`}>
               <Edit className="mr-2 h-4 w-4" />
@@ -209,8 +192,8 @@ export default function InventoryItemDetailPage() {
                     <p>{item.category}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Type</h3>
-                    <p>{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</p>
+                    <h3 className="text-sm font-medium text-muted-foreground">Unit of Measure</h3>
+                    <p>{item.uom}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Barcode</h3>
@@ -220,19 +203,24 @@ export default function InventoryItemDetailPage() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Supplier</h3>
-                    <p>{item.supplier}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Storage Location</h3>
-                    <p>{item.location}</p>
+                    <div className="flex items-center gap-2">
+                      <Building className="h-4 w-4 text-muted-foreground" />
+                      <Link href={`/inventory/suppliers/${supplier.id}`} className="text-blue-600 hover:underline">
+                        {supplier.name}
+                      </Link>
+                    </div>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Weight</h3>
                     <p>{item.weight || "Not set"}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Dimensions</h3>
-                    <p>{item.dimensions || "Not set"}</p>
+                    <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
+                    <p>{item.createdAt.toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
+                    <p>{item.updatedAt.toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>
@@ -256,109 +244,46 @@ export default function InventoryItemDetailPage() {
             </CardContent>
           </Card>
 
-          <Tabs defaultValue="stock-history" className="w-full">
-            <TabsList className="grid grid-cols-2 w-full">
-              <TabsTrigger value="stock-history">Stock History</TabsTrigger>
-              <TabsTrigger value="price-history">Price History</TabsTrigger>
-            </TabsList>
-            <TabsContent value="stock-history" className="pt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Stock History</CardTitle>
-                  <CardDescription>Record of stock changes over time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Notes</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {stockHistory.map((record) => (
-                        <TableRow key={record.id}>
-                          <TableCell>{record.date}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              {record.type === "restock" ? (
-                                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Restock</Badge>
-                              ) : record.type === "sale" ? (
-                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Sale</Badge>
-                              ) : (
-                                <Badge variant="outline">Adjustment</Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              {record.quantity > 0 ? (
-                                <ArrowUpRight className="mr-1 h-4 w-4 text-green-600" />
-                              ) : (
-                                <ArrowDownRight className="mr-1 h-4 w-4 text-red-600" />
-                              )}
-                              {Math.abs(record.quantity)}
-                            </div>
-                          </TableCell>
-                          <TableCell>{record.user}</TableCell>
-                          <TableCell>{record.notes}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="price-history" className="pt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Price History</CardTitle>
-                  <CardDescription>Record of price changes over time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Cost Price</TableHead>
-                        <TableHead>Selling Price</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Notes</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {priceHistory.map((record) => (
-                        <TableRow key={record.id}>
-                          <TableCell>{record.date}</TableCell>
-                          <TableCell>AED {record.costPrice.toFixed(2)}</TableCell>
-                          <TableCell>AED {record.sellingPrice.toFixed(2)}</TableCell>
-                          <TableCell>{record.user}</TableCell>
-                          <TableCell>{record.notes}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          <Card>
+            <CardHeader>
+              <CardTitle>Restock History</CardTitle>
+              <CardDescription>Complete record of all restocks for this item</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Cost</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Notes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {item.restocks.map((restock) => (
+                    <TableRow key={restock.id}>
+                      <TableCell>{restock.restockDate.toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <ArrowUpRight className="mr-1 h-4 w-4 text-green-600" />
+                          {restock.qty} {item.uom}
+                        </div>
+                      </TableCell>
+                      <TableCell>AED {restock.cost.toFixed(2)}</TableCell>
+                      <TableCell>AED {restock.total.toFixed(2)}</TableCell>
+                      <TableCell>{restock.invNo || "-"}</TableCell>
+                      <TableCell>{restock.notes || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Item Image</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md overflow-hidden">
-                <img src={item.image || "/placeholder.svg"} alt={item.name} className="w-full h-auto object-cover" />
-              </div>
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader className="pb-3">
               <CardTitle>Stock Information</CardTitle>
@@ -367,85 +292,66 @@ export default function InventoryItemDetailPage() {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Current Stock:</span>
                 <div className="flex items-center">
-                  <span className="font-medium text-lg">{item.inStock}</span>
-                  {item.inStock <= item.minStock && item.inStock > 0 && (
+                  <span className="font-medium text-lg">
+                    {item.stock} {item.uom}
+                  </span>
+                  {item.stock <= item.minStock && item.stock > 0 && (
                     <AlertTriangle className="ml-2 h-4 w-4 text-amber-500" />
                   )}
                 </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Minimum Stock:</span>
-                <span className="font-medium">{item.minStock}</span>
+                <span className="font-medium">
+                  {item.minStock} {item.uom}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Reorder Point:</span>
+                <span className="font-medium">
+                  {item.reorderPoint} {item.uom}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Status:</span>
-                <div>{getStatusBadge(item.status)}</div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Last Restocked:</span>
-                <span className="font-medium">{item.lastRestocked}</span>
+                <div>{getStockStatus()}</div>
               </div>
               <Separator />
-              <Dialog open={isRestockDialogOpen} onOpenChange={setIsRestockDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full">
-                    <Package className="mr-2 h-4 w-4" />
-                    Restock
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Restock Item</DialogTitle>
-                    <DialogDescription>Enter the quantity you want to add to the current stock.</DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="quantity" className="text-right">
-                        Quantity
-                      </Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        min="1"
-                        value={restockQuantity}
-                        onChange={(e) => setRestockQuantity(Number.parseInt(e.target.value) || 0)}
-                        className="col-span-3"
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsRestockDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleRestock}>Restock</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <Button className="w-full" asChild>
+                <Link href={`/inventory/${itemId}/restock`}>
+                  <Package className="mr-2 h-4 w-4" />
+                  Restock Item
+                </Link>
+              </Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle>Pricing</CardTitle>
+              <CardTitle>Pricing & Analytics</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Cost Price:</span>
-                <span className="font-medium">AED {item.costPrice.toFixed(2)}</span>
+                <span className="text-muted-foreground">Current Cost:</span>
+                <span className="font-medium">AED {item.cost.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Selling Price:</span>
-                <span className="font-medium">AED {item.sellingPrice.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Profit Margin:</span>
-                <span className="font-medium">
-                  {(((item.sellingPrice - item.costPrice) / item.sellingPrice) * 100).toFixed(2)}%
-                </span>
+                <span className="text-muted-foreground">Average Cost:</span>
+                <span className="font-medium">AED {avgCostPrice.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Total Value:</span>
-                <span className="font-medium">AED {(item.inStock * item.costPrice).toFixed(2)}</span>
+                <span className="font-medium">AED {(item.stock * avgCostPrice).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total Restocks:</span>
+                <span className="font-medium">{item.restocks.length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total Restocked:</span>
+                <span className="font-medium">
+                  {totalRestockQty} {item.uom}
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -461,13 +367,15 @@ export default function InventoryItemDetailPage() {
                   Edit Item
                 </Link>
               </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <History className="mr-2 h-4 w-4" />
-                View All History
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link href={`/inventory/suppliers/${supplier.id}`}>
+                  <Building className="mr-2 h-4 w-4" />
+                  View Supplier
+                </Link>
               </Button>
               <Button variant="outline" className="w-full justify-start">
                 <TrendingUp className="mr-2 h-4 w-4" />
-                Sales Analytics
+                Usage Analytics
               </Button>
               <Button variant="outline" className="w-full justify-start">
                 <Calendar className="mr-2 h-4 w-4" />
