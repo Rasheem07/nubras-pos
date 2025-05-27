@@ -6,7 +6,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
 import { SidebarProvider } from "@/contexts/sidebar";
-
+import {Toaster} from "sonner"
+import Providers from "@/components/providers"
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -30,6 +31,8 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
+            <Providers>
+
             <div className="flex h-screen overflow-hidden">
               <Sidebar />
               <div className="flex flex-col flex-1 overflow-hidden">
@@ -39,6 +42,8 @@ export default function RootLayout({
                 </main>
               </div>
             </div>
+            <Toaster position="top-right"/>
+            </Providers>
           </ThemeProvider>
         </SidebarProvider>
       </body>

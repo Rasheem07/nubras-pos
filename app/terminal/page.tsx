@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,17 +20,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Search,
   ShoppingBag,
@@ -39,354 +32,531 @@ import {
   CreditCard,
   Banknote,
   Smartphone,
-  User,
   Printer,
   Receipt,
   Save,
   Clock,
-  Percent,
-  Ticket,
   X,
+  User,
+  Calendar,
 } from "lucide-react";
-import Link from "next/link";
+import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useQuery } from "@tanstack/react-query";
 
-const priorities = ["Low", "Medium", "High", "Critical"];
+// Zod schemas matching the exact DTOs
+const SalesOrderItemSchema = z.object({
+  description: z.string().max(100),
+  catelogId: z.number().positive(),
+  sku: z.string().max(15).optional(),
+  qty: z.number().positive(),
+  price: z.string(),
+  total: z.string(),
+});
+
+const CreateSalesOrderSchema = z.object({
+  status: z.enum([
+    "draft",
+    "pending",
+    "confirmed",
+    "processing",
+    "completed",
+    "cancelled",
+  ]),
+  customerId: z.number().positive(),
+  customerName: z.string().max(100),
+  salesPersonId: z.number().positive(),
+  salesPersonName: z.string().max(100),
+  subtotal: z.string(),
+  taxAmount: z.string(),
+  discountAmount: z.string(),
+  totalAmount: z.string(),
+  paymentMethod: z.string().max(20),
+  paymentStatus: z.enum(["no-payment", "partial", "paid"]).optional(),
+  notes: z.string().optional(),
+  priority: z.enum(["low", "medium", "high"]),
+  paymentTerms: z.string(),
+  dueDate: z.coerce.date(),
+  deliveryDate: z.coerce.date().optional(),
+  completedDate: z.coerce.date().optional(),
+  items: z.array(SalesOrderItemSchema).min(1),
+});
+
+type CreateSalesOrderDto = z.infer<typeof CreateSalesOrderSchema>;
+type SalesOrderItemDto = z.infer<typeof SalesOrderItemSchema>;
+
 interface CartItem {
   id: string;
-  name: string;
-  type: "ready-made" | "custom" | "alteration" | "fabric" | "service";
+  description: string;
+  catelogId: number;
+  sku?: string;
+  qty: number;
   price: number;
-  quantity: number;
-  discount?: number;
-  notes?: string;
+  total: number;
+  image?: string;
+  category: string;
 }
 
 interface Customer {
-  id: string;
+  id: number;
   name: string;
-  image?: string;
   phone: string;
   email: string;
   loyaltyTier?: "standard" | "silver" | "gold" | "platinum";
+  address?: string;
 }
 
-interface Coupon {
-  id: string;
-  code: string;
-  type: "percentage" | "fixed";
-  value: number;
-  description: string;
+interface Staff {
+  id: number;
+  name: string;
+  role: string;
+  department: string;
+}
+
+interface ProductCardProps {
+  product: {
+    id: number;
+    name: string;
+    price: number;
+    sku?: string;
+    image?: string;
+    category: string;
+  };
+  onAdd: () => void;
+}
+
+function ProductCard({ product, onAdd }: ProductCardProps) {
+  return (
+    <Card
+      className="cursor-pointer hover:shadow-sm transition-all duration-200 hover:border-blue-300 group"
+      onClick={onAdd}
+    >
+      <CardContent className="p-2">
+        <div className="flex items-center gap-2">
+          {/* Image Left */}
+          <div className="w-12 h-12 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+            <img
+              src={product.image || "/placeholder.svg?height=48&width=48"}
+              alt={product.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          {/* Content Right */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-xs text-gray-900 line-clamp-1 mb-1">
+                  {product.name}
+                </h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="outline" className="text-xs px-1 py-0">
+                    {product.category}
+                  </Badge>
+                  {product.sku && (
+                    <span className="text-xs text-gray-500">{product.sku}</span>
+                  )}
+                </div>
+                <p className="text-sm font-semibold text-gray-900">
+                  AED {product.price}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdd();
+                }}
+              >
+                <Plus className="w-3 h-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Ultra Compact Cart Item
+interface CartItemCardProps {
+  item: SalesOrderItemDto;
+  onUpdateQuantity: (qty: number) => void;
+  onRemove: () => void;
+}
+
+function CartItemCard({ item, onUpdateQuantity, onRemove }: CartItemCardProps) {
+  return (
+    <div className="p-2 border border-gray-200 rounded bg-white">
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-xs text-gray-900 line-clamp-1">
+            {item.description}
+          </h3>
+          <div className="flex items-center gap-1">
+            {/* <Badge variant="outline" className="text-xs px-1 py-0">
+              {item.category}
+            </Badge> */}
+            {item.sku && (
+              <span className="text-xs text-gray-500">{item.sku}</span>
+            )}
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-5 h-5 p-0 text-gray-400 hover:text-red-500"
+          onClick={onRemove}
+        >
+          <X className="w-3 h-3" />
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-5 h-5 p-0"
+            onClick={() => onUpdateQuantity(item.qty - 1)}
+            disabled={item.qty <= 1}
+          >
+            <Minus className="w-3 h-3" />
+          </Button>
+          <span className="w-6 text-center text-xs font-medium">
+            {item.qty}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-5 h-5 p-0"
+            onClick={() => onUpdateQuantity(item.qty + 1)}
+          >
+            <Plus className="w-3 h-3" />
+          </Button>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-semibold text-gray-900">
+            AED {Number.parseFloat(item.total).toFixed(2)}
+          </p>
+          <p className="text-xs text-gray-500">AED {item.price} each</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function POSTerminalPage() {
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
-  const [selectedSalesperson, setSelectedSalesperson] = useState<string | null>(
-    null
-  );
-  const [selectedTailor, setSelectedTailor] = useState<string | null>(null);
   const [applyTax, setApplyTax] = useState(true);
-  const [discountPercent, setDiscountPercent] = useState(0);
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [discountType, setDiscountType] = useState<"percent" | "amount">(
-    "percent"
-  );
-  const [paymentMethod, setPaymentMethod] = useState<
-    "cash" | "card" | "mobile"
-  >("cash");
-  const [notes, setNotes] = useState("");
-  const [isRushOrder, setIsRushOrder] = useState(false);
-  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
-  const [couponCode, setCouponCode] = useState("");
+
+  const form = useForm<CreateSalesOrderDto>({
+    resolver: zodResolver(CreateSalesOrderSchema),
+    defaultValues: {
+      status: "draft",
+      customerId: 0,
+      customerName: "",
+      salesPersonId: 0,
+      salesPersonName: "",
+      subtotal: "0.00",
+      taxAmount: "0.00",
+      discountAmount: "0.00",
+      totalAmount: "0.00",
+      paymentMethod: "cash",
+      paymentStatus: "no-payment",
+      notes: "",
+      priority: "medium",
+      paymentTerms: "immediate",
+      dueDate: undefined,
+      deliveryDate: undefined,
+      completedDate: undefined,
+      items: [],
+    },
+  });
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = form;
+
+  const formData = watch();
+  const cart = formData.items || [];
+  const customerId = formData.customerId;
+  const customerName = formData.customerName;
+  const salesPersonId = formData.salesPersonId;
+  const salesPersonName = formData.salesPersonName;
+  const paymentMethod = formData.paymentMethod;
+  const paymentStatus = formData.paymentStatus;
+  const notes = formData.notes;
+  const priority = formData.priority;
+  const paymentTerms = formData.paymentTerms;
+  const dueDate = formData.dueDate;
+  const deliveryDate = formData.deliveryDate;
+  const discountAmount = Number.parseFloat(formData.discountAmount) || 0;
+  const status = formData.status;
 
   const subtotal = cart.reduce(
-    (total, item) => total + item.price * item.quantity,
+    (total, item) => total + Number.parseFloat(item.total),
     0
   );
-  const manualDiscount =
-    discountType === "percent"
-      ? (subtotal * discountPercent) / 100
-      : discountAmount;
-  const couponDiscount = appliedCoupon
-    ? appliedCoupon.type === "percentage"
-      ? (subtotal * appliedCoupon.value) / 100
-      : Math.min(appliedCoupon.value, subtotal)
-    : 0;
-  const totalDiscount = manualDiscount + couponDiscount;
-  const afterDiscount = subtotal - totalDiscount;
-  const vat = applyTax ? afterDiscount * 0.05 : 0;
-  const total = afterDiscount + vat;
+  const taxAmount = applyTax ? subtotal * 0.05 : 0;
+  const totalAmount = subtotal - discountAmount + taxAmount;
 
-  const updateQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
+  // Update form values when calculations change
+  useEffect(() => {
+    setValue("subtotal", subtotal.toFixed(2));
+    setValue("taxAmount", taxAmount.toFixed(2));
+    setValue("totalAmount", totalAmount.toFixed(2));
+  }, [subtotal, taxAmount, totalAmount, setValue]);
 
-    setCart(
-      cart.map((item) =>
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
-    );
+  const updateQuantity = (index: number, newQty: number) => {
+    if (newQty < 1) return;
+    const currentItems = [...cart];
+    currentItems[index].qty = newQty;
+    currentItems[index].total = (
+      Number.parseFloat(currentItems[index].price) * newQty
+    ).toFixed(2);
+    setValue("items", currentItems);
   };
 
-  const removeItem = (id: string) => {
-    setCart(cart.filter((item) => item.id !== id));
+  const removeItem = (index: number) => {
+    const currentItems = cart.filter((_, i) => i !== index);
+    setValue("items", currentItems);
   };
 
-  const addItemToCart = (item: Omit<CartItem, "id" | "quantity">) => {
-    const existingItemIndex = cart.findIndex(
-      (cartItem) => cartItem.name === item.name
+  const addItemToCart = (product: any) => {
+    const currentItems = [...cart];
+    const existingItemIndex = currentItems.findIndex(
+      (cartItem) => cartItem.catelogId === product.id
     );
 
     if (existingItemIndex > -1) {
-      const newCart = [...cart];
-      newCart[existingItemIndex].quantity += 1;
-      setCart(newCart);
+      currentItems[existingItemIndex].qty += 1;
+      currentItems[existingItemIndex].total = (
+        Number.parseFloat(currentItems[existingItemIndex].price) *
+        currentItems[existingItemIndex].qty
+      ).toFixed(2);
     } else {
-      setCart([
-        ...cart,
-        {
-          id: `item${Date.now()}`,
-          ...item,
-          quantity: 1,
-        },
-      ]);
+      const newItem: SalesOrderItemDto = {
+        description: product.name,
+        catelogId: product.id,
+        sku: product.sku,
+        qty: 1,
+        price: product.price.toString(),
+        total: product.price.toString(),
+      };
+      currentItems.push(newItem);
     }
+    setValue("items", currentItems);
   };
 
   const clearCart = () => {
-    setCart([]);
-    setSelectedCustomer(null);
-    setSelectedSalesperson(null);
-    setSelectedTailor(null);
-    setDiscountPercent(0);
-    setDiscountAmount(0);
-    setNotes("");
-    setIsRushOrder(false);
+    form.reset();
     setApplyTax(true);
-    setAppliedCoupon(null);
-    setCouponCode("");
   };
 
-  const customers: Customer[] = [
-    {
-      id: "cust1",
-      name: "Fatima Mohammed",
-      image: "/frequency-modulation-spectrum.png",
-      phone: "+971 50 123 4567",
-      email: "fatima.m@example.com",
-      loyaltyTier: "gold",
-    },
-    {
-      id: "cust2",
-      name: "Ahmed Al Mansouri",
-      image: "/abstract-am.png",
-      phone: "+971 55 987 6543",
-      email: "ahmed.m@example.com",
-      loyaltyTier: "silver",
-    },
-    {
-      id: "cust3",
-      name: "Layla Khan",
-      image: "/abstract-geometric-lk.png",
-      phone: "+971 52 456 7890",
-      email: "layla.k@example.com",
-      loyaltyTier: "standard",
-    },
-    {
-      id: "cust4",
-      name: "Hassan Al Farsi",
-      image: "/ha-characters.png",
-      phone: "+971 54 321 0987",
-      email: "hassan.f@example.com",
-      loyaltyTier: "platinum",
-    },
-    {
-      id: "cust5",
-      name: "Sara Al Ameri",
-      image: "/abstract-geometric-sa.png",
-      phone: "+971 56 789 0123",
-      email: "sara.a@example.com",
-      loyaltyTier: "gold",
-    },
-  ];
+  const onSubmit = async (data: CreateSalesOrderDto) => {
+    try {
+      console.log(data);
+      const response = await fetch("http://localhost:5005/api/v1/sales", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        crendentials: "include",
+        body: JSON.stringify(data),
+      });
 
-  const staff = [
-    {
-      id: "staff1",
-      name: "Mohammed Ali",
-      role: "Salesperson",
-      image: "/stylized-letter-ma.png",
-    },
-    {
-      id: "staff2",
-      name: "Aisha Mahmood",
-      role: "Salesperson",
-      image: "/abstract-am.png",
-    },
-    {
-      id: "staff3",
-      name: "Khalid Rahman",
-      role: "Tailor",
-      image: "/placeholder.svg?key=fnyb2",
-    },
-    {
-      id: "staff4",
-      name: "Fatima Zahra",
-      role: "Tailor",
-      image: "/abstract-fz.png",
-    },
-    {
-      id: "staff5",
-      name: "Yusuf Qasim",
-      role: "Tailor",
-      image: "/placeholder.svg?key=x4rnd",
-    },
-  ];
+      const result = await response.json();
 
-  const coupons: Coupon[] = [
-    {
-      id: "CPL-001",
-      code: "WELCOME10",
-      type: "percentage",
-      value: 10,
-      description: "10% off for new customers",
-    },
-    {
-      id: "CPL-002",
-      code: "SUMMER50",
-      type: "fixed",
-      value: 50,
-      description: "AED 50 off on purchases above AED 500",
-    },
-    {
-      id: "CPL-003",
-      code: "RAMADAN20",
-      type: "percentage",
-      value: 20,
-      description: "20% off during Ramadan",
-    },
-  ];
+      if (!response.ok) {
+        throw new Error(result.message ?? "Failed to create sales order!");
+      }
 
-  const applyCoupon = () => {
-    const coupon = coupons.find((c) => c.code === couponCode);
-    if (coupon) {
-      setAppliedCoupon(coupon);
-      setCouponCode("");
+      console.log("Order created successfully:", result);
+
+      // Reset form after successful submission
+      form.reset();
+      setApplyTax(true);
+
+      // Show success message (you can add a toast notification here)
+      toast.success(result.message);
+    } catch (error: any) {
+      console.error("Error creating order:", error);
+      toast.error(error.message);
     }
   };
 
-  const removeCoupon = () => {
-    setAppliedCoupon(null);
-  };
-
-  const salespeople = staff.filter((s) => s.role === "Salesperson");
-  const tailors = staff.filter((s) => s.role === "Tailor");
-
-  const products: {
-    category: string;
-    items: {
-      name: string;
-      price: number;
-      type: "ready-made" | "custom" | "alteration" | "fabric" | "service";
-      image: string;
-    }[];
-  }[] = [
+  // Mock data
+  const customers: Customer[] = [
     {
-      category: "Ready-made",
+      id: 1,
+      name: "Fatima Mohammed",
+      phone: "+971 50 123 4567",
+      email: "fatima.m@example.com",
+      loyaltyTier: "gold",
+      address: "Dubai Marina, UAE",
+    },
+    {
+      id: 2,
+      name: "Ahmed Al Mansouri",
+      phone: "+971 55 987 6543",
+      email: "ahmed.m@example.com",
+      loyaltyTier: "silver",
+      address: "Business Bay, Dubai",
+    },
+    {
+      id: 3,
+      name: "Layla Khan",
+      phone: "+971 52 456 7890",
+      email: "layla.k@example.com",
+      loyaltyTier: "standard",
+      address: "Jumeirah, Dubai",
+    },
+  ];
+
+  const { data: staff = [], isLoading: staffLoading } = useQuery({
+    queryFn: ["staffs"],
+    queryFn: async () => {
+      const response = await fetch(
+        "http://localhost:5005/api/v1/list/sales-person",
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          crendentials: "include",
+        }
+      );
+      const json = await response.json();
+      if (!response.ok) {
+        toast.error("Failed to fetch sales person list");
+      }
+      return json;
+    },
+  });
+
+  const products = [
+    {
+      category: "Men",
       items: [
         {
-          name: "Kandura (Premium)",
+          id: 1,
+          name: "Premium Kandura",
           price: 450,
-          type: "ready-made",
-          image: "/placeholder.svg?key=ng1v2",
+          sku: "KAN-001",
+          image: "/placeholder.svg?height=50&width=50&text=KAN",
         },
         {
-          name: "Kandura (Standard)",
+          id: 2,
+          name: "Standard Kandura",
           price: 350,
-          type: "ready-made",
-          image: "/placeholder.svg?key=ng1v2",
+          sku: "KAN-002",
+          image: "/placeholder.svg?height=50&width=50&text=KAN",
         },
         {
-          name: "Abaya (Premium)",
-          price: 550,
-          type: "ready-made",
-          image: "/placeholder.svg?key=zgibz",
+          id: 3,
+          name: "Formal Thobe",
+          price: 520,
+          sku: "THB-001",
+          image: "/placeholder.svg?height=50&width=50&text=THB",
         },
         {
-          name: "Abaya (Standard)",
-          price: 350,
-          type: "ready-made",
-          image: "/placeholder.svg?key=zgibz",
-        },
-        {
-          name: "Scarf (Silk)",
-          price: 120,
-          type: "ready-made",
-          image: "/cozy-knit-scarf.png",
-        },
-        {
-          name: "Scarf (Cotton)",
-          price: 80,
-          type: "ready-made",
-          image: "/cozy-knit-scarf.png",
+          id: 4,
+          name: "Casual Kandura",
+          price: 280,
+          sku: "KAN-003",
+          image: "/placeholder.svg?height=50&width=50&text=KAN",
         },
       ],
     },
     {
-      category: "Custom",
+      category: "Women",
       items: [
         {
-          name: "Custom Kandura (Premium)",
-          price: 650,
-          type: "custom",
-          image: "/placeholder.svg?key=du4p4",
-        },
-        {
-          name: "Custom Kandura (Standard)",
+          id: 5,
+          name: "Premium Abaya",
           price: 550,
-          type: "custom",
-          image: "/placeholder.svg?key=du4p4",
+          sku: "ABY-001",
+          image: "/placeholder.svg?height=50&width=50&text=ABY",
         },
         {
-          name: "Custom Abaya (Premium)",
+          id: 6,
+          name: "Standard Abaya",
+          price: 350,
+          sku: "ABY-002",
+          image: "/placeholder.svg?height=50&width=50&text=ABY",
+        },
+        {
+          id: 7,
+          name: "Designer Abaya",
           price: 750,
-          type: "custom",
-          image: "/placeholder.svg?key=d4uur",
+          sku: "ABY-003",
+          image: "/placeholder.svg?height=50&width=50&text=ABY",
         },
         {
-          name: "Custom Abaya (Standard)",
-          price: 550,
-          type: "custom",
-          image: "/placeholder.svg?key=5b7xm",
+          id: 8,
+          name: "Casual Abaya",
+          price: 280,
+          sku: "ABY-004",
+          image: "/placeholder.svg?height=50&width=50&text=ABY",
         },
       ],
     },
     {
-      category: "Services",
+      category: "Junior",
       items: [
         {
-          name: "Alteration - Kandura",
-          price: 100,
-          type: "alteration",
-          image: "/placeholder.svg?key=2yv7k",
+          id: 9,
+          name: "Kids Kandura",
+          price: 180,
+          sku: "JKN-001",
+          image: "/placeholder.svg?height=50&width=50&text=JKN",
         },
         {
-          name: "Alteration - Abaya",
+          id: 10,
+          name: "Kids Abaya",
+          price: 200,
+          sku: "JAB-001",
+          image: "/placeholder.svg?height=50&width=50&text=JAB",
+        },
+        {
+          id: 11,
+          name: "Teen Thobe",
+          price: 250,
+          sku: "JTH-001",
+          image: "/placeholder.svg?height=50&width=50&text=JTH",
+        },
+      ],
+    },
+    {
+      category: "Accessories",
+      items: [
+        {
+          id: 12,
+          name: "Silk Scarf",
           price: 120,
-          type: "alteration",
-          image: "/placeholder.svg?key=tk7du",
+          sku: "SCF-001",
+          image: "/placeholder.svg?height=50&width=50&text=SCF",
         },
         {
-          name: "Embroidery Service",
-          price: 150,
-          type: "service",
-          image: "/placeholder.svg?key=7rxn2",
+          id: 13,
+          name: "Prayer Beads",
+          price: 85,
+          sku: "PBD-001",
+          image: "/placeholder.svg?height=50&width=50&text=PBD",
         },
         {
-          name: "Express Service Fee",
-          price: 50,
-          type: "service",
-          image: "/placeholder.svg?key=d3k03",
+          id: 14,
+          name: "Traditional Belt",
+          price: 95,
+          sku: "BLT-001",
+          image: "/placeholder.svg?height=50&width=50&text=BLT",
         },
       ],
     },
@@ -394,705 +564,646 @@ export default function POSTerminalPage() {
       category: "Fabrics",
       items: [
         {
-          name: "White Linen (per meter)",
-          price: 60,
-          type: "fabric",
-          image: "/placeholder.svg?key=6k1n3",
-        },
-        {
-          name: "Black Cotton (per meter)",
+          id: 15,
+          name: "Premium Cotton",
           price: 45,
-          type: "fabric",
-          image: "/placeholder.svg?key=xezuv",
+          sku: "CTN-001",
+          image: "/placeholder.svg?height=50&width=50&text=CTN",
         },
         {
-          name: "Premium Silk (per meter)",
-          price: 120,
-          type: "fabric",
-          image: "/placeholder.svg?key=8toom",
+          id: 16,
+          name: "Silk Fabric",
+          price: 85,
+          sku: "SLK-001",
+          image: "/placeholder.svg?height=50&width=50&text=SLK",
         },
         {
-          name: "Wool Blend (per meter)",
-          price: 80,
-          type: "fabric",
-          image: "/placeholder.svg?key=s4aoc",
+          id: 17,
+          name: "Linen Blend",
+          price: 55,
+          sku: "LNN-001",
+          image: "/placeholder.svg?height=50&width=50&text=LNN",
+        },
+      ],
+    },
+    {
+      category: "Services",
+      items: [
+        {
+          id: 18,
+          name: "Alteration Service",
+          price: 100,
+          sku: "ALT-001",
+          image: "/placeholder.svg?height=50&width=50&text=ALT",
+        },
+        {
+          id: 19,
+          name: "Embroidery Service",
+          price: 150,
+          sku: "EMB-001",
+          image: "/placeholder.svg?height=50&width=50&text=EMB",
+        },
+        {
+          id: 20,
+          name: "Express Service",
+          price: 50,
+          sku: "EXP-001",
+          image: "/placeholder.svg?height=50&width=50&text=EXP",
+        },
+        {
+          id: 21,
+          name: "Custom Fitting",
+          price: 200,
+          sku: "FIT-001",
+          image: "/placeholder.svg?height=50&width=50&text=FIT",
         },
       ],
     },
   ];
 
-  const selectedCustomerData = selectedCustomer
-    ? customers.find((c) => c.id === selectedCustomer)
+  const selectedCustomer = customerId
+    ? customers.find((c) => c.id === customerId)
+    : null;
+  const selectedStaff = salesPersonId
+    ? staff.find((s) => s.id === salesPersonId)
     : null;
 
-  const [selectedPriority, setSelectedPriority] = useState("Low");
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "low":
+        return "bg-green-100 text-green-800 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "pending":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "draft":
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">POS Terminal</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Save className="mr-2 h-4 w-4" />
-            Save
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Compact Professional Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-b shadow-sm">
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">
+              POS Terminal
+            </h1>
+            <p className="text-xs text-gray-500">Create sales order</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className={getPriorityColor(priority)}>
+              {priority} priority
+            </Badge>
+            <Badge className={getStatusColor(status)}>{status}</Badge>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8 px-3 text-xs">
+            <Save className="w-3 h-3 mr-1" />
+            Save Draft
           </Button>
-          <Button variant="outline" size="sm">
-            <Clock className="mr-2 h-4 w-4" />
-            Pending
+          <Button variant="outline" size="sm" className="h-8 px-3 text-xs">
+            <Clock className="w-3 h-3 mr-1" />
+            Hold Order
           </Button>
-          <Button size="sm" asChild>
-            <Link href="/terminal">
-              <ShoppingBag className="mr-2 h-4 w-4" />
-              New Sale
-            </Link>
+          <Button size="sm" className="h-8 px-3 text-xs">
+            <ShoppingBag className="w-3 h-3 mr-1" />
+            New Order
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
-        {/* Left side - Products & Customer */}
-        <div className="lg:col-span-2 h-full overflow-hidden flex flex-col">
-          <ScrollArea className="h-full pr-4">
-            <Card className="mb-4">
-              <CardHeader className="py-3 px-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">
-                    Products & Services
-                  </CardTitle>
-                  <div className="relative w-[250px]">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Search products..."
-                      className="pl-8 w-full h-8"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
+      <div className="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden">
+        {/* Left Panel - Products & Details */}
+        <div className="col-span-8 flex flex-col gap-3 overflow-hidden">
+          {/* Products Section - Full Height minus Order Details */}
+          <Card
+            className="overflow-y-auto"
+            style={{ height: "calc(100% - 200px)" }}
+          >
+            <CardHeader className="pb-2 border-b">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">
+                  Products & Services
+                </CardTitle>
+                <div className="relative w-80">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="Search products, SKU, or category..."
+                    className="pl-9 h-8 text-sm"
+                    value={""}
+                    onChange={(e) => {}}
+                  />
                 </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 pt-0">
-                <Tabs defaultValue="ready-made" className="w-full">
-                  <TabsList className="mb-3 w-full">
-                    {products.map((category) => (
-                      <TabsTrigger
-                        key={category.category}
-                        value={category.category
-                          .toLowerCase()
-                          .replace(/\s+/g, "-")}
-                        className="text-xs"
-                      >
-                        {category.category}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 flex-1 overflow-hidden">
+              <Tabs defaultValue="men" className="h-full flex flex-col">
+                <TabsList className="m-3 mb-0 w-fit">
                   {products.map((category) => (
-                    <TabsContent
+                    <TabsTrigger
                       key={category.category}
-                      value={category.category
-                        .toLowerCase()
-                        .replace(/\s+/g, "-")}
-                      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-0"
+                      value={category.category.toLowerCase()}
+                      className="text-xs px-3 py-1"
                     >
-                      {category.items.map((item, index) => (
-                        <ProductCard
-                          key={`${category.category}-${index}`}
-                          name={item.name}
-                          price={item.price}
-                          image={item.image}
-                          onAdd={() => addItemToCart(item)}
-                        />
-                      ))}
-                    </TabsContent>
+                      {category.category}
+                    </TabsTrigger>
                   ))}
-                </Tabs>
-              </CardContent>
-            </Card>
-          </ScrollArea>
-        </div>
+                </TabsList>
 
-        {/* Right side - Cart */}
-        <div className="h-full overflow-hidden flex flex-col">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="py-3 px-4 border-b">
-              <CardTitle className="text-sm font-medium flex items-center justify-between">
-                <span>Cart</span>
-                <Badge variant="outline" className="text-xs">
-                  {cart.length} {cart.length === 1 ? "item" : "items"}
-                </Badge>
+                {products.map((category) => (
+                  <TabsContent
+                    key={category.category}
+                    value={category.category.toLowerCase()}
+                    className="flex-1 overflow-hidden m-0 h-full"
+                  >
+                    <ScrollArea className="h-full">
+                      <div className="p-3 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
+                        {category.items
+                          .filter(
+                            (item) =>
+                              "" === "" ||
+                              item.name
+                                .toLowerCase()
+                                .includes("".toLowerCase()) ||
+                              item.sku
+                                ?.toLowerCase()
+                                .includes("".toLowerCase()) ||
+                              category.category
+                                .toLowerCase()
+                                .includes("".toLowerCase())
+                          )
+                          .map((item) => (
+                            <ProductCard
+                              key={item.id}
+                              product={{ ...item, category: category.category }}
+                              onAdd={() =>
+                                addItemToCart({
+                                  ...item,
+                                  category: category.category,
+                                })
+                              }
+                            />
+                          ))}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Order Details - Fixed Height */}
+          <Card className="flex-shrink-0 h-48">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">
+                Order Details
               </CardTitle>
             </CardHeader>
-            <ScrollArea className="flex-grow px-4 py-2">
-              {cart.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <ShoppingBag className="mx-auto h-10 w-10 text-muted-foreground/50" />
-                  <p className="mt-2 text-sm">Your cart is empty</p>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-4 gap-3 mb-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-700">
+                    Customer *
+                  </Label>
+                  <Select
+                    value={customerId?.toString() || ""}
+                    onValueChange={(value) => {
+                      const id = Number.parseInt(value);
+                      setValue("customerId", id);
+                      const customer = customers.find((c) => c.id === id);
+                      setValue("customerName", customer?.name || "");
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem
+                          key={customer.id}
+                          value={customer.id.toString()}
+                        >
+                          <div className="flex items-center gap-2">
+                            <User className="w-3 h-3" />
+                            <span>{customer.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {cart.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-start justify-between border-b pb-2"
-                    >
-                      <div className="flex-1">
-                        <div className="flex justify-between">
-                          <div className="font-medium text-sm">{item.name}</div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 -mt-1 -mr-1"
-                            onClick={() => removeItem(item.id)}
-                          >
-                            <X className="h-3 w-3 text-muted-foreground" />
-                            <span className="sr-only">Remove</span>
-                          </Button>
-                        </div>
-                        <div className="flex items-center justify-between mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            {item.type === "ready-made" && "Ready-made"}
-                            {item.type === "custom" && "Custom"}
-                            {item.type === "alteration" && "Alteration"}
-                            {item.type === "fabric" && "Fabric"}
-                            {item.type === "service" && "Service"}
-                          </Badge>
-                          <div className="flex items-center">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-5 w-5 rounded-full"
-                              onClick={() =>
-                                updateQuantity(item.id, item.quantity - 1)
-                              }
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-700">
+                    Salesperson *
+                  </Label>
+                  <Select
+                    value={salesPersonId?.toString() || ""}
+                    onValueChange={(value) => {
+                      const id = Number.parseInt(value);
+                      setValue("salesPersonId", id);
+                      const person = staff.find((s) => s.id === id);
+                      setValue("salesPersonName", person?.name || "");
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select salesperson">
+                        {salesPersonId
+                          ? staff.find((s) => s.id === salesPersonId)?.name
+                          : "Select salesperson"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {staff.length === 0
+                        ? "No sales person found"
+                        : staff.map((person) => (
+                            <SelectItem
+                              key={person.id}
+                              value={person.id.toString()}
                             >
-                              <Minus className="h-2.5 w-2.5" />
-                              <span className="sr-only">Decrease</span>
-                            </Button>
-                            <span className="w-6 text-center text-sm">
-                              {item.quantity}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-5 w-5 rounded-full"
-                              onClick={() =>
-                                updateQuantity(item.id, item.quantity + 1)
-                              }
-                            >
-                              <Plus className="h-2.5 w-2.5" />
-                              <span className="sr-only">Increase</span>
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right ml-2 text-sm font-medium">
-                        AED {(item.price * item.quantity).toFixed(2)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {cart.length > 0 && (
-                <div className="mt-4 space-y-3">
-                  <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="discounts" className="border-b-0">
-                      <AccordionTrigger className="py-2 text-xs font-medium">
-                        <div className="flex items-center">
-                          <Percent className="mr-2 h-3.5 w-3.5" />
-                          Discounts & Coupons
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-3 pt-1">
-                          <div className="space-y-2">
-                            <Label htmlFor="discount-type" className="text-xs">
-                              Manual Discount
-                            </Label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <Select
-                                value={discountType}
-                                onValueChange={(value: "percent" | "amount") =>
-                                  setDiscountType(value)
-                                }
-                              >
-                                <SelectTrigger
-                                  id="discount-type"
-                                  className="h-8"
-                                >
-                                  <SelectValue placeholder="Discount Type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="percent">
-                                    Percentage (%)
-                                  </SelectItem>
-                                  <SelectItem value="amount">
-                                    Fixed Amount (AED)
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-
-                              {discountType === "percent" ? (
-                                <div className="flex items-center">
-                                  <Input
-                                    type="number"
-                                    placeholder="0"
-                                    value={discountPercent || ""}
-                                    onChange={(e) =>
-                                      setDiscountPercent(Number(e.target.value))
-                                    }
-                                    min={0}
-                                    max={100}
-                                    className="h-8"
-                                  />
-                                  <span className="ml-2 text-xs">%</span>
-                                </div>
-                              ) : (
-                                <Input
-                                  type="number"
-                                  placeholder="0.00"
-                                  value={discountAmount || ""}
-                                  onChange={(e) =>
-                                    setDiscountAmount(Number(e.target.value))
-                                  }
-                                  min={0}
-                                  max={subtotal}
-                                  className="h-8"
-                                />
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="coupon-code" className="text-xs">
-                              Apply Coupon
-                            </Label>
-                            <div className="flex space-x-2">
-                              <Input
-                                id="coupon-code"
-                                placeholder="Enter coupon code"
-                                value={couponCode}
-                                onChange={(e) => setCouponCode(e.target.value)}
-                                className="h-8"
-                              />
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 whitespace-nowrap"
-                                onClick={applyCoupon}
-                                disabled={!couponCode}
-                              >
-                                <Ticket className="mr-1 h-3 w-3" />
-                                Apply
-                              </Button>
-                            </div>
-                          </div>
-
-                          {appliedCoupon && (
-                            <div className="flex items-center justify-between bg-muted/50 p-2 rounded-md">
-                              <div>
-                                <div className="text-xs font-medium flex items-center">
-                                  <Ticket className="mr-1 h-3 w-3" />
-                                  {appliedCoupon.code}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {appliedCoupon.description}
+                              <div className="flex items-center gap-2">
+                                <User className="w-3 h-3" />
+                                <div>
+                                  <div className="font-medium">
+                                    {person.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {person.phone}
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex items-center">
-                                <div className="text-xs font-medium mr-2">
-                                  -{" "}
-                                  {appliedCoupon.type === "percentage"
-                                    ? `${appliedCoupon.value}%`
-                                    : `AED ${appliedCoupon.value}`}
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-5 w-5"
-                                  onClick={removeCoupon}
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          )}
+                            </SelectItem>
+                          ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-700">
+                    Priority
+                  </Label>
+                  <Select
+                    value={priority}
+                    onValueChange={(value: "low" | "medium" | "high") =>
+                      setValue("priority", value)
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          Low Priority
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>AED {subtotal.toFixed(2)}</span>
-                    </div>
-
-                    {manualDiscount > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">
-                          Manual Discount
-                        </span>
-                        <span className="text-red-500">
-                          - AED {manualDiscount.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-
-                    {couponDiscount > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">
-                          Coupon Discount
-                        </span>
-                        <span className="text-red-500">
-                          - AED {couponDiscount.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">VAT (5%)</span>
-                        <div className="flex items-center space-x-1">
-                          <Switch
-                            id="apply-tax"
-                            checked={applyTax}
-                            onCheckedChange={setApplyTax}
-                            className="scale-75"
-                          />
+                      </SelectItem>
+                      <SelectItem value="medium">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                          Medium Priority
                         </div>
-                      </div>
-                      <span>AED {vat.toFixed(2)}</span>
-                    </div>
+                      </SelectItem>
+                      <SelectItem value="high">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          High Priority
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                    <Separator />
-                    <div className="flex items-center justify-between font-medium">
-                      <span>Total</span>
-                      <span>AED {total.toFixed(2)}</span>
-                    </div>
-                  </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-700">
+                    Status
+                  </Label>
+                  <Select
+                    value={status}
+                    onValueChange={(value: "draft" | "pending" | "confirmed") =>
+                      setValue("status", value)
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-                  <div className="pt-2">
-                    <label className="text-xs font-medium mb-1 block">
-                      Order Notes
-                    </label>
+              <div className="grid grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-700">
+                    Payment Terms
+                  </Label>
+                  <Select
+                    value={paymentTerms}
+                    onValueChange={(value) => setValue("paymentTerms", value)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="immediate">Immediate</SelectItem>
+                      <SelectItem value="net-7">Net 7 days</SelectItem>
+                      <SelectItem value="net-15">Net 15 days</SelectItem>
+                      <SelectItem value="net-30">Net 30 days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-700">
+                    Due Date *
+                  </Label>
+                  <div className="relative">
                     <Input
-                      placeholder="Add notes about this order..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
+                      type="date"
+                      {...register("dueDate", { valueAsDate: true })}
                       className="h-8 text-xs"
                     />
+                    <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
                   </div>
                 </div>
-              )}
-                <div className="flex flex-col gap-4 mt-4">
-                  <div>
-                    <label className="text-xs font-medium mb-1 block">
-                      Customer
-                    </label>
-                    <div className="grid grid-cols-1 gap-2">
-                      <Select
-                        value={selectedCustomer || ""}
-                        onValueChange={setSelectedCustomer}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage
-                                    src={customer.image || "/placeholder.svg"}
-                                    alt={customer.name}
-                                  />
-                                  <AvatarFallback>
-                                    {customer.name.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                {customer.name}
-                                {customer.loyaltyTier &&
-                                  customer.loyaltyTier !== "standard" && (
-                                    <Badge
-                                      variant="outline"
-                                      className="ml-1 text-xs capitalize"
-                                    >
-                                      {customer.loyaltyTier}
-                                    </Badge>
-                                  )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button variant="outline" size="sm" className="h-8">
-                        <User className="mr-2 h-3 w-3" />
-                        <span className="text-xs">Add New Customer</span>
-                      </Button>
-                    </div>
-                  </div>
 
-                  <div>
-                    <label className="text-xs font-medium mb-1 block">
-                      Salesperson
-                    </label>
-                    <Select
-                      value={selectedSalesperson || ""}
-                      onValueChange={setSelectedSalesperson}
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue placeholder="Select salesperson" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {salespeople.map((person) => (
-                          <SelectItem key={person.id} value={person.id}>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-5 w-5">
-                                <AvatarImage
-                                  src={person.image || "/placeholder.svg"}
-                                  alt={person.name}
-                                />
-                                <AvatarFallback>
-                                  {person.name.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              {person.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-700">
+                    Delivery Date
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="date"
+                      {...register("deliveryDate", { valueAsDate: true })}
+                      className="h-8 text-xs"
+                    />
+                    <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
                   </div>
+                </div>
 
-                  {cart.some(
-                    (item) =>
-                      item.type === "custom" || item.type === "alteration"
-                  ) && (
-                    <div>
-                      <label className="text-xs font-medium mb-1 block">
-                        Assign Tailor
-                      </label>
-                      <Select
-                        value={selectedTailor || ""}
-                        onValueChange={setSelectedTailor}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Select tailor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tailors.map((tailor) => (
-                            <SelectItem key={tailor.id} value={tailor.id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage
-                                    src={tailor.image || "/placeholder.svg"}
-                                    alt={tailor.name}
-                                  />
-                                  <AvatarFallback>
-                                    {tailor.name.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                {tailor.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-700">
+                    Payment Status
+                  </Label>
+                  <Select
+                    value={paymentStatus}
+                    onValueChange={(value: "no-payment" | "partial" | "paid") =>
+                      setValue("paymentStatus", value)
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no-payment">No Payment</SelectItem>
+                      <SelectItem value="partial">Partial Payment</SelectItem>
+                      <SelectItem value="paid">Fully Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Customer & Staff Info */}
+              {(selectedCustomer || selectedStaff) && (
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  {selectedCustomer && (
+                    <div className="p-2 bg-blue-50 rounded border border-blue-200">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-blue-900">
+                          Customer Info
+                        </span>
+                        {selectedCustomer.loyaltyTier !== "standard" && (
+                          <Badge className="text-xs bg-blue-100 text-blue-800 border-blue-300">
+                            {selectedCustomer.loyaltyTier}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="space-y-1 text-xs text-blue-800">
+                        <div>📞 {selectedCustomer.phone}</div>
+                        <div>✉️ {selectedCustomer.email}</div>
+                        {selectedCustomer.address && (
+                          <div>📍 {selectedCustomer.address}</div>
+                        )}
+                      </div>
                     </div>
                   )}
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-nowrap mr-4 font-medium  block">
-                      Order priority
-                    </label>
-                    <div className="flex gap-1.5">
-                      {priorities.map((priority) => (
-                        <Button
-                          size={"sm"}
-                          key={priority}
-                          variant={
-                            selectedPriority === priority
-                              ? "default"
-                              : "outline"
-                          }
-                          className="text-xs font-medium"
-                          onClick={() => setSelectedPriority(priority)}
-                        >
-                          {priority}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-nowrap mr-4 font-medium  block">
-                      Shipping method (optional)
-                    </label>
-                    <div className="flex gap-1.5">
-                      <Select>
-                        <SelectTrigger className="w-full text-nowrap h-8">
-                          <SelectValue placeholder="Select a shipping method" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="standard">Standard</SelectItem>
-                          <SelectItem value="express">Express</SelectItem>
-                          <SelectItem value="customer pickup">
-                            Customer pickup
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-nowrap mr-4 font-medium  block">
-                      Payment terms
-                    </label>
-                    <div className="flex gap-1.5">
-                      <Select>
-                        <SelectTrigger id="paymentTerms" className="h-8" >
-                          <SelectValue placeholder="Select payment terms" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Net 30">Net 30</SelectItem>
-                          <SelectItem value="Net 15">Net 15</SelectItem>
-                          <SelectItem value="Net 7">Net 7</SelectItem>
-                          <SelectItem value="Due on Receipt">
-                            Due on Receipt
-                          </SelectItem>
-                          <SelectItem value="Advance Payment">
-                            Advance Payment
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {selectedCustomerData && (
-                  <div className="mt-3 bg-muted/40 rounded-md p-2">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-medium">
-                        Customer Details
+                  {selectedStaff && (
+                    <div className="p-2 bg-green-50 rounded border border-green-200">
+                      <span className="text-xs font-medium text-green-900">
+                        Salesperson Info
                       </span>
-                      {selectedCustomerData.loyaltyTier &&
-                        selectedCustomerData.loyaltyTier !== "standard" && (
-                          <Badge
-                            className={`text-xs ${
-                              selectedCustomerData.loyaltyTier === "silver"
-                                ? "bg-gray-200 text-gray-800"
-                                : selectedCustomerData.loyaltyTier === "gold"
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-purple-100 text-purple-800"
-                            }`}
-                          >
-                            {selectedCustomerData.loyaltyTier.toUpperCase()}{" "}
-                            MEMBER
-                          </Badge>
-                        )}
+                      <div className="space-y-1 text-xs text-green-800">
+                        <div>👤 {selectedStaff.role}</div>
+                        <div>🏢 {selectedStaff.department}</div>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-1 text-xs">
-                      <div>
-                        <span className="text-muted-foreground">Phone:</span>{" "}
-                        <span>{selectedCustomerData.phone}</span>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Panel - Compact Cart */}
+        <div className="col-span-4 flex flex-col overflow-hidden">
+          <Card className="h-full flex flex-col">
+            <CardHeader className="pb-2 border-b">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">
+                  Order Summary
+                </CardTitle>
+                <Badge variant="secondary" className="text-xs">
+                  {cart.length} item{cart.length !== 1 ? "s" : ""}
+                </Badge>
+              </div>
+            </CardHeader>
+
+            <ScrollArea className="flex-1">
+              <div className="p-3">
+                {cart.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 text-center">
+                    <ShoppingBag className="w-8 h-8 text-gray-300 mb-2" />
+                    <p className="text-xs text-gray-500 mb-1">Cart is empty</p>
+                    <p className="text-xs text-gray-400">
+                      Add products to start
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {cart.map((item, index) => (
+                      <CartItemCard
+                        key={index}
+                        item={item}
+                        onUpdateQuantity={(qty) => updateQuantity(index, qty)}
+                        onRemove={() => removeItem(index)}
+                      />
+                    ))}
+
+                    <Separator className="my-3" />
+
+                    {/* Compact Controls */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">Discount</Label>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={formData.discountAmount || ""}
+                          onChange={(e) =>
+                            setValue("discountAmount", e.target.value)
+                          }
+                          className="h-7 w-20 text-xs"
+                        />
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Email:</span>{" "}
-                        <span>{selectedCustomerData.email}</span>
+
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">
+                          Apply VAT (5%)
+                        </Label>
+                        <Switch
+                          checked={applyTax}
+                          onCheckedChange={setApplyTax}
+                        />
                       </div>
+                    </div>
+
+                    {/* Professional Totals */}
+                    <div className="space-y-1 p-2 bg-gray-50 rounded border">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">Subtotal</span>
+                        <span className="font-medium">
+                          AED {subtotal.toFixed(2)}
+                        </span>
+                      </div>
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-600">Discount</span>
+                          <span className="font-medium text-red-600">
+                            - AED {discountAmount.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">VAT (5%)</span>
+                        <span className="font-medium">
+                          AED {taxAmount.toFixed(2)}
+                        </span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between text-sm font-semibold">
+                        <span>Total</span>
+                        <span>AED {totalAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Order Notes</Label>
+                      <Textarea
+                        placeholder="Special instructions..."
+                        value={notes}
+                        onChange={(e) => setValue("notes", e.target.value)}
+                        className="h-12 resize-none text-xs"
+                      />
                     </div>
                   </div>
                 )}
-            </ScrollArea>
-            <CardFooter className="flex flex-col gap-3 p-4 border-t mt-auto">
-              <div className="grid grid-cols-3 gap-2 w-full">
-                <Button
-                  variant={paymentMethod === "card" ? "default" : "outline"}
-                  className="w-full h-9"
-                  onClick={() => setPaymentMethod("card")}
-                >
-                  <CreditCard className="mr-2 h-3.5 w-3.5" />
-                  <span className="text-xs">Card</span>
-                </Button>
-                <Button
-                  variant={paymentMethod === "cash" ? "default" : "outline"}
-                  className="w-full h-9"
-                  onClick={() => setPaymentMethod("cash")}
-                >
-                  <Banknote className="mr-2 h-3.5 w-3.5" />
-                  <span className="text-xs">Cash</span>
-                </Button>
-                <Button
-                  variant={paymentMethod === "mobile" ? "default" : "outline"}
-                  className="w-full h-9"
-                  onClick={() => setPaymentMethod("mobile")}
-                >
-                  <Smartphone className="mr-2 h-3.5 w-3.5" />
-                  <span className="text-xs">Mobile</span>
-                </Button>
               </div>
+            </ScrollArea>
+
+            <CardFooter className="flex flex-col gap-2 border-t bg-gray-50/50 p-3">
+              {/* Payment Method */}
+              <div className="w-full space-y-1">
+                <Label className="text-xs font-medium">Payment Method</Label>
+                <div className="grid grid-cols-3 gap-1">
+                  <Button
+                    variant={paymentMethod === "card" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setValue("paymentMethod", "card")}
+                    className="h-7 text-xs"
+                  >
+                    <CreditCard className="w-3 h-3 mr-1" />
+                    Card
+                  </Button>
+                  <Button
+                    variant={paymentMethod === "cash" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setValue("paymentMethod", "cash")}
+                    className="h-7 text-xs"
+                  >
+                    <Banknote className="w-3 h-3 mr-1" />
+                    Cash
+                  </Button>
+                  <Button
+                    variant={paymentMethod === "mobile" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setValue("paymentMethod", "mobile")}
+                    className="h-7 text-xs"
+                  >
+                    <Smartphone className="w-3 h-3 mr-1" />
+                    Mobile
+                  </Button>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-2 w-full">
                 <Button
                   variant="outline"
-                  className="w-full h-9"
                   onClick={clearCart}
+                  className="h-7 text-xs"
                 >
-                  <span className="text-xs">Clear</span>
+                  Clear Cart
                 </Button>
-                <Button className="w-full h-9" disabled={cart.length === 0}>
-                  <span className="text-xs">Complete Sale</span>
+                <Button
+                  disabled={
+                    cart.length === 0 ||
+                    !customerId ||
+                    !salesPersonId ||
+                    isSubmitting
+                  }
+                  className="h-7 text-xs"
+                  onClick={handleSubmit(onSubmit)}
+                >
+                  {isSubmitting ? "Creating..." : "Create Order"}
                 </Button>
               </div>
+
               <div className="grid grid-cols-2 gap-2 w-full">
-                <Button variant="outline" className="w-full h-9">
-                  <Printer className="mr-2 h-3.5 w-3.5" />
-                  <span className="text-xs">Print</span>
+                <Button variant="outline" size="sm" className="h-7 text-xs">
+                  <Printer className="w-3 h-3 mr-1" />
+                  Print
                 </Button>
-                <Button variant="outline" className="w-full h-9">
-                  <Receipt className="mr-2 h-3.5 w-3.5" />
-                  <span className="text-xs">Email</span>
+                <Button variant="outline" size="sm" className="h-7 text-xs">
+                  <Receipt className="w-3 h-3 mr-1" />
+                  Email
                 </Button>
               </div>
             </CardFooter>
           </Card>
-          
         </div>
       </div>
     </div>
-  );
-}
-
-interface ProductCardProps {
-  name: string;
-  price: number;
-  image: string;
-  onAdd: () => void;
-}
-
-function ProductCard({ name, price, image, onAdd }: ProductCardProps) {
-  return (
-    <Card
-      className="overflow-hidden scale-95 cursor-pointer hover:shadow-md transition-shadow"
-      onClick={onAdd}
-    >
-      <CardContent className="p-0">
-        <div className="aspect-square relative">
-          <img
-            src={image || "/placeholder.svg"}
-            alt={name}
-            className="object-cover w-full h-full"
-          />
-        </div>
-        <div className="p-2">
-          <h3 className="font-medium text-xs line-clamp-2">{name}</h3>
-          <div className="flex items-center justify-between mt-1">
-            <span className="font-bold text-xs">AED {price}</span>
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0">
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
