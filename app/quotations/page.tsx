@@ -95,7 +95,7 @@ export default function QuotationsPage() {
   const { data: quotations = [], isLoading } = useQuery<Quotation[]>({
     queryKey: ["quotations"],
     queryFn: async () => {
-      const response = await fetch("http://3.29.240.212/api/v1/quotations");
+      const response = await fetch("https://api.alnubras.co/api/v1/quotations");
       const json = await response.json();
       if (!response.ok) {
         toast.error("Failed to load sales quotations!");

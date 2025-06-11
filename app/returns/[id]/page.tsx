@@ -99,7 +99,7 @@ export default function ReturnDetailsPage() {
   useEffect(() => {
     const loadReturnData = async () => {
       try {
-        const response = await fetch(`http://3.29.240.212/api/v1/returns/${returnId}`)
+        const response = await fetch(`https://api.alnubras.co/api/v1/returns/${returnId}`)
         if (!response.ok) {
           throw new Error("Failed to load return data")
         }
@@ -130,7 +130,7 @@ export default function ReturnDetailsPage() {
     setRejecting(true)
 
     try {
-      const response = await fetch(`http://3.29.240.212/api/v1/returns/${returnData.id}/reject`, {
+      const response = await fetch(`https://api.alnubras.co/api/v1/returns/${returnData.id}/reject`, {
         method: "PATCH",
       })
 

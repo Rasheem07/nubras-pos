@@ -111,7 +111,7 @@ export default function SupplierDetailPage() {
     const fetchSupplier = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch(`http://3.29.240.212/api/v1/suppliers/${supplierId}`)
+        const response = await fetch(`https://api.alnubras.co/api/v1/suppliers/${supplierId}`)
         if (!response.ok) {
           throw new Error("Failed to fetch supplier details")
         }
@@ -139,7 +139,7 @@ export default function SupplierDetailPage() {
   const onSubmit = async (data: SupplierFormValues) => {
     setIsSubmitting(true)
     try {
-      const response = await fetch(`http://3.29.240.212/api/v1/suppliers/${supplierId}`, {
+      const response = await fetch(`https://api.alnubras.co/api/v1/suppliers/${supplierId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -175,7 +175,7 @@ export default function SupplierDetailPage() {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`http://3.29.240.212/api/v1/suppliers/${supplierId}`, {
+      const response = await fetch(`https://api.alnubras.co/api/v1/suppliers/${supplierId}`, {
         method: "DELETE",
       })
 

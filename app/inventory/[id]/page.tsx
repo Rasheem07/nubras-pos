@@ -91,7 +91,7 @@ export default function InventoryItemDetailPage() {
     const fetchItemDetails = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch(`http://3.29.240.212/api/v1/inventory/${itemId}`)
+        const response = await fetch(`https://api.alnubras.co/api/v1/inventory/${itemId}`)
         if (!response.ok) {
           throw new Error("Failed to fetch item details")
         }
@@ -100,7 +100,7 @@ export default function InventoryItemDetailPage() {
 
         // If item has a supplier, fetch supplier details
         if (data.supplierId) {
-          const supplierResponse = await fetch(`http://3.29.240.212/api/v1/suppliers/${data.supplierId}`)
+          const supplierResponse = await fetch(`https://api.alnubras.co/api/v1/suppliers/${data.supplierId}`)
           if (supplierResponse.ok) {
             const supplierData = await supplierResponse.json()
             setSupplier(supplierData)
@@ -119,7 +119,7 @@ export default function InventoryItemDetailPage() {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`http://3.29.240.212/api/v1/inventory/${itemId}`, {
+      const response = await fetch(`https://api.alnubras.co/api/v1/inventory/${itemId}`, {
         method: "DELETE",
       })
 

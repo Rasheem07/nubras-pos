@@ -1,6 +1,6 @@
 import type { Transaction, Order, CreateTransactionDto, UpdateTransactionDto } from "./types"
 
-const BASE_URL = "http://3.29.240.212/api/v1"
+const BASE_URL = "https://api.alnubras.co/api/v1"
 
 // Generic fetch wrapper with error handling
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {

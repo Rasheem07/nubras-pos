@@ -113,7 +113,7 @@ export function SalesTable({ filter }: SalesTableProps) {
   const { data: salesOrders = [], isLoading } = useQuery<SalesOrder[]>({
     queryKey: ["salesOrders"],
     queryFn: async () => {
-      const response = await fetch("http://3.29.240.212/api/v1/sales");
+      const response = await fetch("https://api.alnubras.co/api/v1/sales");
       const json = await response.json();
       if (!response.ok) {
         toast.error("Failed to fetch sales orders!");
@@ -264,7 +264,7 @@ export function SalesTable({ filter }: SalesTableProps) {
       }
 
       const response = await fetch(
-        "http://3.29.240.212/api/v1/transactions",
+        "https://api.alnubras.co/api/v1/transactions",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

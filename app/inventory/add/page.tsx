@@ -57,7 +57,7 @@ export default function AddInventoryItemPage() {
   useState(() => {
     const fetchSuppliers = async () => {
       try {
-        const response = await fetch("http://3.29.240.212/api/v1/suppliers")
+        const response = await fetch("https://api.alnubras.co/api/v1/suppliers")
         if (!response.ok) {
           throw new Error("Failed to fetch suppliers")
         }
@@ -114,7 +114,7 @@ export default function AddInventoryItemPage() {
   const onSubmit = async (data: InventoryFormValues) => {
     setIsLoading(true)
     try {
-      const response = await fetch("http://3.29.240.212/api/v1/inventory", {
+      const response = await fetch("https://api.alnubras.co/api/v1/inventory", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

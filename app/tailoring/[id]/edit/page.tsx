@@ -135,7 +135,7 @@ export default function EditTailoringProject() {
   } = useQuery<ProjectDetails>({
     queryKey: ["tailoring-project", id],
     queryFn: async () => {
-      const response = await fetch(`http://3.29.240.212/api/v1/tailoring/${id}`)
+      const response = await fetch(`https://api.alnubras.co/api/v1/tailoring/${id}`)
       const json = await response.json()
       if (!response.ok) {
         throw new Error(json.message || `Failed to load project #${id}`)
@@ -149,7 +149,7 @@ export default function EditTailoringProject() {
   const { data: workflowConfigs = [] } = useQuery<WorkflowConfig[]>({
     queryKey: ["workflow-configs"],
     queryFn: async () => {
-      const response = await fetch("http://3.29.240.212/api/v1/tailoring/workflow/templates")
+      const response = await fetch("https://api.alnubras.co/api/v1/tailoring/workflow/templates")
       const json = await response.json()
       if (!response.ok) {
         toast.error("Failed to load workflow templates!")
@@ -241,7 +241,7 @@ export default function EditTailoringProject() {
         }
       }
 
-      const response = await fetch(`http://3.29.240.212/api/v1/tailoring/${id}`, {
+      const response = await fetch(`https://api.alnubras.co/api/v1/tailoring/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

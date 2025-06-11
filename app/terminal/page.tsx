@@ -394,7 +394,7 @@ export default function POSTerminalPage() {
   const saveDraft = async () => {
     const draftData = { ...formData, status: "draft" as const };
     try {
-      const response = await fetch("http://3.29.240.212/api/v1/sales", {
+      const response = await fetch("https://api.alnubras.co/api/v1/sales", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -418,7 +418,7 @@ export default function POSTerminalPage() {
   const onSubmit = async (data: CreateSalesOrderDto) => {
     try {
       console.log(data);
-      const response = await fetch("http://3.29.240.212/api/v1/sales", {
+      const response = await fetch("https://api.alnubras.co/api/v1/sales", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -454,7 +454,7 @@ export default function POSTerminalPage() {
     queryKey: ["customers"],
     queryFn: async () => {
       const response = await fetch(
-        "http://3.29.240.212/api/v1/list/customer",
+        "https://api.alnubras.co/api/v1/list/customer",
         {
           headers: {
             "Content-Type": "application/json",
@@ -473,7 +473,7 @@ export default function POSTerminalPage() {
     queryKey: ["productsCatalog"],
     queryFn: async () => {
       const response = await fetch(
-        "http://3.29.240.212/api/v1/products/list/catalog",
+        "https://api.alnubras.co/api/v1/products/list/catalog",
         {
           headers: {
             "Content-Type": "application/json",
