@@ -1,163 +1,170 @@
-"use client"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
-
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+"use client";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Eye, Edit, Printer, AlertTriangle, Clock } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import Link from "next/link"
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Printer,
+  AlertTriangle,
+  Clock,
+  Banknote,
+} from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-type OrderStatus = "draft" | "confirmed" | "processing" | "completed" | "cancelled"
-type Priority = "low" | "medium" | "high" | "urgent"
+type OrderStatus =
+  | "draft"
+  | "confirmed"
+  | "processing"
+  | "completed"
+  | "cancelled";
+type Priority = "low" | "medium" | "high" | "urgent";
+
+// Zod schema for transaction form
+const TransactionFormSchema = z.object({
+  orderId: z.number(),
+  paymentMethod: z.enum(["visa", "bank_transfer", "cash"]),
+  amount: z.string().refine(
+    (val) => {
+      const num = Number(val);
+      return !isNaN(num) && num > 0;
+    },
+    { message: "Amount must be a positive number" }
+  ),
+});
+type TransactionFormValues = z.infer<typeof TransactionFormSchema>;
 
 interface SalesOrder {
-  id: number
-  invId: string
-  status: OrderStatus
-  customerName: string
-  salesPersonName: string
-  subtotal: number
-  taxAmount: number
-  discountAmount: number
-  totalAmount: number
-  priority: Priority
-  paymentTerms: string
-  dueDate: string
-  deliveryDate?: string
-  completedDate?: string
-  notes?: string
-  createdAt: string
+  id: number;
+  status: OrderStatus;
+  customerId: number;
+  customerName: string;
+  salesPersonId: number;
+  salesPersonName: string;
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  priority: Priority;
+  paymentTerms: string;
+  dueDate: string;
+  deliveryDate?: string;
+  completedDate?: string;
+  notes?: string;
+  amountPaid: string;
+  amountPending: string;
+  createdAt: string;
 }
 
-const salesOrders: SalesOrder[] = [
-  {
-    id: 1,
-    invId: "INV-2024-001",
-    status: "processing",
-    customerName: "Fatima Mohammed",
-    salesPersonName: "Ahmed Al Mansouri",
-    subtotal: 1050.0,
-    taxAmount: 52.5,
-    discountAmount: 100.0,
-    totalAmount: 1002.5,
-    priority: "high",
-    paymentTerms: "net 15",
-    dueDate: "2024-05-20",
-    deliveryDate: "2024-05-18",
-    createdAt: "2024-05-04",
-    notes: "Custom kandura with rush delivery",
-  },
-  {
-    id: 2,
-    invId: "INV-2024-002",
-    status: "confirmed",
-    customerName: "Ahmed Al Suwaidi",
-    salesPersonName: "Sara Al Ameri",
-    subtotal: 750.0,
-    taxAmount: 37.5,
-    discountAmount: 0,
-    totalAmount: 787.5,
-    priority: "medium",
-    paymentTerms: "net 30",
-    dueDate: "2024-05-25",
-    deliveryDate: "2024-05-22",
-    createdAt: "2024-05-03",
-  },
-  {
-    id: 3,
-    invId: "INV-2024-003",
-    status: "draft",
-    customerName: "Layla Khan",
-    salesPersonName: "Omar Al Hashimi",
-    subtotal: 450.0,
-    taxAmount: 22.5,
-    discountAmount: 50.0,
-    totalAmount: 422.5,
-    priority: "low",
-    paymentTerms: "net 30",
-    dueDate: "2024-05-30",
-    createdAt: "2024-05-04",
-  },
-  {
-    id: 4,
-    invId: "INV-2024-004",
-    status: "completed",
-    customerName: "Hassan Al Farsi",
-    salesPersonName: "Mariam Al Zahra",
-    subtotal: 2200.0,
-    taxAmount: 110.0,
-    discountAmount: 200.0,
-    totalAmount: 2110.0,
-    priority: "medium",
-    paymentTerms: "net 15",
-    dueDate: "2024-05-15",
-    deliveryDate: "2024-05-12",
-    completedDate: "2024-05-12",
-    createdAt: "2024-04-28",
-  },
-  {
-    id: 5,
-    invId: "INV-2024-005",
-    status: "processing",
-    customerName: "Zayed Al Nahyan",
-    salesPersonName: "Ahmed Al Mansouri",
-    subtotal: 3500.0,
-    taxAmount: 175.0,
-    discountAmount: 350.0,
-    totalAmount: 3325.0,
-    priority: "urgent",
-    paymentTerms: "net 7",
-    dueDate: "2024-05-10", // Overdue
-    deliveryDate: "2024-05-15",
-    createdAt: "2024-04-25",
-  },
-]
-
 interface SalesTableProps {
-  filter?: string
+  filter?: string;
 }
 
 export function SalesTable({ filter }: SalesTableProps) {
+  const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
+  const [transactionOrder, setTransactionOrder] = useState<SalesOrder | null>(
+    null
+  );
+
+  const { data: salesOrders = [], isLoading } = useQuery<SalesOrder[]>({
+    queryKey: ["salesOrders"],
+    queryFn: async () => {
+      const response = await fetch("http://3.29.240.212/api/v1/sales");
+      const json = await response.json();
+      if (!response.ok) {
+        toast.error("Failed to fetch sales orders!");
+      }
+      return json;
+    },
+  });
   const getFilteredOrders = () => {
-    if (!filter || filter === "all") return salesOrders
+    if (!filter || filter === "all") return salesOrders;
 
     if (filter === "overdue") {
-      const today = new Date()
+      const today = new Date();
       return salesOrders.filter((order) => {
-        const dueDate = new Date(order.dueDate)
-        return dueDate < today && order.status !== "completed" && order.status !== "cancelled"
-      })
+        const dueDate = new Date(order.dueDate);
+        return (
+          dueDate < today &&
+          order.status !== "completed" &&
+          order.status !== "cancelled"
+        );
+      });
     }
 
-    return salesOrders.filter((order) => order.status === filter)
-  }
+    return salesOrders.filter((order) => order.status === filter);
+  };
 
-  const filteredOrders = getFilteredOrders()
+  const filteredOrders = getFilteredOrders();
 
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
       case "draft":
-        return <Badge variant="outline">Draft</Badge>
+        return <Badge variant="outline">Draft</Badge>;
       case "confirmed":
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Confirmed</Badge>
+        return (
+          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+            Confirmed
+          </Badge>
+        );
       case "processing":
-        return <Badge variant="secondary">Processing</Badge>
+        return <Badge variant="secondary">Processing</Badge>;
       case "completed":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Completed</Badge>
+        return (
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+            Completed
+          </Badge>
+        );
       case "cancelled":
-        return <Badge variant="destructive">Cancelled</Badge>
+        return <Badge variant="destructive">Cancelled</Badge>;
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   const getPriorityBadge = (priority: Priority) => {
     switch (priority) {
@@ -166,38 +173,115 @@ export function SalesTable({ filter }: SalesTableProps) {
           <Badge variant="outline" className="text-xs">
             Low
           </Badge>
-        )
+        );
       case "medium":
         return (
           <Badge variant="secondary" className="text-xs">
             Medium
           </Badge>
-        )
+        );
       case "high":
-        return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100 text-xs">High</Badge>
+        return (
+          <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100 text-xs">
+            High
+          </Badge>
+        );
       case "urgent":
         return (
           <Badge variant="destructive" className="text-xs">
             Urgent
           </Badge>
-        )
+        );
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   const isOverdue = (dueDate: string, status: OrderStatus) => {
-    const due = new Date(dueDate)
-    const today = new Date()
-    return due < today && status !== "completed" && status !== "cancelled" && status !== "draft"
-  }
+    const due = new Date(dueDate);
+    const today = new Date();
+    return (
+      due < today &&
+      status !== "completed" &&
+      status !== "cancelled" &&
+      status !== "draft"
+    );
+  };
 
   const isDueSoon = (dueDate: string, status: OrderStatus) => {
-    const due = new Date(dueDate)
-    const today = new Date()
-    const threeDaysFromNow = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000)
-    return due <= threeDaysFromNow && due >= today && status !== "completed" && status !== "cancelled"
-  }
+    const due = new Date(dueDate);
+    const today = new Date();
+    const threeDaysFromNow = new Date(
+      today.getTime() + 3 * 24 * 60 * 60 * 1000
+    );
+    return (
+      due <= threeDaysFromNow &&
+      due >= today &&
+      status !== "completed" &&
+      status !== "cancelled"
+    );
+  };
+
+  const {
+    register,
+    handleSubmit,
+    reset: resetTransactionForm,
+    formState: { errors, isSubmitting: isTransactionSubmitting },
+  } = useForm<TransactionFormValues>({
+    resolver: zodResolver(TransactionFormSchema),
+    defaultValues: {
+      orderId: 0,
+      paymentMethod: "cash",
+      amount: "",
+    },
+  });
+
+  const openTransactionModal = (order: SalesOrder) => {
+    setTransactionOrder(order);
+    // Pre-fill orderId
+    resetTransactionForm({
+      orderId: order.id,
+      paymentMethod: "cash",
+      amount: "",
+    });
+  };
+
+  const closeTransactionModal = () => {
+    setTransactionOrder(null);
+    resetTransactionForm({ orderId: 0, paymentMethod: "cash", amount: "" });
+  };
+
+  const onTransactionSubmit = async (data: TransactionFormValues) => {
+    try {
+      // Optional: validate amount does not exceed pendingAmount
+      if (transactionOrder) {
+        const pending = parseFloat(transactionOrder.amountPending);
+        const entered = parseFloat(data.amount);
+        if (entered > pending) {
+          toast.error(`Amount cannot exceed pending (${pending.toFixed(2)})`);
+          return;
+        }
+      }
+
+      const response = await fetch(
+        "http://3.29.240.212/api/v1/transactions",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to record transaction");
+      }
+      toast.success("Transaction recorded successfully");
+      closeTransactionModal();
+      // Optionally, refetch sales orders to update pending/paid columns
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
 
   return (
     <div className="rounded-md border">
@@ -213,16 +297,25 @@ export function SalesTable({ filter }: SalesTableProps) {
             <TableHead className="text-right">Tax</TableHead>
             <TableHead className="text-right">Discount</TableHead>
             <TableHead className="text-right">Total</TableHead>
+            <TableHead className="text-right">Pending</TableHead>
             <TableHead>Payment Terms</TableHead>
             <TableHead>Due Date</TableHead>
             <TableHead>Delivery Date</TableHead>
+            <TableHead>Sales Date</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredOrders.map((order) => (
-            <TableRow key={order.id} className={isOverdue(order.dueDate, order.status) ? "bg-red-50" : ""}>
-              <TableCell className="font-medium">{order.invId}</TableCell>
+            <TableRow
+              key={order.id}
+              className={
+                isOverdue(order.dueDate, order.status) ? "bg-red-50" : ""
+              }
+            >
+              <TableCell className="font-medium">
+                INV-{String(order.id).padStart(3, "0")}
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Avatar className="h-8 w-8">
@@ -239,20 +332,33 @@ export function SalesTable({ filter }: SalesTableProps) {
               <TableCell>{order.salesPersonName}</TableCell>
               <TableCell>{getStatusBadge(order.status)}</TableCell>
               <TableCell>{getPriorityBadge(order.priority)}</TableCell>
-              <TableCell className="text-right">AED {order.subtotal.toLocaleString()}</TableCell>
-              <TableCell className="text-right">AED {order.taxAmount.toLocaleString()}</TableCell>
+              <TableCell className="text-right">
+                AED {order.subtotal.toLocaleString()}
+              </TableCell>
+              <TableCell className="text-right">
+                AED {order.taxAmount.toLocaleString()}
+              </TableCell>
               <TableCell className="text-right">
                 {order.discountAmount > 0 ? (
-                  <span className="text-red-600">-AED {order.discountAmount.toLocaleString()}</span>
+                  <span className="text-red-600">
+                    -AED {order.discountAmount.toLocaleString()}
+                  </span>
                 ) : (
                   <span className="text-muted-foreground">-</span>
                 )}
               </TableCell>
-              <TableCell className="text-right font-bold">AED {order.totalAmount.toLocaleString()}</TableCell>
+              <TableCell className="text-right font-bold">
+                AED {order.totalAmount.toLocaleString()}
+              </TableCell>
+              <TableCell className="text-right font-bold">
+                AED {order.amountPending.toLocaleString()}
+              </TableCell>
               <TableCell>{order.paymentTerms}</TableCell>
               <TableCell>
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm">{new Date(order.dueDate).toLocaleDateString()}</span>
+                  <span className="text-sm">
+                    {new Date(order.dueDate).toLocaleDateString()}
+                  </span>
                   {isOverdue(order.dueDate, order.status) && (
                     <Badge variant="destructive" className="text-xs w-fit">
                       <AlertTriangle className="w-3 h-3 mr-1" />
@@ -260,7 +366,10 @@ export function SalesTable({ filter }: SalesTableProps) {
                     </Badge>
                   )}
                   {isDueSoon(order.dueDate, order.status) && (
-                    <Badge variant="outline" className="text-xs w-fit border-orange-300 text-orange-600">
+                    <Badge
+                      variant="outline"
+                      className="text-xs w-fit border-orange-300 text-orange-600"
+                    >
                       <Clock className="w-3 h-3 mr-1" />
                       Due Soon
                     </Badge>
@@ -269,10 +378,15 @@ export function SalesTable({ filter }: SalesTableProps) {
               </TableCell>
               <TableCell>
                 {order.deliveryDate ? (
-                  <span className="text-sm">{new Date(order.deliveryDate).toLocaleDateString()}</span>
+                  <span className="text-sm">
+                    {new Date(order.deliveryDate).toLocaleDateString()}
+                  </span>
                 ) : (
                   <span className="text-muted-foreground text-sm">Not set</span>
                 )}
+              </TableCell>
+              <TableCell>
+                {new Date(order.createdAt).toLocaleDateString()}
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
@@ -286,23 +400,43 @@ export function SalesTable({ filter }: SalesTableProps) {
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href={`/sales/${order.invId}?mode=view`}>
+                      <Link href={`/sales/${order.id}`}>
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href={`/sales/${order.invId}?mode=edit`}>
+                      <Link href={`/sales/${order.id}/edit`}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Order
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Printer className="mr-2 h-4 w-4" />
-                      Print Invoice
+                    {order.paymentStatus !== "completed" && (
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          openTransactionModal(order);
+                        }}
+                      >
+                        <Banknote className="mr-2 h-4 w-4" /> Record Transaction
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem asChild>
+                      <Link href={`/sales/${order.id}?mode=print`}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print Invoice
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive">Cancel Order</DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onSelect={(e) => {
+                        e.preventDefault(); // prevent navigating or closing unexpectedly
+                        setCancelOrderId(order.id); // open the dialog
+                      }}
+                    >
+                      Cancel Order
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -310,6 +444,145 @@ export function SalesTable({ filter }: SalesTableProps) {
           ))}
         </TableBody>
       </Table>
+      <Dialog open={cancelOrderId !== null}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Cancel Order INV-{String(cancelOrderId).padStart(3, "0")}
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this order? This action is
+              irreversible and will update the order and its related items as
+              canceled.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <div className="flex gap-6 w-full">
+              <DialogClose
+                className="w-full max-w-[50%]"
+                asChild
+                onClick={() => setCancelOrderId(null)}
+              >
+                <Button>Cancel</Button>
+              </DialogClose>
+              <Button className="flex-1 w-full bg-destructive hover:bg-destructive/90">
+                Confirm
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={transactionOrder !== null}
+        onOpenChange={closeTransactionModal}
+      >
+        <DialogTrigger asChild>
+          {/* Optional: a hidden trigger since we open via state */}
+          <span />
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Record Transaction for INV-
+              {transactionOrder?.id.toString().padStart(3, "0")}
+            </DialogTitle>
+            <DialogDescription>
+              Enter the payment details below. Remaining: AED{" "}
+              {transactionOrder?.amountPending}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={handleSubmit(onTransactionSubmit)}
+            className="space-y-4 pt-2"
+          >
+            {/* Hidden orderId */}
+            <input
+              type="hidden"
+              {...register("orderId", { valueAsNumber: true })}
+            />
+
+            {/* Reference Amounts */}
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Total Amount</Label>
+              <p className="text-sm">AED {transactionOrder?.totalAmount}</p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Paid So Far</Label>
+              <p className="text-sm">AED {transactionOrder?.amountPaid}</p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Amount Pending</Label>
+              <p className="text-sm">AED {transactionOrder?.amountPending}</p>
+            </div>
+
+            {/* Payment Method */}
+            <div className="space-y-1">
+              <Label htmlFor="paymentMethod" className="text-xs font-medium">
+                Payment Method
+              </Label>
+              <Select defaultValue="cash" {...register("paymentMethod")}>
+                <SelectTrigger id="paymentMethod" className="h-8 text-xs">
+                  <SelectValue placeholder="Select method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="visa">Visa</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.paymentMethod && (
+                <p className="text-red-600 text-xs mt-1">
+                  {errors.paymentMethod.message}
+                </p>
+              )}
+            </div>
+
+            {/* Amount */}
+            <div className="space-y-1">
+              <Label htmlFor="amount" className="text-xs font-medium">
+                Amount (AED)
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                {...register("amount")}
+                className="h-8 text-xs"
+              />
+              {errors.amount && (
+                <p className="text-red-600 text-xs mt-1">
+                  {errors.amount.message}
+                </p>
+              )}
+            </div>
+
+            <DialogFooter className="pt-2">
+              <div className="flex gap-4 w-full">
+                <DialogClose asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-8 text-xs"
+                    onClick={closeTransactionModal}
+                  >
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <Button
+                  type="submit"
+                  className="w-full h-8 text-xs"
+                  disabled={isTransactionSubmitting}
+                >
+                  {isTransactionSubmitting ? "Recording..." : "Record Payment"}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
-  )
+  );
 }

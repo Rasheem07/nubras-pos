@@ -1,32 +1,37 @@
-"use client"
-
-import type React from "react"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Save, Upload, Package } from "lucide-react"
-import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
-
-// Mock data for editing
-const mockProduct = {
-  id: 1,
-  type: "ready-made" as const,
-  name: "Kandura (Premium)",
-  sku: "KAN-PREM-001",
-  barcode: "5901234123457",
-  itemId: 4,
-  sellingPrice: "450.00",
-  description: "Premium quality kandura made from the finest materials",
-  categoryName: "Kandura",
-  image: "/placeholder.svg?key=ng1v2",
-}
+"use client";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Save, Upload, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import {
+  updateProductSchema,
+  type UpdateProductFormData,
+} from "@/lib/schemas/product";
+import { productsApi } from "@/lib/api/products";
+import { toast } from "sonner";
+import { categoriesApi } from "@/lib/api/categories";
+import { AddCategoryDialog } from "../../add/_components/add-category-dialog";
 
 const categories = [
   "Kandura",
@@ -37,7 +42,7 @@ const categories = [
   "Alterations",
   "Fabrics",
   "Services",
-]
+];
 
 const productTypes = [
   { value: "ready-made", label: "Ready-made" },
@@ -45,54 +50,106 @@ const productTypes = [
   { value: "alteration", label: "Alteration" },
   { value: "fabric", label: "Fabric" },
   { value: "service", label: "Service" },
-]
+];
 
 export default function EditProductPage() {
-  const params = useParams()
-  const router = useRouter()
-  const productId = params.id as string
+  const params = useParams();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const productId = Number.parseInt(params.id as string);
 
-  const [product, setProduct] = useState(mockProduct)
-  const [isLoading, setIsLoading] = useState(false)
+  const { data: product, isLoading } = useQuery({
+    queryKey: ["product", productId],
+    queryFn: () => productsApi.getById(productId),
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: categoriesApi.getAll,
+  });
 
-    try {
-      // In real app, call your update API
-      console.log("Updating product:", product)
+  const form = useForm<UpdateProductFormData>({
+    resolver: zodResolver(updateProductSchema),
+    defaultValues: product
+      ? {
+          name: product.name,
+          sku: product.sku,
+          barcode: product.barcode,
+          sellingPrice: product.price,
+          categoryName: product.category,
+        }
+      : undefined,
+  });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+  const updateProductMutation = useMutation({
+    mutationFn: (data: UpdateProductFormData) =>
+      productsApi.update(productId, data),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      queryClient.invalidateQueries({ queryKey: ["product", productId] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      router.push(`/catalog/${productId}`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
-      router.push(`/catalog/${productId}`)
-    } catch (error) {
-      console.error("Failed to update product:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const updateProduct = (field: string, value: any) => {
-    setProduct((prev) => ({ ...prev, [field]: value }))
-  }
+  const onSubmit = (data: UpdateProductFormData) => {
+    updateProductMutation.mutate(data);
+  };
 
   const getProductTypeBadge = (type: string) => {
     switch (type) {
       case "ready-made":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Ready-made</Badge>
+        return (
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+            Ready-made
+          </Badge>
+        );
       case "custom":
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Custom</Badge>
+        return (
+          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+            Custom
+          </Badge>
+        );
       case "alteration":
-        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Alteration</Badge>
+        return (
+          <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">
+            Alteration
+          </Badge>
+        );
       case "fabric":
-        return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Fabric</Badge>
+        return (
+          <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+            Fabric
+          </Badge>
+        );
       case "service":
-        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Service</Badge>
+        return (
+          <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+            Service
+          </Badge>
+        );
       default:
-        return null
+        return null;
     }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-destructive">Product not found</p>
+      </div>
+    );
   }
 
   return (
@@ -115,101 +172,121 @@ export default function EditProductPage() {
           <Button variant="outline" asChild>
             <Link href={`/catalog/${productId}`}>Cancel</Link>
           </Button>
-          <Button onClick={handleSubmit} disabled={isLoading}>
-            <Save className="mr-2 h-4 w-4" />
-            {isLoading ? "Saving..." : "Save Changes"}
+          <Button
+            onClick={form.handleSubmit(onSubmit)}
+            disabled={updateProductMutation.isPending}
+          >
+            {updateProductMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Save Changes
           </Button>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Basic Information */}
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
-            <CardDescription>Update the basic details about the product</CardDescription>
+            <CardDescription>
+              Update the basic details about the product
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="type">Product Type</Label>
-                <div className="flex items-center gap-2">
-                  <Select value={product.type} onValueChange={(value) => updateProduct("type", value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {productTypes.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {getProductTypeBadge(product.type)}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select value={product.categoryName} onValueChange={(value) => updateProduct("categoryName", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
+                <Label htmlFor="category">Category *</Label>
+                <Select
+                  value={form.watch("categoryName")}
+                  onValueChange={(value) =>
+                    form.setValue("categoryName", value)
+                  }
+                  disabled={isLoadingCategories}
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue
+                      placeholder={
+                        isLoadingCategories
+                          ? "Loading categories..."
+                          : "Select category"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
+                    {isLoadingCategories ? (
+                      <div className="flex items-center justify-center p-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="ml-2 text-sm">Loading...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.name}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                        <div className="border-t mt-1 pt-1">
+                          <AddCategoryDialog
+                            onCategoryAdded={(categoryName: string) => {
+                              form.setValue("categoryName", categoryName);
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
+                {form.formState.errors.categoryName && (
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.categoryName.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="name">Product Name</Label>
                 <Input
                   id="name"
-                  value={product.name}
-                  onChange={(e) => updateProduct("name", e.target.value)}
                   placeholder="Enter product name"
-                  maxLength={100}
+                  {...form.register("name")}
                 />
+                {form.formState.errors.name && (
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.name.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="sku">SKU</Label>
                 <Input
                   id="sku"
-                  value={product.sku}
-                  onChange={(e) => updateProduct("sku", e.target.value)}
                   placeholder="Enter SKU"
-                  maxLength={15}
+                  {...form.register("sku")}
                 />
+                {form.formState.errors.sku && (
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.sku.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="barcode">Barcode</Label>
                 <Input
                   id="barcode"
-                  value={product.barcode}
-                  onChange={(e) => updateProduct("barcode", e.target.value)}
                   placeholder="Enter barcode"
+                  {...form.register("barcode")}
                 />
+                {form.formState.errors.barcode && (
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.barcode.message}
+                  </p>
+                )}
               </div>
-
-              {(product.type === "ready-made" || product.type === "fabric") && (
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Linked Inventory Item</Label>
-                  <div className="flex items-center gap-3 p-3 border rounded-md bg-muted/20">
-                    <Package className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Inventory Item #{product.itemId}</p>
-                      <p className="text-sm text-muted-foreground">Linked to inventory for stock management</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -218,7 +295,9 @@ export default function EditProductPage() {
         <Card>
           <CardHeader>
             <CardTitle>Pricing</CardTitle>
-            <CardDescription>Set the selling price for this product</CardDescription>
+            <CardDescription>
+              Set the selling price for this product
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -228,10 +307,14 @@ export default function EditProductPage() {
                   id="price"
                   type="number"
                   step="0.01"
-                  value={product.sellingPrice}
-                  onChange={(e) => updateProduct("sellingPrice", e.target.value)}
                   placeholder="0.00"
+                  {...form.register("sellingPrice")}
                 />
+                {form.formState.errors.sellingPrice && (
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.sellingPrice.message}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -241,7 +324,9 @@ export default function EditProductPage() {
         <Card>
           <CardHeader>
             <CardTitle>Media & Description</CardTitle>
-            <CardDescription>Update product image and description</CardDescription>
+            <CardDescription>
+              Update product image and description
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -254,7 +339,7 @@ export default function EditProductPage() {
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" type="button">
                   <Upload className="mr-2 h-4 w-4" />
                   Change Image
                 </Button>
@@ -265,10 +350,9 @@ export default function EditProductPage() {
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
-                value={product.description || ""}
-                onChange={(e) => updateProduct("description", e.target.value)}
                 placeholder="Enter product description"
                 className="min-h-[100px]"
+                {...form.register("description")}
               />
             </div>
           </CardContent>
@@ -282,25 +366,26 @@ export default function EditProductPage() {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
-                <span className="text-muted-foreground">Type:</span>
-                <p className="font-medium">{product.type}</p>
-              </div>
-              <div>
                 <span className="text-muted-foreground">Category:</span>
-                <p className="font-medium">{product.categoryName}</p>
+                <p className="font-medium">{form.watch("categoryName")}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">SKU:</span>
-                <p className="font-medium">{product.sku}</p>
+                <p className="font-medium">{form.watch("sku")}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Price:</span>
-                <p className="font-medium">AED {Number.parseFloat(product.sellingPrice).toFixed(2)}</p>
+                <p className="font-medium">
+                  AED{" "}
+                  {form.watch("sellingPrice")
+                    ? Number.parseFloat(form.watch("sellingPrice")!).toFixed(2)
+                    : "0.00"}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </form>
     </div>
-  )
+  );
 }

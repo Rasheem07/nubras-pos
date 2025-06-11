@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   ArrowLeft,
   Calendar,
@@ -21,208 +22,391 @@ import {
   Save,
   TrendingUp,
   Target,
+  User,
+  Scissors,
 } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
+import { useQuery } from "@tanstack/react-query"
+import { useParams } from "next/navigation"
+import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
-interface WorkflowStep {
-  id: string
+type WorkflowConfig = {
+  id: number
   title: string
   description: string
-  completed: boolean
-  completedAt?: Date
+  created_at: string // ISO date string
+  updated_at: string | null
+}
+
+type WorkflowStep = {
+  id: number
+  stepNo: number
+  notes: string
+  status: "pending" | "in_progress" | "completed" | string
   estimatedHours: number
-  actualHours?: number
-  notes?: string
+  actualHours: number
+  completedAt: string | null
+  config: WorkflowConfig
 }
 
-interface ProjectDetails {
-  id: string
-  customer: {
-    name: string
-    initials: string
-    image?: string
-    phone: string
-    email: string
-  }
+type ProjectDetails = {
+  id: number
+  orderId: number
+  customerId: number
   description: string
-  category: string
-  deadline: string
-  status: "pending" | "in-progress" | "completed" | "delayed"
-  progress: number
-  tailor: {
-    name: string
-    initials: string
-    image?: string
-    level: number
-  }
-  isRush: boolean
+  deadline: string // ISO date string
+  rush: boolean
+  instructions: string
+  estimatedHours: number | null
+  actualHours: string
+  status: "pending" | "in_progress" | "completed" | string
+  tailorId: number
   createdAt: string
-  workflow: WorkflowStep[]
-  totalEstimatedHours: number
-  totalActualHours: number
+  updatedAt: string | null
+  customerName: string
+  tailorName: string
+  daysRemaining: number
+  stepsCompleted: string
+  totalSteps: string
+  timeEfficiency: string
+  workflows: WorkflowStep[]
 }
 
-const projectData: ProjectDetails = {
-  id: "TP-001",
-  customer: {
-    name: "Fatima Mohammed",
-    initials: "FM",
-    image: "/frequency-modulation-spectrum.png",
-    phone: "+971 50 123 4567",
-    email: "fatima@email.com",
-  },
-  description: "2 Custom Kanduras with Traditional Embroidery",
-  category: "Kandura",
-  deadline: "May 10, 2024",
-  status: "in-progress",
-  progress: 60,
-  tailor: {
-    name: "Mohammed Ali",
-    initials: "MA",
-    image: "/stylized-letter-ma.png",
-    level: 3,
-  },
-  isRush: true,
-  createdAt: "May 2, 2024",
-  totalEstimatedHours: 24,
-  totalActualHours: 14,
-  workflow: [
-    {
-      id: "step1",
-      title: "Measurements & Design Consultation",
-      description: "Take precise customer measurements and finalize design specifications",
-      completed: true,
-      completedAt: new Date("2024-05-02T10:00:00"),
-      estimatedHours: 2,
-      actualHours: 1.5,
-      notes: "Customer requested slight modification to collar design for traditional look",
-    },
-    {
-      id: "step2",
-      title: "Fabric Selection & Material Preparation",
-      description: "Select appropriate fabric and prepare materials according to specifications",
-      completed: true,
-      completedAt: new Date("2024-05-03T14:30:00"),
-      estimatedHours: 4,
-      actualHours: 3.5,
-      notes: "Used premium cotton fabric as requested by customer",
-    },
-    {
-      id: "step3",
-      title: "Pattern Creation & Cutting",
-      description: "Create patterns and cut fabric pieces according to measurements",
-      completed: true,
-      completedAt: new Date("2024-05-04T16:00:00"),
-      estimatedHours: 6,
-      actualHours: 5,
-    },
-    {
-      id: "step4",
-      title: "Traditional Embroidery Work",
-      description: "Apply traditional embroidery patterns on collar and cuffs",
-      completed: true,
-      completedAt: new Date("2024-05-05T18:00:00"),
-      estimatedHours: 8,
-      actualHours: 4,
-      notes: "Embroidery completed faster than expected due to simpler pattern choice",
-    },
-    {
-      id: "step5",
-      title: "First Fitting Appointment",
-      description: "Customer fitting session and initial adjustments",
-      completed: false,
-      estimatedHours: 1,
-    },
-    {
-      id: "step6",
-      title: "Final Adjustments & Refinements",
-      description: "Make necessary adjustments based on fitting feedback",
-      completed: false,
-      estimatedHours: 2,
-    },
-    {
-      id: "step7",
-      title: "Quality Inspection & Finishing",
-      description: "Final quality check, pressing, and finishing touches",
-      completed: false,
-      estimatedHours: 1,
-    },
-  ],
-}
+// Loading skeleton components
+const MetricCardSkeleton = () => (
+  <Card className="border-gray-200 shadow-sm">
+    <CardContent className="p-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-8 w-16" />
+          <Skeleton className="h-2 w-full" />
+        </div>
+        <Skeleton className="h-12 w-12 rounded-lg" />
+      </div>
+    </CardContent>
+  </Card>
+)
+
+const InfoCardSkeleton = () => (
+  <Card className="border-gray-200 shadow-sm">
+    <CardHeader className="border-b border-gray-200 bg-gray-50/50">
+      <Skeleton className="h-6 w-32" />
+    </CardHeader>
+    <CardContent className="p-6">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-12 w-12 rounded-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+)
+
+const WorkflowStepSkeleton = () => (
+  <div className="flex gap-6 p-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="flex flex-col items-center">
+      <Skeleton className="h-4 w-4 rounded" />
+      <Skeleton className="w-px h-20 mt-4" />
+    </div>
+    <div className="flex-1 space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-6 w-48" />
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+      </div>
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-8 w-24" />
+    </div>
+  </div>
+)
 
 export default function TailoringProjectDetail() {
-  const [project, setProject] = useState<ProjectDetails>(projectData)
-  const [editingStep, setEditingStep] = useState<string | null>(null)
+  const params = useParams()
+  const id = params.id as string
+
+  const {
+    data: project,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<ProjectDetails>({
+    queryKey: ["tailoring-project", id],
+    queryFn: async () => {
+      const response = await fetch(`http://3.29.240.212/api/v1/tailoring/${id}`)
+      const json = await response.json()
+      if (!response.ok) {
+        throw new Error(json.message || `Failed to load project #${id}`)
+      }
+      return json
+    },
+    enabled: !!id,
+  })
+
+  const [editingStep, setEditingStep] = useState<number | null>(null)
   const [stepNotes, setStepNotes] = useState("")
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [stepToComplete, setStepToComplete] = useState<number | null>(null)
 
-  const handleStepToggle = (stepId: string) => {
-    setProject((prev) => {
-      const updatedWorkflow = prev.workflow.map((step) => {
-        if (step.id === stepId) {
-          const isCompleting = !step.completed
-          return {
-            ...step,
-            completed: isCompleting,
-            completedAt: isCompleting ? new Date() : undefined,
-            actualHours: isCompleting ? step.estimatedHours : undefined,
-          }
-        }
-        return step
-      })
+  const handleStepToggleRequest = (stepId: number) => {
+    if (!project) return
 
-      const completedSteps = updatedWorkflow.filter((step) => step.completed).length
-      const totalSteps = updatedWorkflow.length
-      const newProgress = Math.round((completedSteps / totalSteps) * 100)
+    const step = project.workflows.find((s) => s.id === stepId)
+    if (!step) return
 
-      let newStatus = prev.status
-      if (newProgress === 100) {
-        newStatus = "completed"
-      } else if (newProgress > 0) {
-        newStatus = "in-progress"
-      } else {
-        newStatus = "pending"
-      }
+    // If step is already completed, don't allow toggling back
+    if (step.status === "completed") {
+      toast.info("Completed steps cannot be modified")
+      return
+    }
 
-      return {
-        ...prev,
-        workflow: updatedWorkflow,
-        progress: newProgress,
-        status: newStatus,
-        totalActualHours: updatedWorkflow.reduce((total, step) => total + (step.actualHours || 0), 0),
-      }
-    })
+    // Open confirmation dialog for completing a step
+    setStepToComplete(stepId)
+    setConfirmDialogOpen(true)
   }
 
-  const handleSaveNotes = (stepId: string) => {
-    setProject((prev) => ({
-      ...prev,
-      workflow: prev.workflow.map((step) => (step.id === stepId ? { ...step, notes: stepNotes } : step)),
-    }))
-    setEditingStep(null)
-    setStepNotes("")
+  const handleStepToggleConfirm = async () => {
+    if (!project || stepToComplete === null) return
+
+    try {
+      const response = await fetch(`http://3.29.240.212/api/v1/tailoring/workflow/${stepToComplete}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      const json = await response.json()
+
+      if (!response.ok) {
+        throw new Error(json.message || "Failed to update workflow step")
+      }
+
+      toast.success(json.message || "Step completed successfully")
+      setConfirmDialogOpen(false)
+      setStepToComplete(null)
+
+      // Refetch project data
+      refetch()
+    } catch (error: any) {
+      console.error("Error updating step:", error)
+      toast.error(error.message || "Failed to update step status")
+      setConfirmDialogOpen(false)
+      setStepToComplete(null)
+    }
+  }
+
+  const handleSaveNotes = async (stepId: number) => {
+    if (!project) return
+
+    try {
+      // Use the new API endpoint for notes
+      const response = await fetch(`http://3.29.240.212/api/v1/tailoring/notes/${stepId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          notes: stepNotes,
+        }),
+      })
+
+      const json = await response.json()
+
+      if (!response.ok) {
+        throw new Error(json.message || "Failed to update notes")
+      }
+
+      toast.success(json.message || "Notes updated successfully")
+      setEditingStep(null)
+      setStepNotes("")
+
+      // Refetch project data
+      refetch()
+    } catch (error: any) {
+      console.error("Error updating notes:", error)
+      toast.error(error.message || "Failed to update notes")
+    }
   }
 
   const getStatusBadge = (status: ProjectDetails["status"]) => {
     switch (status) {
       case "pending":
         return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Pending</Badge>
-      case "in-progress":
+      case "in_progress":
         return <Badge className="bg-blue-100 text-blue-800 border-blue-200">In Progress</Badge>
       case "completed":
         return <Badge className="bg-green-100 text-green-800 border-green-200">Completed</Badge>
-      case "delayed":
-        return <Badge variant="destructive">Delayed</Badge>
+      case "on_hold":
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">On Hold</Badge>
+      case "cancelled":
+        return <Badge variant="destructive">Cancelled</Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
     }
   }
 
-  const efficiency =
-    project.totalEstimatedHours > 0
-      ? Math.round((project.totalEstimatedHours / Math.max(project.totalActualHours, 1)) * 100)
-      : 100
+  const getWorkflowStatusBadge = (status: WorkflowStep["status"]) => {
+    switch (status) {
+      case "pending":
+        return <Badge variant="outline">Pending</Badge>
+      case "in_progress":
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">In Progress</Badge>
+      case "completed":
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Completed</Badge>
+      case "on_hold":
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">On Hold</Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="text-red-600 text-lg font-medium">Failed to load project</div>
+        <p className="text-gray-600">{error instanceof Error ? error.message : "Unknown error occurred"}</p>
+        <Button onClick={() => window.location.reload()} variant="outline">
+          Try Again
+        </Button>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-8">
+        {/* Header Skeleton */}
+        <div className="flex items-center gap-6">
+          <Skeleton className="h-10 w-10" />
+          <div className="flex-1">
+            <div className="flex items-center gap-4 mb-2">
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+            </div>
+            <Skeleton className="h-6 w-96" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+
+        {/* Metrics Cards Skeleton */}
+        <div className="grid gap-6 md:grid-cols-4">
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+        </div>
+
+        {/* Info Cards Skeleton */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <InfoCardSkeleton />
+          <InfoCardSkeleton />
+        </div>
+
+        {/* Tabs Skeleton */}
+        <Card className="border-gray-200 shadow-sm">
+          <div className="border-b border-gray-200 px-6">
+            <div className="flex gap-6 py-4">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-6 w-28" />
+              <Skeleton className="h-6 w-36" />
+            </div>
+          </div>
+          <div className="p-8 space-y-6">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-96" />
+            </div>
+            <div className="space-y-6">
+              <WorkflowStepSkeleton />
+              <WorkflowStepSkeleton />
+              <WorkflowStepSkeleton />
+            </div>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  if (!project) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="text-gray-600 text-lg font-medium">Project not found</div>
+        <Link href="/tailoring">
+          <Button variant="outline">Back to Projects</Button>
+        </Link>
+      </div>
+    )
+  }
+
+  // Calculate progress from API data
+  const completedSteps = Number.parseInt(project.stepsCompleted)
+  const totalSteps = Number.parseInt(project.totalSteps)
+  const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0
+
+  // Parse numeric values from string fields
+  const timeEfficiency = Number.parseFloat(project.timeEfficiency)
+  const actualHours = Number.parseFloat(project.actualHours)
+
+  // Calculate total estimated and actual hours from workflows
+  const totalEstimatedHours = project.workflows.reduce((sum, step) => sum + step.estimatedHours, 0)
+  const totalActualHours = project.workflows.reduce((sum, step) => sum + step.actualHours, 0)
+
+  // Find the step to complete (for confirmation dialog)
+  const stepToConfirm = stepToComplete !== null ? project.workflows.find((step) => step.id === stepToComplete) : null
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Complete Workflow Step</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark this step as completed? This action cannot be undone.
+              {stepToConfirm && (
+                <div className="mt-2 p-3 bg-blue-50 rounded-md">
+                  <p className="font-medium text-blue-900">
+                    Step {stepToConfirm.stepNo}: {stepToConfirm.config.title}
+                  </p>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-row justify-end gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setConfirmDialogOpen(false)
+                setStepToComplete(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" className="bg-green-600 hover:bg-green-700" onClick={handleStepToggleConfirm}>
+              Complete Step
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Professional Header */}
       <div className="flex items-center gap-6">
         <Link href="/tailoring">
@@ -232,8 +416,8 @@ export default function TailoringProjectDetail() {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-4 mb-2">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">{project.id}</h1>
-            {project.isRush && (
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Project #{project.id}</h1>
+            {project.rush && (
               <Badge className="bg-amber-100 text-amber-800 border-amber-200 flex gap-1 items-center">
                 <AlertTriangle className="h-3 w-3" />
                 Rush Order
@@ -243,9 +427,11 @@ export default function TailoringProjectDetail() {
           </div>
           <p className="text-gray-600 text-lg">{project.description}</p>
         </div>
-        <Button variant="outline" className="border-gray-300">
+        <Button variant="outline" className="border-gray-300" asChild>
+           <Link href={`/tailoring/${id}/edit`}>
           <Edit className="mr-2 h-4 w-4" />
           Edit Project
+           </Link>
         </Button>
       </div>
 
@@ -256,8 +442,8 @@ export default function TailoringProjectDetail() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Progress</p>
-                <p className="text-3xl font-bold text-gray-900">{project.progress}%</p>
-                <Progress value={project.progress} className="h-2 mt-2" />
+                <p className="text-3xl font-bold text-gray-900">{progress}%</p>
+                <Progress value={progress} className="h-2 mt-2" />
               </div>
               <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Target className="h-6 w-6 text-blue-600" />
@@ -271,9 +457,9 @@ export default function TailoringProjectDetail() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Time Efficiency</p>
-                <p className="text-3xl font-bold text-gray-900">{efficiency}%</p>
+                <p className="text-3xl font-bold text-gray-900">{timeEfficiency.toFixed(1)}%</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {project.totalActualHours}h / {project.totalEstimatedHours}h
+                  {actualHours}h / {project.estimatedHours || 0}h
                 </p>
               </div>
               <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -288,10 +474,8 @@ export default function TailoringProjectDetail() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Steps Completed</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {project.workflow.filter((step) => step.completed).length}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">of {project.workflow.length} total</p>
+                <p className="text-3xl font-bold text-gray-900">{project.stepsCompleted}</p>
+                <p className="text-xs text-gray-500 mt-1">of {project.totalSteps} total</p>
               </div>
               <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <CheckCircle2 className="h-6 w-6 text-purple-600" />
@@ -305,8 +489,8 @@ export default function TailoringProjectDetail() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Days Remaining</p>
-                <p className="text-3xl font-bold text-gray-900">5</p>
-                <p className="text-xs text-gray-500 mt-1">until {project.deadline}</p>
+                <p className="text-3xl font-bold text-gray-900">{project.daysRemaining}</p>
+                <p className="text-xs text-gray-500 mt-1">until {format(new Date(project.deadline), "MMM d, yyyy")}</p>
               </div>
               <div className="h-12 w-12 bg-amber-100 rounded-lg flex items-center justify-center">
                 <Calendar className="h-6 w-6 text-amber-600" />
@@ -320,18 +504,21 @@ export default function TailoringProjectDetail() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="border-gray-200 shadow-sm">
           <CardHeader className="border-b border-gray-200 bg-gray-50/50">
-            <CardTitle className="text-lg text-gray-900">Customer Information</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+              <User className="h-5 w-5 text-blue-600" />
+              Customer Information
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={project.customer.image || "/placeholder.svg"} alt={project.customer.name} />
-                <AvatarFallback className="bg-gray-200 text-gray-700">{project.customer.initials}</AvatarFallback>
+                <AvatarFallback className="bg-gray-200 text-gray-700">
+                  {project.customerName.charAt(0).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div>
-                <div className="font-medium text-gray-900 text-lg">{project.customer.name}</div>
-                <div className="text-sm text-gray-600">{project.customer.phone}</div>
-                <div className="text-sm text-gray-600">{project.customer.email}</div>
+                <div className="font-medium text-gray-900 text-lg">{project.customerName}</div>
+                <div className="text-sm text-gray-500">Customer ID: {project.customerId}</div>
               </div>
             </div>
           </CardContent>
@@ -339,18 +526,21 @@ export default function TailoringProjectDetail() {
 
         <Card className="border-gray-200 shadow-sm">
           <CardHeader className="border-b border-gray-200 bg-gray-50/50">
-            <CardTitle className="text-lg text-gray-900">Assigned Tailor</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+              <Scissors className="h-5 w-5 text-blue-600" />
+              Assigned Tailor
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={project.tailor.image || "/placeholder.svg"} alt={project.tailor.name} />
-                <AvatarFallback className="bg-gray-200 text-gray-700">{project.tailor.initials}</AvatarFallback>
+                <AvatarFallback className="bg-gray-200 text-gray-700">
+                  {project.tailorName.charAt(0).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div>
-                <div className="font-medium text-gray-900 text-lg">{project.tailor.name}</div>
-                <div className="text-sm text-gray-600">Level {project.tailor.level} Master Tailor</div>
-                <div className="text-sm text-gray-600">Specializes in Traditional Wear</div>
+                <div className="font-medium text-gray-900 text-lg">{project.tailorName}</div>
+                <div className="text-sm text-gray-500">Tailor ID: {project.tailorId}</div>
               </div>
             </div>
           </CardContent>
@@ -391,94 +581,104 @@ export default function TailoringProjectDetail() {
               </div>
 
               <div className="space-y-6">
-                {project.workflow.map((step, index) => (
-                  <div key={step.id} className="flex gap-6 p-6 rounded-lg border border-gray-200 bg-white shadow-sm">
-                    <div className="flex flex-col items-center">
-                      <Checkbox
-                        checked={step.completed}
-                        onCheckedChange={() => handleStepToggle(step.id)}
-                        className="mt-1"
-                      />
-                      {index < project.workflow.length - 1 && <div className="w-px h-20 bg-gray-200 mt-4" />}
-                    </div>
-
-                    <div className="flex-1 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className={`font-semibold text-lg ${step.completed ? "text-green-700" : "text-gray-900"}`}>
-                          {step.title}
-                        </h4>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {step.actualHours ? `${step.actualHours}h` : `~${step.estimatedHours}h`}
-                          </div>
-                          {step.completed && step.completedAt && (
-                            <Badge className="bg-green-100 text-green-800 border-green-200">
-                              Completed {format(step.completedAt, "MMM d, HH:mm")}
-                            </Badge>
-                          )}
-                        </div>
+                {project.workflows
+                  .sort((a, b) => a.stepNo - b.stepNo)
+                  .map((step, index) => (
+                    <div key={step.id} className="flex gap-6 p-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+                      <div className="flex flex-col items-center">
+                        <Checkbox
+                          checked={step.status === "completed"}
+                          onCheckedChange={() => handleStepToggleRequest(step.id)}
+                          disabled={step.status === "completed"}
+                          className={`mt-1 ${step.status === "completed" ? "opacity-60 cursor-not-allowed" : ""}`}
+                        />
+                        {index < project.workflows.length - 1 && <div className="w-px h-20 bg-gray-200 mt-4" />}
                       </div>
 
-                      <p className="text-gray-600">{step.description}</p>
+                      <div className="flex-1 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4
+                            className={`font-semibold text-lg ${
+                              step.status === "completed" ? "text-green-700" : "text-gray-900"
+                            }`}
+                          >
+                            Step {step.stepNo}: {step.config.title}
+                          </h4>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              <span className="text-xs">
+                                {step.actualHours}h / {step.estimatedHours}h
+                              </span>
+                            </div>
+                            {getWorkflowStatusBadge(step.status)}
+                            {step.status === "completed" && step.completedAt && (
+                              <Badge className="bg-green-100 text-green-800 border-green-200">
+                                Completed {format(new Date(step.completedAt), "MMM d, HH:mm")}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
 
-                      {step.notes && (
-                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                          <div className="flex items-start gap-2">
-                            <MessageSquare className="h-4 w-4 text-blue-600 mt-0.5" />
-                            <div>
-                              <p className="font-medium text-blue-900 text-sm">Notes:</p>
-                              <p className="text-blue-800 text-sm">{step.notes}</p>
+                        <p className="text-gray-600">{step.config.description}</p>
+
+                        {step.notes && (
+                          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="flex items-start gap-2">
+                              <MessageSquare className="h-4 w-4 text-blue-600 mt-0.5" />
+                              <div>
+                                <p className="font-medium text-blue-900 text-sm">Notes:</p>
+                                <p className="text-blue-800 text-sm">{step.notes}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {editingStep === step.id ? (
-                        <div className="space-y-3">
-                          <Textarea
-                            value={stepNotes}
-                            onChange={(e) => setStepNotes(e.target.value)}
-                            placeholder="Add notes for this step..."
-                            className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                            rows={3}
-                          />
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleSaveNotes(step.id)}
-                              className="bg-blue-600 hover:bg-blue-700"
-                            >
-                              <Save className="mr-1 h-3 w-3" />
-                              Save Notes
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditingStep(null)}
-                              className="border-gray-300"
-                            >
-                              Cancel
-                            </Button>
+                        {editingStep === step.id ? (
+                          <div className="space-y-3">
+                            <Textarea
+                              value={stepNotes}
+                              onChange={(e) => setStepNotes(e.target.value)}
+                              placeholder="Add notes for this step..."
+                              className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                              rows={3}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleSaveNotes(step.id)}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                <Save className="mr-1 h-3 w-3" />
+                                Save Notes
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingStep(null)}
+                                className="border-gray-300"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setEditingStep(step.id)
-                            setStepNotes(step.notes || "")
-                          }}
-                          className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                        >
-                          <MessageSquare className="mr-1 h-3 w-3" />
-                          {step.notes ? "Edit Notes" : "Add Notes"}
-                        </Button>
-                      )}
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingStep(step.id)
+                              setStepNotes(step.notes || "")
+                            }}
+                            className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                          >
+                            <MessageSquare className="mr-1 h-3 w-3" />
+                            {step.notes ? "Edit Notes" : "Add Notes"}
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </TabsContent>
 
@@ -489,26 +689,28 @@ export default function TailoringProjectDetail() {
                     <CardTitle className="text-lg text-gray-900">Project Information</CardTitle>
                   </CardHeader>
                   <CardContent className="p-6 space-y-4">
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-6">
                       <div>
-                        <Label className="text-sm font-medium text-gray-600">Category</Label>
-                        <div className="font-medium text-gray-900 mt-1">{project.category}</div>
+                        <Label className="text-sm font-medium text-gray-600">Order ID</Label>
+                        <div className="font-medium text-gray-900 mt-1">#{project.orderId}</div>
                       </div>
                       <div>
                         <Label className="text-sm font-medium text-gray-600">Created Date</Label>
-                        <div className="font-medium text-gray-900 mt-1">{project.createdAt}</div>
+                        <div className="font-medium text-gray-900 mt-1">
+                          {format(new Date(project.createdAt), "EEEE, MMMM do, yyyy")}
+                        </div>
                       </div>
                       <div>
                         <Label className="text-sm font-medium text-gray-600">Delivery Deadline</Label>
                         <div className="font-medium text-gray-900 mt-1 flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-500" />
-                          {project.deadline}
+                          {format(new Date(project.deadline), "EEEE, MMMM do, yyyy")}
                         </div>
                       </div>
                       <div>
                         <Label className="text-sm font-medium text-gray-600">Priority Level</Label>
                         <div className="font-medium text-gray-900 mt-1">
-                          {project.isRush ? (
+                          {project.rush ? (
                             <span className="text-amber-600 flex items-center gap-1">
                               <AlertTriangle className="h-4 w-4" />
                               Rush Order
@@ -516,6 +718,12 @@ export default function TailoringProjectDetail() {
                           ) : (
                             "Standard Priority"
                           )}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Special Instructions</Label>
+                        <div className="font-medium text-gray-900 mt-1 p-3 bg-gray-50 rounded border">
+                          {project.instructions}
                         </div>
                       </div>
                     </div>
@@ -529,17 +737,27 @@ export default function TailoringProjectDetail() {
                   <CardContent className="p-6 space-y-4">
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-600">Estimated Hours</span>
-                        <span className="font-medium text-gray-900">{project.totalEstimatedHours}h</span>
+                        <span className="text-sm font-medium text-gray-600">Project Estimated Hours</span>
+                        <span className="font-medium text-gray-900">
+                          {project.estimatedHours ? `${project.estimatedHours}h` : "Not specified"}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-600">Actual Hours</span>
-                        <span className="font-medium text-gray-900">{project.totalActualHours}h</span>
+                        <span className="text-sm font-medium text-gray-600">Project Actual Hours</span>
+                        <span className="font-medium text-gray-900">{actualHours}h</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600">Workflow Total Estimated</span>
+                        <span className="font-medium text-gray-900">{totalEstimatedHours}h</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600">Workflow Total Actual</span>
+                        <span className="font-medium text-gray-900">{totalActualHours}h</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-600">Remaining Hours</span>
                         <span className="font-medium text-gray-900">
-                          {Math.max(0, project.totalEstimatedHours - project.totalActualHours)}h
+                          {Math.max(0, totalEstimatedHours - totalActualHours)}h
                         </span>
                       </div>
                       <div className="pt-4 border-t border-gray-200">
@@ -547,14 +765,14 @@ export default function TailoringProjectDetail() {
                           <span className="text-sm font-medium text-gray-600">Time Efficiency</span>
                           <Badge
                             className={
-                              efficiency >= 90
+                              timeEfficiency >= 90
                                 ? "bg-green-100 text-green-800 border-green-200"
-                                : efficiency >= 80
+                                : timeEfficiency >= 80
                                   ? "bg-blue-100 text-blue-800 border-blue-200"
                                   : "bg-amber-100 text-amber-800 border-amber-200"
                             }
                           >
-                            {efficiency}%
+                            {timeEfficiency.toFixed(1)}%
                           </Badge>
                         </div>
                       </div>
@@ -571,8 +789,8 @@ export default function TailoringProjectDetail() {
               </div>
 
               <div className="space-y-4">
-                {project.workflow
-                  .filter((step) => step.completed && step.completedAt)
+                {project.workflows
+                  .filter((step) => step.status === "completed" && step.completedAt)
                   .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
                   .map((step) => (
                     <div key={step.id} className="flex gap-4 p-6 rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -580,9 +798,14 @@ export default function TailoringProjectDetail() {
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium text-gray-900 text-lg">{step.title}</div>
+                        <div className="font-medium text-gray-900 text-lg">
+                          Step {step.stepNo}: {step.config.title}
+                        </div>
                         <div className="text-sm text-gray-600 mt-1">
-                          Completed on {format(step.completedAt!, "EEEE, MMMM do, yyyy 'at' HH:mm")}
+                          Completed on {format(new Date(step.completedAt!), "EEEE, MMMM do, yyyy 'at' HH:mm")}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          Time: {step.actualHours}h (estimated: {step.estimatedHours}h)
                         </div>
                         {step.notes && (
                           <div className="text-sm text-gray-600 mt-2 p-3 bg-gray-50 rounded border">
@@ -596,6 +819,13 @@ export default function TailoringProjectDetail() {
                       </div>
                     </div>
                   ))}
+
+                {project.workflows.filter((step) => step.status === "completed").length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No completed activities yet</p>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </div>

@@ -1,9 +1,24 @@
-"use client"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,109 +26,91 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { ArrowLeft, Edit, MoreHorizontal, Package, ShoppingCart, Users, TrendingUp, Calendar, User } from "lucide-react"
-import Link from "next/link"
-import { useParams } from "next/navigation"
-
-// Mock data matching your service's findOne response
-const mockProductData = {
-  id: 1,
-  name: "Kandura (Premium)",
-  sku: "KAN-PREM-001",
-  barcode: "5901234123457",
-  image: "/placeholder.svg?key=ng1v2",
-  category: "Kandura",
-  price: "450.00",
-  stock: 25,
-  minQty: 10,
-  inStock: true,
-  recentOrders: [
-    {
-      orderId: 1001,
-      orderedAt: new Date("2024-01-20"),
-      customerId: 1,
-      customerName: "Ahmed Al Mansouri",
-      qty: 2,
-      unitPrice: "450.00",
-      itemTotal: "900.00",
-    },
-    {
-      orderId: 1002,
-      orderedAt: new Date("2024-01-18"),
-      customerId: 2,
-      customerName: "Mohammed Al Zaabi",
-      qty: 1,
-      unitPrice: "450.00",
-      itemTotal: "450.00",
-    },
-    {
-      orderId: 1003,
-      orderedAt: new Date("2024-01-15"),
-      customerId: 3,
-      customerName: "Khalid Al Nuaimi",
-      qty: 3,
-      unitPrice: "450.00",
-      itemTotal: "1350.00",
-    },
-  ],
-  topCustomers: [
-    {
-      customerId: 1,
-      customerName: "Ahmed Al Mansouri",
-      totalQty: 8,
-      orderCount: 4,
-    },
-    {
-      customerId: 2,
-      customerName: "Mohammed Al Zaabi",
-      totalQty: 5,
-      orderCount: 3,
-    },
-    {
-      customerId: 3,
-      customerName: "Khalid Al Nuaimi",
-      totalQty: 4,
-      orderCount: 2,
-    },
-  ],
-}
+} from "@/components/ui/dropdown-menu";
+import {
+  ArrowLeft,
+  Edit,
+  MoreHorizontal,
+  Package,
+  ShoppingCart,
+  Users,
+  TrendingUp,
+  Calendar,
+  User,
+  Loader2,
+} from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { productsApi } from "@/lib/api/products";
 
 export default function ProductViewPage() {
-  const params = useParams()
-  const productId = params.id as string
-  const product = mockProductData // In real app, fetch using productId
+  const params = useParams();
+  const productId = Number.parseInt(params.id as string);
+
+  const {
+    data: product,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["product", productId],
+    queryFn: () => productsApi.getById(productId),
+  });
 
   const getStockStatus = () => {
-    if (!product.stock || product.stock <= 0) {
-      return <Badge variant="destructive">Out of Stock</Badge>
+    switch (product?.status) {
+      case "In stock":
+        return (
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+            In Stock
+          </Badge>
+        );
+
+      case "Out of stock":
+        return <Badge variant="destructive">Out of Stock</Badge>;
+
+      case "Available":
+        return (
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+            Available
+          </Badge>
+        );
+
+      case "Unavailable":
+        return <Badge variant="destructive">Unavailable</Badge>;
+
+      default:
+        return <Badge variant="outline">N/A</Badge>;
     }
-    if (product.stock <= product.minQty) {
-      return (
-        <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
-          Low Stock
-        </Badge>
-      )
-    }
-    return (
-      <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-        In Stock
-      </Badge>
-    )
-  }
+  };
 
   const formatCurrency = (amount: string | number) => {
-    return `AED ${Number.parseFloat(amount.toString()).toFixed(2)}`
-  }
+    return `AED ${Number.parseFloat(amount.toString()).toFixed(2)}`;
+  };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | string) => {
     return new Intl.DateTimeFormat("en-AE", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(date)
+    }).format(new Date(date));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-destructive">Failed to load product</p>
+      </div>
+    );
   }
 
   return (
@@ -128,7 +125,9 @@ export default function ProductViewPage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {product.name}
+            </h1>
             <p className="text-muted-foreground">SKU: {product.sku}</p>
           </div>
         </div>
@@ -158,7 +157,9 @@ export default function ProductViewPage() {
                 Add to Sale
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">Disable Product</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive">
+                Disable Product
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -166,7 +167,13 @@ export default function ProductViewPage() {
 
       {/* Product Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
+        <Card
+          className={`${
+            product.type === "ready-made" || product.type === "fabric"
+              ? "md:col-span-2"
+              : "col-span-full"
+          }`}
+        >
           <CardHeader>
             <CardTitle>Product Details</CardTitle>
           </CardHeader>
@@ -182,19 +189,29 @@ export default function ProductViewPage() {
               <div className="flex-1 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Category</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Category
+                    </h3>
                     <p className="font-medium">{product.category}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Barcode</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Barcode
+                    </h3>
                     <p className="font-medium font-mono">{product.barcode}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Selling Price</h3>
-                    <p className="font-medium text-lg">{formatCurrency(product.price)}</p>
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Selling Price
+                    </h3>
+                    <p className="font-medium text-lg">
+                      {formatCurrency(product.price)}
+                    </p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Stock Status</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">
+                      Stock Status
+                    </h3>
                     <div className="mt-1">{getStockStatus()}</div>
                   </div>
                 </div>
@@ -202,28 +219,36 @@ export default function ProductViewPage() {
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Inventory Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold">{product.stock || 0}</div>
-              <p className="text-sm text-muted-foreground">Units in Stock</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Min. Quantity:</span>
-                <p className="font-medium">{product.minQty}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Available:</span>
-                <p className="font-medium">{product.inStock ? "Yes" : "No"}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {product.type === "ready-made" ||
+          (product.type === "fabric" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Inventory Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <div className="text-3xl font-bold">{product.stock || 0}</div>
+                  <p className="text-sm text-muted-foreground">
+                    Units in Stock
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">
+                      Min. Quantity:
+                    </span>
+                    <p className="font-medium">{product.minQty || 0}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Available:</span>
+                    <p className="font-medium">
+                      {product.inStock ? "Yes" : "No"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
       </div>
 
       {/* Analytics Tabs */}
@@ -240,7 +265,9 @@ export default function ProductViewPage() {
                 <Calendar className="h-5 w-5" />
                 Recent Orders
               </CardTitle>
-              <CardDescription>Last 10 orders containing this product</CardDescription>
+              <CardDescription>
+                Last 10 orders containing this product
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {product.recentOrders.length === 0 ? (
@@ -273,14 +300,21 @@ export default function ProductViewPage() {
                             </Link>
                           </TableCell>
                           <TableCell>
-                            <Link href={`/customers/${order.customerId}`} className="hover:underline">
+                            <Link
+                              href={`/customers/${order.customerId}`}
+                              className="hover:underline"
+                            >
                               {order.customerName}
                             </Link>
                           </TableCell>
                           <TableCell>{formatDate(order.orderedAt)}</TableCell>
                           <TableCell>{order.qty}</TableCell>
-                          <TableCell>{formatCurrency(order.unitPrice)}</TableCell>
-                          <TableCell>{formatCurrency(order.itemTotal)}</TableCell>
+                          <TableCell>
+                            {formatCurrency(order.unitPrice)}
+                          </TableCell>
+                          <TableCell>
+                            {formatCurrency(order.itemTotal)}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -298,7 +332,9 @@ export default function ProductViewPage() {
                 <Users className="h-5 w-5" />
                 Top Customers
               </CardTitle>
-              <CardDescription>Customers who purchase this product most frequently</CardDescription>
+              <CardDescription>
+                Customers who purchase this product most frequently
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {product.topCustomers.length === 0 ? (
@@ -325,7 +361,10 @@ export default function ProductViewPage() {
                               <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
                                 {index + 1}
                               </div>
-                              <Link href={`/customers/${customer.customerId}`} className="hover:underline">
+                              <Link
+                                href={`/customers/${customer.customerId}`}
+                                className="hover:underline"
+                              >
                                 {customer.customerName}
                               </Link>
                             </div>
@@ -337,7 +376,11 @@ export default function ProductViewPage() {
                             </div>
                           </TableCell>
                           <TableCell>{customer.orderCount}</TableCell>
-                          <TableCell>{(customer.totalQty / customer.orderCount).toFixed(1)}</TableCell>
+                          <TableCell>
+                            {(customer.totalQty / customer.orderCount).toFixed(
+                              1
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -349,5 +392,5 @@ export default function ProductViewPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

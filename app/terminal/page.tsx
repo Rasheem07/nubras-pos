@@ -35,16 +35,23 @@ import {
   Printer,
   Receipt,
   Save,
-  Clock,
   X,
-  User,
   Calendar,
+  Command
 } from "lucide-react";
 import { toast } from "sonner";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
+import CustomerSelectDialog from "./_components/customerSelect";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 // Zod schemas matching the exact DTOs
 const SalesOrderItemSchema = z.object({
@@ -74,7 +81,6 @@ const CreateSalesOrderSchema = z.object({
   discountAmount: z.string(),
   totalAmount: z.string(),
   paymentMethod: z.string().max(20),
-  paymentStatus: z.enum(["no-payment", "partial", "paid"]).optional(),
   notes: z.string().optional(),
   priority: z.enum(["low", "medium", "high"]),
   paymentTerms: z.string(),
@@ -82,37 +88,18 @@ const CreateSalesOrderSchema = z.object({
   deliveryDate: z.coerce.date().optional(),
   completedDate: z.coerce.date().optional(),
   items: z.array(SalesOrderItemSchema).min(1),
+  partialAmount: z.string().optional(),
 });
 
 type CreateSalesOrderDto = z.infer<typeof CreateSalesOrderSchema>;
 type SalesOrderItemDto = z.infer<typeof SalesOrderItemSchema>;
-
-interface CartItem {
-  id: string;
-  description: string;
-  catelogId: number;
-  sku?: string;
-  qty: number;
-  price: number;
-  total: number;
-  image?: string;
-  category: string;
-}
 
 interface Customer {
   id: number;
   name: string;
   phone: string;
   email: string;
-  loyaltyTier?: "standard" | "silver" | "gold" | "platinum";
-  address?: string;
-}
-
-interface Staff {
-  id: number;
-  name: string;
-  role: string;
-  department: string;
+  status: "new" | "active" | "gold" | "platinum" | "diamond" | "inactive";
 }
 
 interface ProductCardProps {
@@ -130,49 +117,50 @@ interface ProductCardProps {
 function ProductCard({ product, onAdd }: ProductCardProps) {
   return (
     <Card
-      className="cursor-pointer hover:shadow-sm transition-all duration-200 hover:border-blue-300 group"
+      className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/40 group touch-manipulation
+                 h-24 md:h-32 lg:min-h-[100px]"
       onClick={onAdd}
     >
-      <CardContent className="p-2">
-        <div className="flex items-center gap-2">
-          {/* Image Left */}
-          <div className="w-12 h-12 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+      <CardContent className="p-3 md:p-5 lg:p-4 h-full">
+        <div className="flex items-center gap-3 h-full">
+          {/* Image */}
+          <div className="w-16 h-16 md:w-24 md:h-24 lg:w-16 lg:h-16 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
             <img
-              src={product.image || "/placeholder.svg?height=48&width=48"}
+              src={product.image || "/placeholder.svg?height=64&width=64"}
               alt={product.name}
               className="w-full h-full object-cover"
             />
           </div>
 
-          {/* Content Right */}
+          {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-xs text-gray-900 line-clamp-1 mb-1">
+                <h3 className="font-semibold text-sm md:text-base lg:text-sm text-gray-900 dark:text-primary line-clamp-2 mb-1 leading-tight">
                   {product.name}
                 </h3>
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className="text-xs px-1 py-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge variant="outline" className="text-xs px-2 py-1">
                     {product.category}
                   </Badge>
                   {product.sku && (
                     <span className="text-xs text-gray-500">{product.sku}</span>
                   )}
                 </div>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm md:text-base lg:text-base font-bold text-gray-900">
                   AED {product.price}
                 </p>
               </div>
               <Button
                 size="sm"
-                variant="ghost"
-                className="w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                variant="outline"
+                className="w-8 h-8 md:w-12 md:h-12 lg:w-8 lg:h-8 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 touch-manipulation"
                 onClick={(e) => {
                   e.stopPropagation();
                   onAdd();
                 }}
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -182,7 +170,7 @@ function ProductCard({ product, onAdd }: ProductCardProps) {
   );
 }
 
-// Ultra Compact Cart Item
+// Improved Cart Item
 interface CartItemCardProps {
   item: SalesOrderItemDto;
   onUpdateQuantity: (qty: number) => void;
@@ -191,56 +179,51 @@ interface CartItemCardProps {
 
 function CartItemCard({ item, onUpdateQuantity, onRemove }: CartItemCardProps) {
   return (
-    <div className="p-2 border border-gray-200 rounded bg-white">
-      <div className="flex items-center justify-between mb-1">
+    <div className="p-3 md:p-4 lg:p-3 border border-gray-200 rounded-lg bg-white hover:border-primary/30 hover:shadow-sm transition-all touch-manipulation">
+      <div className="flex items-start justify-between mb-2 gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-xs text-gray-900 line-clamp-1">
+          <h3 className="font-medium text-sm text-gray-900 line-clamp-2 leading-tight">
             {item.description}
           </h3>
-          <div className="flex items-center gap-1">
-            {/* <Badge variant="outline" className="text-xs px-1 py-0">
-              {item.category}
-            </Badge> */}
-            {item.sku && (
-              <span className="text-xs text-gray-500">{item.sku}</span>
-            )}
-          </div>
+          {item.sku && (
+            <span className="text-xs text-gray-500 mt-1 block">{item.sku}</span>
+          )}
         </div>
         <Button
           variant="ghost"
           size="sm"
-          className="w-5 h-5 p-0 text-gray-400 hover:text-red-500"
+          className="w-6 h-6 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 flex-shrink-0 touch-manipulation"
           onClick={onRemove}
         >
-          <X className="w-3 h-3" />
+          <X className="w-4 h-4" />
         </Button>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1 border rounded-md">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="w-5 h-5 p-0"
+            className="w-8 h-8 md:w-10 md:h-10 lg:w-8 lg:h-8 p-0 rounded-none touch-manipulation"
             onClick={() => onUpdateQuantity(item.qty - 1)}
             disabled={item.qty <= 1}
           >
-            <Minus className="w-3 h-3" />
+            <Minus className="w-4 h-4" />
           </Button>
-          <span className="w-6 text-center text-xs font-medium">
+          <span className="w-8 text-center text-sm font-semibold">
             {item.qty}
           </span>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="w-5 h-5 p-0"
+            className="w-8 h-8 md:w-10 md:h-10 lg:w-8 lg:h-8 p-0 rounded-none touch-manipulation"
             onClick={() => onUpdateQuantity(item.qty + 1)}
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-4 h-4" />
           </Button>
         </div>
         <div className="text-right">
-          <p className="text-xs font-semibold text-gray-900">
+          <p className="text-sm font-bold text-gray-900">
             AED {Number.parseFloat(item.total).toFixed(2)}
           </p>
           <p className="text-xs text-gray-500">AED {item.price} each</p>
@@ -252,28 +235,36 @@ function CartItemCard({ item, onUpdateQuantity, onRemove }: CartItemCardProps) {
 
 export default function POSTerminalPage() {
   const [applyTax, setApplyTax] = useState(true);
+  const [walInMode, setWalkInMode] = useState(false);
+  const [paymentType, setPaymentType] = useState<"full" | "partial" | "none">(
+    "full"
+  );
+  const [searchTerm, setSearchTerm] = useState("");
 
+  // Initialize with default sales person
   const form = useForm<CreateSalesOrderDto>({
-    resolver: zodResolver(CreateSalesOrderSchema),
+    resolver: zodResolver(
+      CreateSalesOrderSchema
+    ) as Resolver<CreateSalesOrderDto>,
     defaultValues: {
-      status: "draft",
+      status: "confirmed", // Always confirmed as requested
       customerId: 0,
       customerName: "",
-      salesPersonId: 0,
-      salesPersonName: "",
+      salesPersonId: 2, // Default sales person ID
+      salesPersonName: "Test Sales Person", // Default sales person name
       subtotal: "0.00",
       taxAmount: "0.00",
       discountAmount: "0.00",
       totalAmount: "0.00",
       paymentMethod: "cash",
-      paymentStatus: "no-payment",
       notes: "",
       priority: "medium",
       paymentTerms: "immediate",
-      dueDate: undefined,
+      dueDate: new Date(), // Today by default
       deliveryDate: undefined,
       completedDate: undefined,
       items: [],
+      partialAmount: "0.00",
     },
   });
 
@@ -289,17 +280,14 @@ export default function POSTerminalPage() {
   const cart = formData.items || [];
   const customerId = formData.customerId;
   const customerName = formData.customerName;
-  const salesPersonId = formData.salesPersonId;
-  const salesPersonName = formData.salesPersonName;
   const paymentMethod = formData.paymentMethod;
-  const paymentStatus = formData.paymentStatus;
   const notes = formData.notes;
   const priority = formData.priority;
   const paymentTerms = formData.paymentTerms;
   const dueDate = formData.dueDate;
   const deliveryDate = formData.deliveryDate;
   const discountAmount = Number.parseFloat(formData.discountAmount) || 0;
-  const status = formData.status;
+  const partialAmount = formData?.partialAmount;
 
   const subtotal = cart.reduce(
     (total, item) => total + Number.parseFloat(item.total),
@@ -314,6 +302,40 @@ export default function POSTerminalPage() {
     setValue("taxAmount", taxAmount.toFixed(2));
     setValue("totalAmount", totalAmount.toFixed(2));
   }, [subtotal, taxAmount, totalAmount, setValue]);
+
+  // Auto-calculate due date based on payment terms
+  useEffect(() => {
+    const today = new Date();
+    let daysToAdd = 0;
+
+    switch (paymentTerms) {
+      case "immediate":
+        daysToAdd = 0;
+        break;
+      case "net-7":
+        daysToAdd = 7;
+        break;
+      case "net-15":
+        daysToAdd = 15;
+        break;
+      case "net-30":
+        daysToAdd = 30;
+        break;
+    }
+
+    const newDueDate = new Date(today);
+    newDueDate.setDate(today.getDate() + daysToAdd);
+    setValue("dueDate", newDueDate);
+  }, [paymentTerms, setValue]);
+
+  // Handle payment type changes
+  useEffect(() => {
+    if (paymentType === "full") {
+      setValue("partialAmount", totalAmount.toFixed(2));
+    } else if (paymentType === "none") {
+      setValue("partialAmount", "0.00");
+    }
+  }, [paymentType, totalAmount, setValue]);
 
   const updateQuantity = (index: number, newQty: number) => {
     if (newQty < 1) return;
@@ -357,19 +379,50 @@ export default function POSTerminalPage() {
   };
 
   const clearCart = () => {
-    form.reset();
+    form.reset({
+      ...form.getValues(),
+      items: [],
+      subtotal: "0.00",
+      taxAmount: "0.00",
+      totalAmount: "0.00",
+      discountAmount: "0.00",
+      partialAmount: "0.00",
+    });
     setApplyTax(true);
+  };
+
+  const saveDraft = async () => {
+    const draftData = { ...formData, status: "draft" as const };
+    try {
+      const response = await fetch("http://3.29.240.212/api/v1/sales", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(draftData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message ?? "Failed to save draft!");
+      }
+
+      toast.success("Draft saved successfully");
+    } catch (error: any) {
+      console.error("Error saving draft:", error);
+      toast.error(error.message);
+    }
   };
 
   const onSubmit = async (data: CreateSalesOrderDto) => {
     try {
       console.log(data);
-      const response = await fetch("http://localhost:5005/api/v1/sales", {
+      const response = await fetch("http://3.29.240.212/api/v1/sales", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        crendentials: "include",
         body: JSON.stringify(data),
       });
 
@@ -384,8 +437,9 @@ export default function POSTerminalPage() {
       // Reset form after successful submission
       form.reset();
       setApplyTax(true);
+      setPaymentType("full");
 
-      // Show success message (you can add a toast notification here)
+      // Show success message
       toast.success(result.message);
     } catch (error: any) {
       console.error("Error creating order:", error);
@@ -394,238 +448,48 @@ export default function POSTerminalPage() {
   };
 
   // Mock data
-  const customers: Customer[] = [
-    {
-      id: 1,
-      name: "Fatima Mohammed",
-      phone: "+971 50 123 4567",
-      email: "fatima.m@example.com",
-      loyaltyTier: "gold",
-      address: "Dubai Marina, UAE",
-    },
-    {
-      id: 2,
-      name: "Ahmed Al Mansouri",
-      phone: "+971 55 987 6543",
-      email: "ahmed.m@example.com",
-      loyaltyTier: "silver",
-      address: "Business Bay, Dubai",
-    },
-    {
-      id: 3,
-      name: "Layla Khan",
-      phone: "+971 52 456 7890",
-      email: "layla.k@example.com",
-      loyaltyTier: "standard",
-      address: "Jumeirah, Dubai",
-    },
-  ];
-
-  const { data: staff = [], isLoading: staffLoading } = useQuery({
-    queryFn: ["staffs"],
+  const { data: customers = [], isLoading: customerLoading } = useQuery<
+    Customer[]
+  >({
+    queryKey: ["customers"],
     queryFn: async () => {
       const response = await fetch(
-        "http://localhost:5005/api/v1/list/sales-person",
+        "http://3.29.240.212/api/v1/list/customer",
         {
           headers: {
             "Content-Type": "application/json",
           },
-          crendentials: "include",
         }
       );
       const json = await response.json();
       if (!response.ok) {
-        toast.error("Failed to fetch sales person list");
+        toast.error("Failed to fetch customers list");
       }
       return json;
     },
   });
 
-  const products = [
-    {
-      category: "Men",
-      items: [
+  const { data: products = [], isLoading: catalogLoading } = useQuery({
+    queryKey: ["productsCatalog"],
+    queryFn: async () => {
+      const response = await fetch(
+        "http://3.29.240.212/api/v1/products/list/catalog",
         {
-          id: 1,
-          name: "Premium Kandura",
-          price: 450,
-          sku: "KAN-001",
-          image: "/placeholder.svg?height=50&width=50&text=KAN",
-        },
-        {
-          id: 2,
-          name: "Standard Kandura",
-          price: 350,
-          sku: "KAN-002",
-          image: "/placeholder.svg?height=50&width=50&text=KAN",
-        },
-        {
-          id: 3,
-          name: "Formal Thobe",
-          price: 520,
-          sku: "THB-001",
-          image: "/placeholder.svg?height=50&width=50&text=THB",
-        },
-        {
-          id: 4,
-          name: "Casual Kandura",
-          price: 280,
-          sku: "KAN-003",
-          image: "/placeholder.svg?height=50&width=50&text=KAN",
-        },
-      ],
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const json = await response.json();
+      if (!response.ok) {
+        toast.error("Failed to fetch product catalog!");
+      }
+      return json;
     },
-    {
-      category: "Women",
-      items: [
-        {
-          id: 5,
-          name: "Premium Abaya",
-          price: 550,
-          sku: "ABY-001",
-          image: "/placeholder.svg?height=50&width=50&text=ABY",
-        },
-        {
-          id: 6,
-          name: "Standard Abaya",
-          price: 350,
-          sku: "ABY-002",
-          image: "/placeholder.svg?height=50&width=50&text=ABY",
-        },
-        {
-          id: 7,
-          name: "Designer Abaya",
-          price: 750,
-          sku: "ABY-003",
-          image: "/placeholder.svg?height=50&width=50&text=ABY",
-        },
-        {
-          id: 8,
-          name: "Casual Abaya",
-          price: 280,
-          sku: "ABY-004",
-          image: "/placeholder.svg?height=50&width=50&text=ABY",
-        },
-      ],
-    },
-    {
-      category: "Junior",
-      items: [
-        {
-          id: 9,
-          name: "Kids Kandura",
-          price: 180,
-          sku: "JKN-001",
-          image: "/placeholder.svg?height=50&width=50&text=JKN",
-        },
-        {
-          id: 10,
-          name: "Kids Abaya",
-          price: 200,
-          sku: "JAB-001",
-          image: "/placeholder.svg?height=50&width=50&text=JAB",
-        },
-        {
-          id: 11,
-          name: "Teen Thobe",
-          price: 250,
-          sku: "JTH-001",
-          image: "/placeholder.svg?height=50&width=50&text=JTH",
-        },
-      ],
-    },
-    {
-      category: "Accessories",
-      items: [
-        {
-          id: 12,
-          name: "Silk Scarf",
-          price: 120,
-          sku: "SCF-001",
-          image: "/placeholder.svg?height=50&width=50&text=SCF",
-        },
-        {
-          id: 13,
-          name: "Prayer Beads",
-          price: 85,
-          sku: "PBD-001",
-          image: "/placeholder.svg?height=50&width=50&text=PBD",
-        },
-        {
-          id: 14,
-          name: "Traditional Belt",
-          price: 95,
-          sku: "BLT-001",
-          image: "/placeholder.svg?height=50&width=50&text=BLT",
-        },
-      ],
-    },
-    {
-      category: "Fabrics",
-      items: [
-        {
-          id: 15,
-          name: "Premium Cotton",
-          price: 45,
-          sku: "CTN-001",
-          image: "/placeholder.svg?height=50&width=50&text=CTN",
-        },
-        {
-          id: 16,
-          name: "Silk Fabric",
-          price: 85,
-          sku: "SLK-001",
-          image: "/placeholder.svg?height=50&width=50&text=SLK",
-        },
-        {
-          id: 17,
-          name: "Linen Blend",
-          price: 55,
-          sku: "LNN-001",
-          image: "/placeholder.svg?height=50&width=50&text=LNN",
-        },
-      ],
-    },
-    {
-      category: "Services",
-      items: [
-        {
-          id: 18,
-          name: "Alteration Service",
-          price: 100,
-          sku: "ALT-001",
-          image: "/placeholder.svg?height=50&width=50&text=ALT",
-        },
-        {
-          id: 19,
-          name: "Embroidery Service",
-          price: 150,
-          sku: "EMB-001",
-          image: "/placeholder.svg?height=50&width=50&text=EMB",
-        },
-        {
-          id: 20,
-          name: "Express Service",
-          price: 50,
-          sku: "EXP-001",
-          image: "/placeholder.svg?height=50&width=50&text=EXP",
-        },
-        {
-          id: 21,
-          name: "Custom Fitting",
-          price: 200,
-          sku: "FIT-001",
-          image: "/placeholder.svg?height=50&width=50&text=FIT",
-        },
-      ],
-    },
-  ];
+  });
 
   const selectedCustomer = customerId
     ? customers.find((c) => c.id === customerId)
-    : null;
-  const selectedStaff = salesPersonId
-    ? staff.find((s) => s.id === salesPersonId)
     : null;
 
   const getPriorityColor = (priority: string) => {
@@ -641,114 +505,326 @@ export default function POSTerminalPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmed":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "pending":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "draft":
-        return "bg-gray-100 text-gray-800 border-gray-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
+  // Format date for display
+  const formatDate = (date: Date | undefined) => {
+    if (!date) return "";
+    return format(date, "MMM d");
   };
 
+  useEffect(() => {
+    const main = document.getElementById("main");
+    if (!main) return;
+
+    main.classList.remove("p-4", "md:p-6");
+
+    return () => {
+      main.classList.add("p-4", "md:p-6");
+    };
+  }, []);
+
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Compact Professional Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b shadow-sm">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">
-              POS Terminal
-            </h1>
-            <p className="text-xs text-gray-500">Create sales order</p>
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-background">
+      {/* Professional Header with Order Info */}
+      <div
+        className="flex-shrink-0 bg-white dark:bg-transparent border-b shadow-sm 
+                overflow-x-auto overflow-y-hidden scrollbar-thin
+                scrollbar-thumb-gray-400 scrollbar-track-gray-100
+                hover:scrollbar-thumb-gray-600"
+      >
+        <div
+          className="flex items-start lg:items-center justify-between gap-3 
+                  px-2 sm:px-4 lg:px-6 py-3 flex-nowrap min-w-max"
+        >
+          {/* Main Header Row */}
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 px-2 sm:px-4 lg:px-6 py-3">
+            {/* Desktop: All controls in one row */}
+            <div className="hidden lg:flex items-center gap-x-6 gap-y-4 w-full justify-end">
+              {/* Customer Selection */}
+              <div className="flex items-center gap-2">
+                <div className="w-48">
+                  <CustomerSelectDialog
+                    customers={customers}
+                    customerId={watch("customerId")}
+                    setValue={setValue}
+                  />
+                </div>
+              </div>
+
+              {/* Priority Selection */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  Priority:
+                </Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant={priority === "low" ? "default" : "outline"}
+                    size="sm"
+                    className={`h-8 px-3 text-sm touch-manipulation ${priority === "low" ? "" : "border-green-200 text-green-700"}`}
+                    onClick={() => setValue("priority", "low")}
+                  >
+                    <div className="w-2 h-2 rounded-full bg-green-500 mr-1"></div>
+                    Low
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={priority === "medium" ? "default" : "outline"}
+                    size="sm"
+                    className={`h-8 px-3 text-sm touch-manipulation ${priority === "medium" ? "" : "border-yellow-200 text-yellow-700"}`}
+                    onClick={() => setValue("priority", "medium")}
+                  >
+                    <div className="w-2 h-2 rounded-full bg-yellow-500 mr-1"></div>
+                    Med
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={priority === "high" ? "default" : "outline"}
+                    size="sm"
+                    className={`h-8 px-3 text-sm touch-manipulation ${priority === "high" ? "" : "border-red-200 text-red-700"}`}
+                    onClick={() => setValue("priority", "high")}
+                  >
+                    <div className="w-2 h-2 rounded-full bg-red-500 mr-1"></div>
+                    High
+                  </Button>
+                </div>
+              </div>
+
+              {/* Payment Terms */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  Terms:
+                </Label>
+                <Select
+                  value={paymentTerms}
+                  onValueChange={(value) => setValue("paymentTerms", value)}
+                >
+                  <SelectTrigger className="h-8 text-sm w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="immediate">Immediate</SelectItem>
+                    <SelectItem value="net-7">Net 7</SelectItem>
+                    <SelectItem value="net-15">Net 15</SelectItem>
+                    <SelectItem value="net-30">Net 30</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Due Date Display */}
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Calendar className="w-4 h-4" />
+                <span>Due: {formatDate(dueDate)}</span>
+              </div>
+
+              {/* Delivery Date Selection */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  Delivery:
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={`h-8 px-3 text-sm justify-start text-left font-normal ${
+                        !deliveryDate ? "text-muted-foreground" : ""
+                      }`}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {deliveryDate ? formatDate(deliveryDate) : "Select"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={deliveryDate}
+                      onSelect={(date) => setValue("deliveryDate", date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Walk-in Mode */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium whitespace-nowrap">
+                  Walk-in:
+                </Label>
+                <Switch checked={walInMode} onCheckedChange={setWalkInMode} />
+              </div>
+
+            </div>
+
+            {/* Mobile/Tablet: Stacked layout */}
+            <div className="lg:hidden w-full space-y-2">
+              {/* Row 1: Customer and Priority */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex-1 min-w-0">
+                    <CustomerSelectDialog
+                      customers={customers}
+                      customerId={watch("customerId")}
+                      setValue={setValue}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Label className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                    Priority:
+                  </Label>
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      variant={priority === "low" ? "default" : "outline"}
+                      size="sm"
+                      className={`h-7 px-2 text-xs touch-manipulation ${priority === "low" ? "" : "border-green-200 text-green-700"}`}
+                      onClick={() => setValue("priority", "low")}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1"></div>
+                      L
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={priority === "medium" ? "default" : "outline"}
+                      size="sm"
+                      className={`h-7 px-2 text-xs touch-manipulation ${priority === "medium" ? "" : "border-yellow-200 text-yellow-700"}`}
+                      onClick={() => setValue("priority", "medium")}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mr-1"></div>
+                      M
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={priority === "high" ? "default" : "outline"}
+                      size="sm"
+                      className={`h-7 px-2 text-xs touch-manipulation ${priority === "high" ? "" : "border-red-200 text-red-700"}`}
+                      onClick={() => setValue("priority", "high")}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1"></div>
+                      H
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Terms, Dates, Payment */}
+              <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                    Terms:
+                  </Label>
+                  <Select
+                    value={paymentTerms}
+                    onValueChange={(value) => setValue("paymentTerms", value)}
+                  >
+                    <SelectTrigger className="h-7 text-xs w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="immediate">Immediate</SelectItem>
+                      <SelectItem value="net-7">Net 7</SelectItem>
+                      <SelectItem value="net-15">Net 15</SelectItem>
+                      <SelectItem value="net-30">Net 30</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                    Delivery:
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={`h-7 px-2 text-xs justify-start text-left font-normal ${
+                          !deliveryDate ? "text-muted-foreground" : ""
+                        }`}
+                      >
+                        <Calendar className="mr-1 h-3 w-3" />
+                        {deliveryDate ? formatDate(deliveryDate) : "Select"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={deliveryDate}
+                        onSelect={(date) => setValue("deliveryDate", date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs font-medium whitespace-nowrap">
+                    Walk-in:
+                  </Label>
+                  <Switch checked={walInMode} onCheckedChange={setWalkInMode} />
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge className={getPriorityColor(priority)}>
-              {priority} priority
-            </Badge>
-            <Badge className={getStatusColor(status)}>{status}</Badge>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8 px-3 text-xs">
-            <Save className="w-3 h-3 mr-1" />
-            Save Draft
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 px-3 text-xs">
-            <Clock className="w-3 h-3 mr-1" />
-            Hold Order
-          </Button>
-          <Button size="sm" className="h-8 px-3 text-xs">
-            <ShoppingBag className="w-3 h-3 mr-1" />
-            New Order
-          </Button>
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden">
-        {/* Left Panel - Products & Details */}
-        <div className="col-span-8 flex flex-col gap-3 overflow-hidden">
-          {/* Products Section - Full Height minus Order Details */}
-          <Card
-            className="overflow-y-auto"
-            style={{ height: "calc(100% - 200px)" }}
-          >
-            <CardHeader className="pb-2 border-b">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">
+      {/* Main Content Area - iPad Optimized Layout */}
+      <div className="flex-1 flex flex-col md:flex-row lg:flex-row gap-4 p-4 overflow-hidden min-h-0">
+        {/* Left Panel - Products (iPad: Full width, Desktop: 2/3) */}
+        <div className="flex-1 md:w-full lg:w-2/3 flex flex-col overflow-hidden">
+          <Card className="flex-1 flex flex-col overflow-hidden">
+            <CardHeader className="flex-shrink-0 pb-3 border-b">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <CardTitle className="text-lg font-semibold">
                   Products & Services
                 </CardTitle>
-                <div className="relative w-80">
+                <div className="relative w-full sm:w-96">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     placeholder="Search products, SKU, or category..."
-                    className="pl-9 h-8 text-sm"
-                    value={""}
-                    onChange={(e) => {}}
+                    className="pl-10 h-10 text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0 flex-1 overflow-hidden">
-              <Tabs defaultValue="men" className="h-full flex flex-col">
-                <TabsList className="m-3 mb-0 w-fit">
-                  {products.map((category) => (
+            <CardContent className="flex-1 p-0 overflow-hidden">
+              <Tabs defaultValue="kandora" className="h-full flex flex-col">
+                <TabsList className="flex-shrink-0 m-4 mb-0 w-full justify-start overflow-x-auto">
+                  {products.map((category: any) => (
                     <TabsTrigger
                       key={category.category}
                       value={category.category.toLowerCase()}
-                      className="text-xs px-3 py-1"
+                      className="px-4 py-2 text-sm touch-manipulation whitespace-nowrap"
                     >
                       {category.category}
                     </TabsTrigger>
                   ))}
                 </TabsList>
 
-                {products.map((category) => (
+                {products.map((category: any) => (
                   <TabsContent
                     key={category.category}
                     value={category.category.toLowerCase()}
-                    className="flex-1 overflow-hidden m-0 h-full"
+                    className="flex-1 overflow-hidden m-0"
                   >
                     <ScrollArea className="h-full">
-                      <div className="p-3 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
+                      <div className="p-4 grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4 gap-3">
                         {category.items
                           .filter(
-                            (item) =>
-                              "" === "" ||
+                            (item: any) =>
+                              searchTerm === "" ||
                               item.name
                                 .toLowerCase()
-                                .includes("".toLowerCase()) ||
+                                .includes(searchTerm.toLowerCase()) ||
                               item.sku
                                 ?.toLowerCase()
-                                .includes("".toLowerCase()) ||
+                                .includes(searchTerm.toLowerCase()) ||
                               category.category
                                 .toLowerCase()
-                                .includes("".toLowerCase())
+                                .includes(searchTerm.toLowerCase())
                           )
-                          .map((item) => (
+                          .map((item: any) => (
                             <ProductCard
                               key={item.id}
                               product={{ ...item, category: category.category }}
@@ -767,290 +843,36 @@ export default function POSTerminalPage() {
               </Tabs>
             </CardContent>
           </Card>
-
-          {/* Order Details - Fixed Height */}
-          <Card className="flex-shrink-0 h-48">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                Order Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="grid grid-cols-4 gap-3 mb-3">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-gray-700">
-                    Customer *
-                  </Label>
-                  <Select
-                    value={customerId?.toString() || ""}
-                    onValueChange={(value) => {
-                      const id = Number.parseInt(value);
-                      setValue("customerId", id);
-                      const customer = customers.find((c) => c.id === id);
-                      setValue("customerName", customer?.name || "");
-                    }}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem
-                          key={customer.id}
-                          value={customer.id.toString()}
-                        >
-                          <div className="flex items-center gap-2">
-                            <User className="w-3 h-3" />
-                            <span>{customer.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-gray-700">
-                    Salesperson *
-                  </Label>
-                  <Select
-                    value={salesPersonId?.toString() || ""}
-                    onValueChange={(value) => {
-                      const id = Number.parseInt(value);
-                      setValue("salesPersonId", id);
-                      const person = staff.find((s) => s.id === id);
-                      setValue("salesPersonName", person?.name || "");
-                    }}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Select salesperson">
-                        {salesPersonId
-                          ? staff.find((s) => s.id === salesPersonId)?.name
-                          : "Select salesperson"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {staff.length === 0
-                        ? "No sales person found"
-                        : staff.map((person) => (
-                            <SelectItem
-                              key={person.id}
-                              value={person.id.toString()}
-                            >
-                              <div className="flex items-center gap-2">
-                                <User className="w-3 h-3" />
-                                <div>
-                                  <div className="font-medium">
-                                    {person.name}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {person.phone}
-                                  </div>
-                                </div>
-                              </div>
-                            </SelectItem>
-                          ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-gray-700">
-                    Priority
-                  </Label>
-                  <Select
-                    value={priority}
-                    onValueChange={(value: "low" | "medium" | "high") =>
-                      setValue("priority", value)
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          Low Priority
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="medium">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                          Medium Priority
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="high">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                          High Priority
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-gray-700">
-                    Status
-                  </Label>
-                  <Select
-                    value={status}
-                    onValueChange={(value: "draft" | "pending" | "confirmed") =>
-                      setValue("status", value)
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="confirmed">Confirmed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-gray-700">
-                    Payment Terms
-                  </Label>
-                  <Select
-                    value={paymentTerms}
-                    onValueChange={(value) => setValue("paymentTerms", value)}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="immediate">Immediate</SelectItem>
-                      <SelectItem value="net-7">Net 7 days</SelectItem>
-                      <SelectItem value="net-15">Net 15 days</SelectItem>
-                      <SelectItem value="net-30">Net 30 days</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-gray-700">
-                    Due Date *
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      {...register("dueDate", { valueAsDate: true })}
-                      className="h-8 text-xs"
-                    />
-                    <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-gray-700">
-                    Delivery Date
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      {...register("deliveryDate", { valueAsDate: true })}
-                      className="h-8 text-xs"
-                    />
-                    <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium text-gray-700">
-                    Payment Status
-                  </Label>
-                  <Select
-                    value={paymentStatus}
-                    onValueChange={(value: "no-payment" | "partial" | "paid") =>
-                      setValue("paymentStatus", value)
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="no-payment">No Payment</SelectItem>
-                      <SelectItem value="partial">Partial Payment</SelectItem>
-                      <SelectItem value="paid">Fully Paid</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Customer & Staff Info */}
-              {(selectedCustomer || selectedStaff) && (
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  {selectedCustomer && (
-                    <div className="p-2 bg-blue-50 rounded border border-blue-200">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-blue-900">
-                          Customer Info
-                        </span>
-                        {selectedCustomer.loyaltyTier !== "standard" && (
-                          <Badge className="text-xs bg-blue-100 text-blue-800 border-blue-300">
-                            {selectedCustomer.loyaltyTier}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="space-y-1 text-xs text-blue-800">
-                        <div>📞 {selectedCustomer.phone}</div>
-                        <div>✉️ {selectedCustomer.email}</div>
-                        {selectedCustomer.address && (
-                          <div>📍 {selectedCustomer.address}</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedStaff && (
-                    <div className="p-2 bg-green-50 rounded border border-green-200">
-                      <span className="text-xs font-medium text-green-900">
-                        Salesperson Info
-                      </span>
-                      <div className="space-y-1 text-xs text-green-800">
-                        <div>👤 {selectedStaff.role}</div>
-                        <div>🏢 {selectedStaff.department}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Right Panel - Compact Cart */}
-        <div className="col-span-4 flex flex-col overflow-hidden">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="pb-2 border-b">
+        {/* Right Panel - Cart Summary (iPad: Fixed width, Desktop: 1/3) */}
+        <div className="w-full md:w-80 lg:w-1/3 flex flex-col overflow-hidden">
+          <Card className="flex-1 flex flex-col overflow-hidden">
+            <CardHeader className="flex-shrink-0 pb-3 border-b">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-lg font-semibold">
                   Order Summary
                 </CardTitle>
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-sm px-3 py-1">
                   {cart.length} item{cart.length !== 1 ? "s" : ""}
                 </Badge>
               </div>
             </CardHeader>
 
-            <ScrollArea className="flex-1">
-              <div className="p-3">
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="p-4">
                 {cart.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-32 text-center">
-                    <ShoppingBag className="w-8 h-8 text-gray-300 mb-2" />
-                    <p className="text-xs text-gray-500 mb-1">Cart is empty</p>
-                    <p className="text-xs text-gray-400">
-                      Add products to start
+                  <div className="flex flex-col items-center justify-center h-48 text-center">
+                    <ShoppingBag className="w-12 h-12 text-gray-300 mb-3" />
+                    <p className="text-base text-gray-500 mb-1">
+                      Cart is empty
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Add products from the catalog
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {cart.map((item, index) => (
                       <CartItemCard
                         key={index}
@@ -1060,12 +882,12 @@ export default function POSTerminalPage() {
                       />
                     ))}
 
-                    <Separator className="my-3" />
+                    <Separator className="my-4" />
 
-                    {/* Compact Controls */}
-                    <div className="space-y-2">
+                    {/* Controls */}
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-medium">Discount</Label>
+                        <Label className="text-sm font-medium">Discount</Label>
                         <Input
                           type="number"
                           placeholder="0.00"
@@ -1073,12 +895,12 @@ export default function POSTerminalPage() {
                           onChange={(e) =>
                             setValue("discountAmount", e.target.value)
                           }
-                          className="h-7 w-20 text-xs"
+                          className="w-24 h-9 text-sm"
                         />
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-medium">
+                        <Label className="text-sm font-medium">
                           Apply VAT (5%)
                         </Label>
                         <Switch
@@ -1088,43 +910,125 @@ export default function POSTerminalPage() {
                       </div>
                     </div>
 
-                    {/* Professional Totals */}
-                    <div className="space-y-1 p-2 bg-gray-50 rounded border">
-                      <div className="flex justify-between text-xs">
+                    {/* Totals */}
+                    <div className="space-y-2 p-4 bg-gray-50 dark:bg-accent rounded-lg border">
+                      <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Subtotal</span>
-                        <span className="font-medium">
+                        <span className="font-semibold">
                           AED {subtotal.toFixed(2)}
                         </span>
                       </div>
                       {discountAmount > 0 && (
-                        <div className="flex justify-between text-xs">
+                        <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Discount</span>
-                          <span className="font-medium text-red-600">
+                          <span className="font-semibold text-red-600">
                             - AED {discountAmount.toFixed(2)}
                           </span>
                         </div>
                       )}
-                      <div className="flex justify-between text-xs">
+                      <div className="flex justify-between text-sm">
                         <span className="text-gray-600">VAT (5%)</span>
-                        <span className="font-medium">
+                        <span className="font-semibold">
                           AED {taxAmount.toFixed(2)}
                         </span>
                       </div>
                       <Separator />
-                      <div className="flex justify-between text-sm font-semibold">
+                      <div className="flex justify-between text-base font-bold">
                         <span>Total</span>
                         <span>AED {totalAmount.toFixed(2)}</span>
                       </div>
                     </div>
 
+                    {/* Payment Method */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">
+                        Payment Method
+                      </Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Button
+                          variant={
+                            paymentMethod === "card" ? "default" : "outline"
+                          }
+                          onClick={() => setValue("paymentMethod", "card")}
+                          className="justify-center h-10 text-sm touch-manipulation"
+                        >
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          Card
+                        </Button>
+                        <Button
+                          variant={
+                            paymentMethod === "cash" ? "default" : "outline"
+                          }
+                          onClick={() => setValue("paymentMethod", "cash")}
+                          className="justify-center h-10 text-sm touch-manipulation"
+                        >
+                          <Banknote className="w-4 h-4 mr-2" />
+                          Cash
+                        </Button>
+                        <Button
+                          variant={
+                            paymentMethod === "mobile" ? "default" : "outline"
+                          }
+                          onClick={() => setValue("paymentMethod", "mobile")}
+                          className="justify-center h-10 text-sm touch-manipulation"
+                        >
+                          <Smartphone className="w-4 h-4 mr-2" />
+                          Mobile
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Payment Type Selection */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">
+                        Payment Type
+                      </Label>
+                      <Select
+                        value={paymentType}
+                        onValueChange={(value) =>
+                          setPaymentType(value as "full" | "partial" | "none")
+                        }
+                      >
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="full">Full Payment</SelectItem>
+                          <SelectItem value="partial">
+                            Partial Payment
+                          </SelectItem>
+                          <SelectItem value="none">No Payment</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {/* Partial Amount (conditional) */}
+                      {paymentType === "partial" && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">
+                            Partial Amount
+                          </Label>
+                          <Input
+                            type="number"
+                            value={partialAmount}
+                            onChange={(e) =>
+                              setValue("partialAmount", e.target.value)
+                            }
+                            className="h-9 text-sm"
+                            placeholder="Enter partial amount"
+                          />
+                        </div>
+                      )}
+                    </div>
+
                     {/* Notes */}
-                    <div className="space-y-1">
-                      <Label className="text-xs font-medium">Order Notes</Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Order Notes</Label>
                       <Textarea
-                        placeholder="Special instructions..."
+                        placeholder="Special instructions or notes..."
                         value={notes}
                         onChange={(e) => setValue("notes", e.target.value)}
-                        className="h-12 resize-none text-xs"
+                        className="resize-none text-sm min-h-[80px]"
+                        rows={3}
                       />
                     </div>
                   </div>
@@ -1132,71 +1036,48 @@ export default function POSTerminalPage() {
               </div>
             </ScrollArea>
 
-            <CardFooter className="flex flex-col gap-2 border-t bg-gray-50/50 p-3">
-              {/* Payment Method */}
-              <div className="w-full space-y-1">
-                <Label className="text-xs font-medium">Payment Method</Label>
-                <div className="grid grid-cols-3 gap-1">
-                  <Button
-                    variant={paymentMethod === "card" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setValue("paymentMethod", "card")}
-                    className="h-7 text-xs"
-                  >
-                    <CreditCard className="w-3 h-3 mr-1" />
-                    Card
-                  </Button>
-                  <Button
-                    variant={paymentMethod === "cash" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setValue("paymentMethod", "cash")}
-                    className="h-7 text-xs"
-                  >
-                    <Banknote className="w-3 h-3 mr-1" />
-                    Cash
-                  </Button>
-                  <Button
-                    variant={paymentMethod === "mobile" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setValue("paymentMethod", "mobile")}
-                    className="h-7 text-xs"
-                  >
-                    <Smartphone className="w-3 h-3 mr-1" />
-                    Mobile
-                  </Button>
-                </div>
-              </div>
-
+            <CardFooter className="flex-shrink-0 flex flex-col gap-3 border-t bg-gray-50/50 dark:bg-accent p-4">
               {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-2 w-full">
+              <div className="grid grid-cols-3 gap-3 w-full">
                 <Button
                   variant="outline"
                   onClick={clearCart}
-                  className="h-7 text-xs"
+                  disabled={cart.length === 0}
+                  className="h-10 text-sm touch-manipulation"
                 >
-                  Clear Cart
+                  Clear
                 </Button>
                 <Button
-                  disabled={
-                    cart.length === 0 ||
-                    !customerId ||
-                    !salesPersonId ||
-                    isSubmitting
-                  }
-                  className="h-7 text-xs"
-                  onClick={handleSubmit(onSubmit)}
+                  variant="outline"
+                  onClick={saveDraft}
+                  disabled={cart.length === 0 || !customerId || isSubmitting}
+                  className="h-10 text-sm touch-manipulation"
                 >
-                  {isSubmitting ? "Creating..." : "Create Order"}
+                  <Save className="w-4 h-4 mr-2" />
+                  Draft
+                </Button>
+                <Button
+                  disabled={cart.length === 0 || !customerId || isSubmitting}
+                  onClick={handleSubmit(onSubmit)}
+                  className="h-10 text-sm touch-manipulation"
+                >
+                  {isSubmitting ? "Processing..." : "Complete"}
                 </Button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 w-full">
-                <Button variant="outline" size="sm" className="h-7 text-xs">
-                  <Printer className="w-3 h-3 mr-1" />
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <Button
+                  variant="outline"
+                  className="flex items-center justify-center h-10 text-sm touch-manipulation"
+                >
+                  <Printer className="w-4 h-4 mr-2" />
                   Print
                 </Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs">
-                  <Receipt className="w-3 h-3 mr-1" />
+                <Button
+                  variant="outline"
+                  className="flex items-center justify-center h-10 text-sm touch-manipulation"
+                >
+                  <Receipt className="w-4 h-4 mr-2" />
                   Email
                 </Button>
               </div>

@@ -1,13 +1,32 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,8 +34,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Search,
   Plus,
@@ -36,139 +61,72 @@ import {
   BarChart3,
   PieChart,
   Filter,
-} from "lucide-react"
-import Link from "next/link"
+} from "lucide-react";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 interface ReturnTransaction {
-  id: string
-  orderId: string
-  customerName: string
-  customerPhone: string
-  customerEmail: string
-  returnDate: Date
-  totalItems: number
-  totalRefund: number
-  status: "pending" | "approved" | "completed" | "rejected"
-  refundMethod: string
-  processedBy: string
-  approvedBy?: string
-  reason: string
-  notes?: string
-  requiresManagerApproval: boolean
+  id: number;
+  orderId: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  createdAt: Date;
+  itemsCount: number;
+  totalRefundAmount: number;
+  status: "pending" | "approved" | "completed" | "rejected";
+  paymentMethod: string;
+  // processedBy: string
+  // approvedBy?: string
+  // requiresManagerApproval: boolean
 }
 
 interface ReturnPolicy {
-  id: string
-  name: string
-  description: string
-  isActive: boolean
-  rules: string[]
-  applicableCategories: string[]
-  returnPeriod: number
+  id: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  rules: string[];
+  applicableCategories: string[];
+  returnPeriod: number;
 }
 
 interface ReturnAnalytics {
-  totalReturns: number
-  totalRefundAmount: number
-  returnRate: number
-  avgProcessingTime: number
-  topReasons: { reason: string; count: number; percentage: number }[]
-  monthlyTrend: { month: string; returns: number; refunds: number }[]
-  categoryBreakdown: { category: string; returns: number; percentage: number }[]
+  totalReturns: number;
+  totalRefundAmount: number;
+  returnRate: number;
+  avgProcessingTime: number;
+  topReasons: { reason: string; count: number; percentage: number }[];
+  monthlyTrend: { month: string; returns: number; refunds: number }[];
+  categoryBreakdown: {
+    category: string;
+    returns: number;
+    percentage: number;
+  }[];
 }
 
 export default function ReturnsManagementPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [dateFilter, setDateFilter] = useState<string>("all")
-  const [selectedReturn, setSelectedReturn] = useState<ReturnTransaction | null>(null)
-  const [showReturnDetails, setShowReturnDetails] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [selectedReturn, setSelectedReturn] =
+    useState<ReturnTransaction | null>(null);
+  const [showReturnDetails, setShowReturnDetails] = useState(false);
 
   // Sample data
-  const returnTransactions: ReturnTransaction[] = [
-    {
-      id: "RET-001",
-      orderId: "ORD-2024-001",
-      customerName: "Fatima Mohammed",
-      customerPhone: "+971 50 123 4567",
-      customerEmail: "fatima.m@example.com",
-      returnDate: new Date("2024-05-20"),
-      totalItems: 2,
-      totalRefund: 450.0,
-      status: "completed",
-      refundMethod: "Credit Card",
-      processedBy: "Mohammed Ali",
-      approvedBy: "Manager",
-      reason: "Size/Fit Issue",
-      notes: "Customer requested smaller size, item in perfect condition",
-      requiresManagerApproval: false,
-    },
-    {
-      id: "RET-002",
-      orderId: "ORD-2024-002",
-      customerName: "Ahmed Al Mansouri",
-      customerPhone: "+971 55 987 6543",
-      customerEmail: "ahmed.m@example.com",
-      returnDate: new Date("2024-05-19"),
-      totalItems: 1,
-      totalRefund: 650.0,
-      status: "pending",
-      refundMethod: "Store Credit",
-      processedBy: "Aisha Mahmood",
-      reason: "Quality/Defect",
-      notes: "Stitching issue reported, requires quality inspection",
-      requiresManagerApproval: true,
-    },
-    {
-      id: "RET-003",
-      orderId: "ORD-2024-003",
-      customerName: "Sara Abdullah",
-      customerPhone: "+971 52 456 7890",
-      customerEmail: "sara.a@example.com",
-      returnDate: new Date("2024-05-18"),
-      totalItems: 3,
-      totalRefund: 320.0,
-      status: "approved",
-      refundMethod: "Cash",
-      processedBy: "Khalid Rahman",
-      approvedBy: "Manager",
-      reason: "Customer Changed Mind",
-      notes: "Within return period, all items with tags",
-      requiresManagerApproval: false,
-    },
-    {
-      id: "RET-004",
-      orderId: "ORD-2024-004",
-      customerName: "Omar Hassan",
-      customerPhone: "+971 56 789 0123",
-      customerEmail: "omar.h@example.com",
-      returnDate: new Date("2024-05-17"),
-      totalItems: 1,
-      totalRefund: 280.0,
-      status: "completed",
-      refundMethod: "Original Payment",
-      processedBy: "Layla Ahmed",
-      reason: "Wrong Size",
-      requiresManagerApproval: false,
-    },
-    {
-      id: "RET-005",
-      orderId: "ORD-2024-005",
-      customerName: "Nadia Al Zahra",
-      customerPhone: "+971 54 321 0987",
-      customerEmail: "nadia.z@example.com",
-      returnDate: new Date("2024-05-16"),
-      totalItems: 2,
-      totalRefund: 890.0,
-      status: "rejected",
-      refundMethod: "N/A",
-      processedBy: "Hassan Ali",
-      reason: "Outside Return Period",
-      notes: "Item returned after 30 days, policy violation",
-      requiresManagerApproval: false,
-    },
-  ]
-
+  const { data: returnTransactions = [], isLoading: transactionLoading } =
+    useQuery<ReturnTransaction[]>({
+      queryKey: ["returns"],
+      queryFn: async () => {
+        const response = await fetch("http://3.29.240.212/api/v1/returns");
+        const json = await response.json();
+        if (!response.ok) {
+          toast.error("Failed to load return transactions");
+        }
+        return json;
+      },
+    });
   const returnPolicies: ReturnPolicy[] = [
     {
       id: "policy_001",
@@ -215,7 +173,7 @@ export default function ReturnsManagementPage() {
         "Manager approval required for high-value items",
       ],
     },
-  ]
+  ];
 
   const analytics: ReturnAnalytics = {
     totalReturns: 45,
@@ -241,46 +199,53 @@ export default function ReturnsManagementPage() {
       { category: "Custom", returns: 12, percentage: 27 },
       { category: "Accessories", returns: 8, percentage: 17 },
     ],
-  }
+  };
 
   // Filter functions
   const filteredTransactions = returnTransactions.filter((transaction) => {
     const matchesSearch =
-      transaction.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      transaction.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      transaction.orderId.toLowerCase().includes(searchQuery.toLowerCase())
+      String(transaction.id).toLowerCase().includes(searchQuery.toLowerCase()) ||
+      transaction.customerName
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      transaction.orderId.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === "all" || transaction.status === statusFilter
+    const matchesStatus =
+      statusFilter === "all" || transaction.status === statusFilter;
 
-    return matchesSearch && matchesStatus
-  })
+    return matchesSearch && matchesStatus;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return "default"
+        return "default";
       case "approved":
-        return "secondary"
+        return "secondary";
       case "pending":
-        return "destructive"
+        return "destructive";
       case "rejected":
-        return "outline"
+        return "outline";
       default:
-        return "outline"
+        return "outline";
     }
-  }
+  };
 
   const exportReturnsData = () => {
-    alert("Returns data exported successfully!")
-  }
+    alert("Returns data exported successfully!");
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Returns Management</h1>
-          <p className="text-muted-foreground">Manage returns, refunds, and customer satisfaction</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Returns Management
+          </h1>
+          <p className="text-muted-foreground">
+            Manage returns, refunds, and customer satisfaction
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={exportReturnsData}>
@@ -320,7 +285,9 @@ export default function ReturnsManagementPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">AED {analytics.totalRefundAmount.toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              AED {analytics.totalRefundAmount.toLocaleString()}
+            </div>
             <p className="text-xs text-muted-foreground">
               <span className="text-red-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
@@ -348,11 +315,15 @@ export default function ReturnsManagementPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Processing Time</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Avg Processing Time
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.avgProcessingTime} days</div>
+            <div className="text-2xl font-bold">
+              {analytics.avgProcessingTime} days
+            </div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingDown className="h-3 w-3 mr-1" />
@@ -426,7 +397,9 @@ export default function ReturnsManagementPage() {
           <Card>
             <CardHeader>
               <CardTitle>Return Transactions</CardTitle>
-              <CardDescription>Manage and track all return transactions</CardDescription>
+              <CardDescription>
+                Manage and track all return transactions
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -439,30 +412,38 @@ export default function ReturnsManagementPage() {
                     <TableHead>Items</TableHead>
                     <TableHead>Refund Amount</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Reason</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredTransactions.map((returnTx) => (
                     <TableRow key={returnTx.id}>
-                      <TableCell className="font-medium">{returnTx.id}</TableCell>
+                      <TableCell className="font-medium">
+                        {returnTx.id}
+                      </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{returnTx.customerName}</div>
-                          <div className="text-sm text-muted-foreground">{returnTx.customerPhone}</div>
+                          <div className="font-medium">
+                            {returnTx.customerName}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {returnTx.customerPhone}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>{returnTx.orderId}</TableCell>
-                      <TableCell>{returnTx.returnDate.toLocaleDateString()}</TableCell>
-                      <TableCell>{returnTx.totalItems}</TableCell>
-                      <TableCell>AED {returnTx.totalRefund.toFixed(2)}</TableCell>
+                      <TableCell>
+                        {new Date(returnTx.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>{returnTx.itemsCount}</TableCell>
+                      <TableCell>AED {returnTx.totalRefundAmount}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Badge variant={getStatusColor(returnTx.status)}>
-                            {returnTx.status.charAt(0).toUpperCase() + returnTx.status.slice(1)}
+                            {returnTx.status.charAt(0).toUpperCase() +
+                              returnTx.status.slice(1)}
                           </Badge>
-                          {returnTx.requiresManagerApproval && (
+                          {true && (
                             <Badge variant="outline" className="text-xs">
                               <AlertCircle className="mr-1 h-3 w-3" />
                               Approval Required
@@ -470,7 +451,6 @@ export default function ReturnsManagementPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{returnTx.reason}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -480,14 +460,11 @@ export default function ReturnsManagementPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedReturn(returnTx)
-                                setShowReturnDetails(true)
-                              }}
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
+                            <DropdownMenuItem asChild>
+                              <Link href={`/returns/${returnTx.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem>
                               <Printer className="mr-2 h-4 w-4" />
@@ -535,17 +512,30 @@ export default function ReturnsManagementPage() {
               <CardContent>
                 <div className="space-y-4">
                   {analytics.topReasons.map((reason, index) => (
-                    <div key={reason.reason} className="flex items-center justify-between">
+                    <div
+                      key={reason.reason}
+                      className="flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full bg-primary`} style={{ opacity: 1 - index * 0.2 }} />
+                        <div
+                          className={`w-3 h-3 rounded-full bg-primary`}
+                          style={{ opacity: 1 - index * 0.2 }}
+                        />
                         <span className="text-sm">{reason.reason}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-24 bg-muted rounded-full h-2">
-                          <div className="bg-primary h-2 rounded-full" style={{ width: `${reason.percentage}%` }}></div>
+                          <div
+                            className="bg-primary h-2 rounded-full"
+                            style={{ width: `${reason.percentage}%` }}
+                          ></div>
                         </div>
-                        <span className="text-sm font-medium w-12 text-right">{reason.percentage}%</span>
-                        <span className="text-xs text-muted-foreground w-8 text-right">({reason.count})</span>
+                        <span className="text-sm font-medium w-12 text-right">
+                          {reason.percentage}%
+                        </span>
+                        <span className="text-xs text-muted-foreground w-8 text-right">
+                          ({reason.count})
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -564,9 +554,15 @@ export default function ReturnsManagementPage() {
               <CardContent>
                 <div className="space-y-4">
                   {analytics.categoryBreakdown.map((category, index) => (
-                    <div key={category.category} className="flex items-center justify-between">
+                    <div
+                      key={category.category}
+                      className="flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full bg-blue-500`} style={{ opacity: 1 - index * 0.3 }} />
+                        <div
+                          className={`w-3 h-3 rounded-full bg-blue-500`}
+                          style={{ opacity: 1 - index * 0.3 }}
+                        />
                         <span className="text-sm">{category.category}</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -576,8 +572,12 @@ export default function ReturnsManagementPage() {
                             style={{ width: `${category.percentage}%` }}
                           ></div>
                         </div>
-                        <span className="text-sm font-medium w-12 text-right">{category.percentage}%</span>
-                        <span className="text-xs text-muted-foreground w-8 text-right">({category.returns})</span>
+                        <span className="text-sm font-medium w-12 text-right">
+                          {category.percentage}%
+                        </span>
+                        <span className="text-xs text-muted-foreground w-8 text-right">
+                          ({category.returns})
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -598,12 +598,22 @@ export default function ReturnsManagementPage() {
                   <div className="grid grid-cols-5 gap-4">
                     {analytics.monthlyTrend.map((month) => (
                       <div key={month.month} className="text-center">
-                        <div className="text-sm text-muted-foreground mb-2">{month.month}</div>
+                        <div className="text-sm text-muted-foreground mb-2">
+                          {month.month}
+                        </div>
                         <div className="space-y-1">
-                          <div className="text-lg font-bold">{month.returns}</div>
-                          <div className="text-xs text-muted-foreground">Returns</div>
-                          <div className="text-sm font-medium text-green-600">AED {month.refunds.toLocaleString()}</div>
-                          <div className="text-xs text-muted-foreground">Refunds</div>
+                          <div className="text-lg font-bold">
+                            {month.returns}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Returns
+                          </div>
+                          <div className="text-sm font-medium text-green-600">
+                            AED {month.refunds.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Refunds
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -621,19 +631,33 @@ export default function ReturnsManagementPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-muted/50 rounded-lg">
                     <div className="text-2xl font-bold text-blue-600">94%</div>
-                    <div className="text-sm text-muted-foreground">Customer Satisfaction</div>
+                    <div className="text-sm text-muted-foreground">
+                      Customer Satisfaction
+                    </div>
                   </div>
                   <div className="text-center p-4 bg-muted/50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">2.1 days</div>
-                    <div className="text-sm text-muted-foreground">Avg Resolution Time</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      2.1 days
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Avg Resolution Time
+                    </div>
                   </div>
                   <div className="text-center p-4 bg-muted/50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">89%</div>
-                    <div className="text-sm text-muted-foreground">First-Time Resolution</div>
+                    <div className="text-2xl font-bold text-purple-600">
+                      89%
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      First-Time Resolution
+                    </div>
                   </div>
                   <div className="text-center p-4 bg-muted/50 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">AED 277</div>
-                    <div className="text-sm text-muted-foreground">Avg Return Value</div>
+                    <div className="text-2xl font-bold text-orange-600">
+                      AED 277
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Avg Return Value
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -651,7 +675,9 @@ export default function ReturnsManagementPage() {
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         {policy.name}
-                        <Badge variant={policy.isActive ? "default" : "secondary"}>
+                        <Badge
+                          variant={policy.isActive ? "default" : "secondary"}
+                        >
                           {policy.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </CardTitle>
@@ -682,16 +708,27 @@ export default function ReturnsManagementPage() {
                       <h4 className="font-medium mb-2">Policy Details:</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Return Period:</span>
-                          <span className="font-medium">{policy.returnPeriod} days</span>
+                          <span className="text-muted-foreground">
+                            Return Period:
+                          </span>
+                          <span className="font-medium">
+                            {policy.returnPeriod} days
+                          </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Applicable Categories:</span>
-                          <span className="font-medium">{policy.applicableCategories.join(", ")}</span>
+                          <span className="text-muted-foreground">
+                            Applicable Categories:
+                          </span>
+                          <span className="font-medium">
+                            {policy.applicableCategories.join(", ")}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Status:</span>
-                          <Badge variant={policy.isActive ? "default" : "secondary"} className="text-xs">
+                          <Badge
+                            variant={policy.isActive ? "default" : "secondary"}
+                            className="text-xs"
+                          >
                             {policy.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </div>
@@ -704,100 +741,6 @@ export default function ReturnsManagementPage() {
           </div>
         </TabsContent>
       </Tabs>
-
-      {/* Return Details Dialog */}
-      <Dialog open={showReturnDetails} onOpenChange={setShowReturnDetails}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Return Details - {selectedReturn?.id}</DialogTitle>
-            <DialogDescription>Complete information about this return transaction</DialogDescription>
-          </DialogHeader>
-          {selectedReturn && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Customer Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div>
-                      <span className="text-sm text-muted-foreground">Name:</span>
-                      <p className="font-medium">{selectedReturn.customerName}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-muted-foreground">Phone:</span>
-                      <p className="font-medium">{selectedReturn.customerPhone}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-muted-foreground">Email:</span>
-                      <p className="font-medium">{selectedReturn.customerEmail}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Return Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div>
-                      <span className="text-sm text-muted-foreground">Return Date:</span>
-                      <p className="font-medium">{selectedReturn.returnDate.toLocaleDateString()}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-muted-foreground">Original Order:</span>
-                      <p className="font-medium">{selectedReturn.orderId}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-muted-foreground">Processed By:</span>
-                      <p className="font-medium">{selectedReturn.processedBy}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-muted-foreground">Status:</span>
-                      <Badge variant={getStatusColor(selectedReturn.status)}>
-                        {selectedReturn.status.charAt(0).toUpperCase() + selectedReturn.status.slice(1)}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Return Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-2xl font-bold">{selectedReturn.totalItems}</div>
-                      <p className="text-sm text-muted-foreground">Items Returned</p>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold">AED {selectedReturn.totalRefund.toFixed(2)}</div>
-                      <p className="text-sm text-muted-foreground">Total Refund</p>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold">{selectedReturn.refundMethod}</div>
-                      <p className="text-sm text-muted-foreground">Refund Method</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {selectedReturn.notes && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Notes</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm">{selectedReturn.notes}</p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
-  )
+  );
 }

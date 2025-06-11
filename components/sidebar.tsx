@@ -134,7 +134,7 @@ export default function Sidebar() {
 
   return (
     <div
-      className={`${pathname.includes("register") || pathname.includes("close") || !isOpen ? "hidden" : "md:flex"} hidden h-full w-64 flex-col border-r bg-background`}
+      className={`${pathname.includes("register") || pathname.includes("close") || pathname.includes("reports") || pathname.includes("terminal") ||  !isOpen ? "hidden" : "flex"}  h-full w-64 flex-col border-r bg-background`}
     >
       <div className="flex h-14 items-center border-b px-4">
         <Link href="/" className="flex items-center gap-2 font-semibold">
@@ -146,6 +146,7 @@ export default function Sidebar() {
         <nav className="grid items-start px-2 text-sm font-medium">
           {routes.map((route) => (
             <Link
+              target={route.href == "/terminal" ? "_blank" : undefined}
               key={route.href}
               href={route.href}
               className={cn(

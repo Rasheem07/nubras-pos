@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+import React from "react"
 import { Computer, Lightbulb, Moon } from "lucide-react"
 import { useTheme } from "next-themes"
 import {Button} from "@/components/ui/button"
@@ -13,12 +13,28 @@ import {
 
 export function ModeToggle() {
   const { theme, setTheme } = useTheme()
+   const [mounted, setMounted] = React.useState(false);
+
+  // Only show after mounting on client
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  // now theme is stable and you won’t mis-match SSR vs CSR
+  const icon =
+    theme === "light"
+      ? <Lightbulb />
+      : theme === "dark"
+      ? <Moon />
+      : <Computer />;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="default">
-           {theme == "light" ? <Lightbulb /> : theme == "dark" ? <Moon /> : <Computer /> } {theme?.charAt(0).toUpperCase().concat(theme.slice(1))}
+           {icon} {theme?.charAt(0).toUpperCase().concat(theme.slice(1))}
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>

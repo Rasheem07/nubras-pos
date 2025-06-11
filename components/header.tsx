@@ -26,7 +26,7 @@ export default function Header() {
   const path = usePathname();
   return (
     <header
-      className={`${path.includes("register") || path.includes("close") ? "hidden" : "sticky"} top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6`}
+      className={`${path.includes("register") || path.includes("close") || path.includes("reports") || path.includes("terminal") ? "hidden" : "sticky"} top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6`}
     >
       <SidebarToggleButton />
       <div className="w-full flex-1">

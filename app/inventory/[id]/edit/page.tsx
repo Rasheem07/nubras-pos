@@ -2,9 +2,13 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,49 +17,106 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Save, Package, Upload, X } from "lucide-react"
+import { ArrowLeft, Save, Package, Upload, X, Loader2 } from "lucide-react"
+
+// Create a schema that matches the UpdateInventoryDto (which extends PartialType of CreateInventoryDto)
+const inventorySchema = z.object({
+  name: z.string().max(75, "Name must be 75 characters or less").optional(),
+  sku: z.string().max(15, "SKU must be 15 characters or less").optional(),
+  category: z.string().max(15, "Category must be 15 characters or less").optional(),
+  uom: z.string().max(20, "UOM must be 20 characters or less").optional(),
+  description: z.string().optional(),
+  cost: z.string().optional(),
+  stock: z.number().int().nonnegative().optional(),
+  minStock: z.number().int().min(1).optional(),
+  reorderPoint: z.number().int().nonnegative().optional(),
+  supplierId: z.number().int().positive().optional(),
+  barcode: z.string().optional(),
+  weight: z.string().max(12, "Weight must be 12 characters or less").optional(),
+  notes: z.string().optional(),
+})
+
+type InventoryFormValues = z.infer<typeof inventorySchema>
+
+interface Supplier {
+  id: number
+  name: string
+  phone: string
+  location?: string
+  email?: string
+}
 
 export default function EditInventoryItemPage() {
   const params = useParams()
   const router = useRouter()
+  const itemId = Number(params.id)
+
   const [activeTab, setActiveTab] = useState("basic")
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // In a real app, this would fetch the item from the database using the ID
-  const itemId = params.id as string
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+    reset,
+  } = useForm<InventoryFormValues>({
+    resolver: zodResolver(inventorySchema),
+  })
 
-  // Mock data for the inventory item
-  const initialData = {
-    id: itemId,
-    name: "White Linen Fabric",
-    sku: "FAB-LIN-WHT-001",
-    category: "Fabrics",
-    type: "fabric",
-    description:
-      "High-quality white linen fabric, perfect for premium kanduras and other garments. Sourced from the finest mills in Europe.",
-    inStock: 150,
-    minStock: 50,
-    costPrice: 30,
-    sellingPrice: 60,
-    supplier: "Dubai Textile Co.",
-    location: "Shelf A1",
-    lastRestocked: "2024-04-15",
-    status: "in-stock",
-    barcode: "5901234123457",
-    weight: "200g per meter",
-    dimensions: "150cm width",
-    notes: "Popular during summer months. Consider increasing minimum stock level during peak season.",
-    image: "/placeholder.svg?key=6k1n3",
-  }
+  // Watch form values for summary
+  const watchedValues = watch()
 
-  const [formData, setFormData] = useState(initialData)
-  const [imagePreview, setImagePreview] = useState<string | null>(initialData.image || null)
+  // Fetch item details and suppliers
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        // Fetch item details
+        const itemResponse = await fetch(`http://3.29.240.212/api/v1/inventory/${itemId}`)
+        if (!itemResponse.ok) {
+          throw new Error("Failed to fetch item details")
+        }
+        const itemData = await itemResponse.json()
 
-  const handleChange = (field: string, value: string | number) => {
-    setFormData({
-      ...formData,
-      [field]: value,
-    })
-  }
+        // Reset form with item data
+        reset({
+          name: itemData.name,
+          sku: itemData.sku,
+          category: itemData.category,
+          uom: itemData.uom,
+          description: itemData.description,
+          cost: itemData.cost,
+          stock: itemData.stock,
+          minStock: itemData.minStock,
+          reorderPoint: itemData.reorderPoint,
+          supplierId: itemData.supplierId,
+          barcode: itemData.barcode,
+          weight: itemData.weight,
+          notes: itemData.notes,
+        })
+
+        // Fetch suppliers
+        const suppliersResponse = await fetch("http://3.29.240.212/api/v1/suppliers")
+        if (!suppliersResponse.ok) {
+          throw new Error("Failed to fetch suppliers")
+        }
+        const suppliersData = await suppliersResponse.json()
+        setSuppliers(suppliersData)
+      } catch (error) {
+        console.error("Error fetching data:", error)
+        toast.error("Failed to load item data")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [itemId, reset])
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -72,25 +133,43 @@ export default function EditInventoryItemPage() {
     setImagePreview(null)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // In a real app, this would update the database
-    console.log("Form submitted:", formData)
+  const onSubmit = async (data: InventoryFormValues) => {
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`http://3.29.240.212/api/v1/inventory/${itemId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
 
-    // Navigate back to inventory item detail
-    router.push(`/inventory/${itemId}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to update inventory item")
+      }
+
+      const result = await response.json()
+      toast.success(result.message || "Inventory item updated successfully!")
+      router.push(`/inventory/${itemId}`)
+    } catch (error) {
+      console.error("Error updating inventory item:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to update inventory item")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const categories = ["Fabrics", "Ready-made", "Accessories", "Packaging"]
-  const types = ["fabric", "ready-made", "accessory", "packaging"]
-  const suppliers = [
-    "Dubai Textile Co.",
-    "Luxury Textiles LLC",
-    "Al Noor Garments",
-    "Elegant Abayas LLC",
-    "Fashion Accessories Trading",
-    "Packaging Solutions",
-  ]
+  const uoms = ["pc", "meter", "kg", "liter", "box", "roll", "pair"]
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -101,15 +180,24 @@ export default function EditInventoryItemPage() {
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight">Edit {formData.name}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Edit {watchedValues.name}</h1>
         </div>
-        <Button onClick={handleSubmit}>
-          <Save className="mr-2 h-4 w-4" />
-          Save Changes
+        <Button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+          {isSubmitting ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Saving...
+            </div>
+          ) : (
+            <>
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </>
+          )}
         </Button>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -133,10 +221,10 @@ export default function EditInventoryItemPage() {
                         <Input
                           id="name"
                           placeholder="Enter item name"
-                          value={formData.name}
-                          onChange={(e) => handleChange("name", e.target.value)}
-                          required
+                          {...register("name")}
+                          className={errors.name ? "border-red-500" : ""}
                         />
+                        {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="sku">
@@ -145,17 +233,20 @@ export default function EditInventoryItemPage() {
                         <Input
                           id="sku"
                           placeholder="Enter SKU"
-                          value={formData.sku}
-                          onChange={(e) => handleChange("sku", e.target.value)}
-                          required
+                          {...register("sku")}
+                          className={errors.sku ? "border-red-500" : ""}
                         />
+                        {errors.sku && <p className="text-red-500 text-sm">{errors.sku.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="category">
                           Category <span className="text-red-500">*</span>
                         </Label>
-                        <Select value={formData.category} onValueChange={(value) => handleChange("category", value)}>
-                          <SelectTrigger id="category">
+                        <Select
+                          onValueChange={(value) => setValue("category", value)}
+                          defaultValue={watchedValues.category}
+                        >
+                          <SelectTrigger id="category" className={errors.category ? "border-red-500" : ""}>
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
@@ -166,33 +257,35 @@ export default function EditInventoryItemPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.category && <p className="text-red-500 text-sm">{errors.category.message}</p>}
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="type">
-                          Type <span className="text-red-500">*</span>
+                        <Label htmlFor="uom">
+                          Unit of Measurement <span className="text-red-500">*</span>
                         </Label>
-                        <Select value={formData.type} onValueChange={(value) => handleChange("type", value)}>
-                          <SelectTrigger id="type">
-                            <SelectValue placeholder="Select type" />
+                        <Select onValueChange={(value) => setValue("uom", value)} defaultValue={watchedValues.uom}>
+                          <SelectTrigger id="uom" className={errors.uom ? "border-red-500" : ""}>
+                            <SelectValue placeholder="Select UOM" />
                           </SelectTrigger>
                           <SelectContent>
-                            {types.map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type.charAt(0).toUpperCase() + type.slice(1)}
+                            {uoms.map((uom) => (
+                              <SelectItem key={uom} value={uom}>
+                                {uom}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.uom && <p className="text-red-500 text-sm">{errors.uom.message}</p>}
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="description">Description</Label>
                         <Textarea
                           id="description"
                           placeholder="Enter item description"
-                          value={formData.description}
-                          onChange={(e) => handleChange("description", e.target.value)}
+                          {...register("description")}
                           rows={4}
                         />
+                        {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
                       </div>
                     </div>
                   </CardContent>
@@ -207,43 +300,31 @@ export default function EditInventoryItemPage() {
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="costPrice">
+                        <Label htmlFor="cost">
                           Cost Price (AED) <span className="text-red-500">*</span>
                         </Label>
                         <Input
-                          id="costPrice"
+                          id="cost"
                           type="number"
+                          step="0.01"
                           placeholder="0.00"
-                          value={formData.costPrice || ""}
-                          onChange={(e) => handleChange("costPrice", Number.parseFloat(e.target.value) || 0)}
-                          required
+                          {...register("cost")}
+                          className={errors.cost ? "border-red-500" : ""}
                         />
+                        {errors.cost && <p className="text-red-500 text-sm">{errors.cost.message}</p>}
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="sellingPrice">
-                          Selling Price (AED) <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="sellingPrice"
-                          type="number"
-                          placeholder="0.00"
-                          value={formData.sellingPrice || ""}
-                          onChange={(e) => handleChange("sellingPrice", Number.parseFloat(e.target.value) || 0)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="inStock">
+                        <Label htmlFor="stock">
                           Current Stock <span className="text-red-500">*</span>
                         </Label>
                         <Input
-                          id="inStock"
+                          id="stock"
                           type="number"
                           placeholder="0"
-                          value={formData.inStock || ""}
-                          onChange={(e) => handleChange("inStock", Number.parseInt(e.target.value) || 0)}
-                          required
+                          {...register("stock", { valueAsNumber: true })}
+                          className={errors.stock ? "border-red-500" : ""}
                         />
+                        {errors.stock && <p className="text-red-500 text-sm">{errors.stock.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="minStock">
@@ -252,35 +333,43 @@ export default function EditInventoryItemPage() {
                         <Input
                           id="minStock"
                           type="number"
-                          placeholder="0"
-                          value={formData.minStock || ""}
-                          onChange={(e) => handleChange("minStock", Number.parseInt(e.target.value) || 0)}
-                          required
+                          placeholder="1"
+                          {...register("minStock", { valueAsNumber: true })}
+                          className={errors.minStock ? "border-red-500" : ""}
                         />
+                        {errors.minStock && <p className="text-red-500 text-sm">{errors.minStock.message}</p>}
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="supplier">Supplier</Label>
-                        <Select value={formData.supplier} onValueChange={(value) => handleChange("supplier", value)}>
-                          <SelectTrigger id="supplier">
+                        <Label htmlFor="reorderPoint">
+                          Reorder Point <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="reorderPoint"
+                          type="number"
+                          placeholder="0"
+                          {...register("reorderPoint", { valueAsNumber: true })}
+                          className={errors.reorderPoint ? "border-red-500" : ""}
+                        />
+                        {errors.reorderPoint && <p className="text-red-500 text-sm">{errors.reorderPoint.message}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="supplierId">Preferred Supplier</Label>
+                        <Select
+                          onValueChange={(value) => setValue("supplierId", Number.parseInt(value))}
+                          defaultValue={watchedValues.supplierId?.toString()}
+                        >
+                          <SelectTrigger id="supplierId">
                             <SelectValue placeholder="Select supplier" />
                           </SelectTrigger>
                           <SelectContent>
                             {suppliers.map((supplier) => (
-                              <SelectItem key={supplier} value={supplier}>
-                                {supplier}
+                              <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                                {supplier.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="location">Storage Location</Label>
-                        <Input
-                          id="location"
-                          placeholder="Enter storage location"
-                          value={formData.location}
-                          onChange={(e) => handleChange("location", e.target.value)}
-                        />
+                        {errors.supplierId && <p className="text-red-500 text-sm">{errors.supplierId.message}</p>}
                       </div>
                     </div>
                   </CardContent>
@@ -296,40 +385,23 @@ export default function EditInventoryItemPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="barcode">Barcode</Label>
-                        <Input
-                          id="barcode"
-                          placeholder="Enter barcode"
-                          value={formData.barcode}
-                          onChange={(e) => handleChange("barcode", e.target.value)}
-                        />
+                        <Input id="barcode" placeholder="Enter barcode" {...register("barcode")} />
+                        {errors.barcode && <p className="text-red-500 text-sm">{errors.barcode.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="weight">Weight</Label>
                         <Input
                           id="weight"
                           placeholder="Enter weight"
-                          value={formData.weight}
-                          onChange={(e) => handleChange("weight", e.target.value)}
+                          {...register("weight")}
+                          className={errors.weight ? "border-red-500" : ""}
                         />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="dimensions">Dimensions</Label>
-                        <Input
-                          id="dimensions"
-                          placeholder="Enter dimensions (e.g., 10x20x30 cm)"
-                          value={formData.dimensions}
-                          onChange={(e) => handleChange("dimensions", e.target.value)}
-                        />
+                        {errors.weight && <p className="text-red-500 text-sm">{errors.weight.message}</p>}
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="notes">Notes</Label>
-                        <Textarea
-                          id="notes"
-                          placeholder="Enter additional notes"
-                          value={formData.notes}
-                          onChange={(e) => handleChange("notes", e.target.value)}
-                          rows={4}
-                        />
+                        <Textarea id="notes" placeholder="Enter additional notes" {...register("notes")} rows={4} />
+                        {errors.notes && <p className="text-red-500 text-sm">{errors.notes.message}</p>}
                       </div>
                     </div>
                   </CardContent>
@@ -378,43 +450,45 @@ export default function EditInventoryItemPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Name:</span>
-                    <span className="font-medium">{formData.name || "Not set"}</span>
+                    <span className="font-medium">{watchedValues.name || "Not set"}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">SKU:</span>
-                    <span className="font-medium">{formData.sku || "Not set"}</span>
+                    <span className="font-medium">{watchedValues.sku || "Not set"}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Category:</span>
-                    <span className="font-medium">{formData.category || "Not set"}</span>
+                    <span className="font-medium">{watchedValues.category || "Not set"}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Cost Price:</span>
                     <span className="font-medium">
-                      {formData.costPrice ? `AED ${formData.costPrice.toFixed(2)}` : "Not set"}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Selling Price:</span>
-                    <span className="font-medium">
-                      {formData.sellingPrice ? `AED ${formData.sellingPrice.toFixed(2)}` : "Not set"}
+                      {watchedValues.cost ? `AED ${Number.parseFloat(watchedValues.cost).toFixed(2)}` : "Not set"}
                     </span>
                   </div>
                   <Separator />
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Current Stock:</span>
-                    <span className="font-medium">{formData.inStock || "0"}</span>
+                    <span className="font-medium">{watchedValues.stock || "0"}</span>
                   </div>
                 </div>
               </CardContent>
               <CardFooter>
-                <Button className="w-full" onClick={handleSubmit}>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Changes
+                <Button className="w-full" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Saving...
+                    </div>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Changes
+                    </>
+                  )}
                 </Button>
               </CardFooter>
             </Card>

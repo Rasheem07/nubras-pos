@@ -1,544 +1,679 @@
 "use client"
 
-import { useState } from "react"
+import { Badge } from "@/components/ui/badge"
+
+import { useState, useEffect } from "react"
+import { useForm, useFieldArray } from "react-hook-form"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { ArrowLeft, CalendarIcon, Save, AlertTriangle, Plus, Edit, Trash2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ArrowLeft, CalendarIcon, AlertTriangle, Plus, Trash2, Settings, Save, User, Scissors } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { useQuery } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { useParams, useRouter } from "next/navigation"
 
-interface ProjectWorkflow {
+// Types matching your DTOs exactly
+type WorkflowConfig = {
   id: number
-  stepNo: number
-  configId: number
-  notes: string
-  status: "pending" | "completed"
-  completedAt?: Date
-  config: {
-    id: number
-    title: string
-    description: string
-  }
+  title: string
+  description: string
+  created_at: string
+  updated_at: string | null
 }
 
-interface ProjectDetails {
+type WorkflowStep = {
+  id: number
+  stepNo: number
+  notes: string
+  status: "pending" | "in_progress" | "completed" | string
+  estimatedHours: number
+  actualHours: number
+  completedAt: string | null
+  config: WorkflowConfig
+}
+
+type ProjectDetails = {
   id: number
   orderId: number
   customerId: number
   description: string
-  deadline: Date
+  deadline: string // ISO date string
   rush: boolean
   instructions: string
-  estimatedHours: number
-  status: "pending" | "in-progress" | "completed"
-  progress: number
+  estimatedHours: number | null
+  actualHours: string
+  status: "pending" | "in_progress" | "completed" | string
   tailorId: number
-  createdAt: Date
-  updatedAt: Date
+  createdAt: string
+  updatedAt: string | null
   customerName: string
   tailorName: string
-  workflows: ProjectWorkflow[]
+  daysRemaining: number
+  stepsCompleted: string
+  totalSteps: string
+  timeEfficiency: string
+  workflows: WorkflowStep[]
 }
 
-interface WorkflowTemplate {
-  id: number
-  title: string
-  description: string
+// DTO types matching your backend exactly
+interface CreateProjectWorkflow {
+  stepNo: number
+  configId: number
+  notes: string
+  estimatedHours: number
 }
 
-const workflowTemplates: WorkflowTemplate[] = [
-  { id: 1, title: "Measurements & Design Consultation", description: "Take precise customer measurements" },
-  { id: 2, title: "Fabric Selection & Material Preparation", description: "Select and prepare materials" },
-  { id: 3, title: "Pattern Creation & Cutting", description: "Create patterns and cut fabric" },
-  { id: 4, title: "Traditional Embroidery Work", description: "Apply embroidery patterns" },
-  { id: 5, title: "First Fitting Appointment", description: "Customer fitting session" },
-  { id: 6, title: "Final Adjustments & Refinements", description: "Make final adjustments" },
-  { id: 7, title: "Quality Inspection & Finishing", description: "Final quality check" },
-]
-
-const mockProject: ProjectDetails = {
-  id: 1,
-  orderId: 1001,
-  customerId: 1,
-  description: "2 Custom Kanduras with Traditional Embroidery",
-  deadline: new Date("2024-05-10"),
-  rush: true,
-  instructions: "Customer prefers navy blue with gold embroidery. Rush order for wedding.",
-  estimatedHours: 24,
-  status: "in-progress",
-  progress: 60,
-  tailorId: 1,
-  createdAt: new Date("2024-05-02"),
-  updatedAt: new Date("2024-05-05"),
-  customerName: "Fatima Mohammed",
-  tailorName: "Mohammed Ali",
-  workflows: [
-    {
-      id: 1,
-      stepNo: 1,
-      configId: 1,
-      notes: "Customer measurements taken. Prefers traditional collar style.",
-      status: "completed",
-      completedAt: new Date("2024-05-02"),
-      config: { id: 1, title: "Measurements & Design Consultation", description: "Take precise customer measurements" },
-    },
-    {
-      id: 2,
-      stepNo: 2,
-      configId: 2,
-      notes: "Navy blue fabric selected. Premium cotton as requested.",
-      status: "completed",
-      completedAt: new Date("2024-05-03"),
-      config: { id: 2, title: "Fabric Selection & Material Preparation", description: "Select and prepare materials" },
-    },
-    {
-      id: 3,
-      stepNo: 3,
-      configId: 3,
-      notes: "Patterns created according to measurements.",
-      status: "completed",
-      completedAt: new Date("2024-05-04"),
-      config: { id: 3, title: "Pattern Creation & Cutting", description: "Create patterns and cut fabric" },
-    },
-    {
-      id: 4,
-      stepNo: 4,
-      configId: 4,
-      notes: "",
-      status: "pending",
-      config: { id: 4, title: "Traditional Embroidery Work", description: "Apply embroidery patterns" },
-    },
-  ],
+interface UpdateTailoringDto {
+  orderId?: number
+  customerId?: number
+  description?: string
+  deadline?: Date
+  rush?: boolean
+  instructions?: string
+  tailorId?: number
+  workflows?: CreateProjectWorkflow[]
 }
 
-export default function EditTailoringProject({ params }: { params: { id: string } }) {
-  const [project, setProject] = useState<ProjectDetails>(mockProject)
-  const [isAddWorkflowOpen, setIsAddWorkflowOpen] = useState(false)
-  const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null)
-  const [newWorkflowNotes, setNewWorkflowNotes] = useState("")
-  const [editingWorkflow, setEditingWorkflow] = useState<number | null>(null)
-  const [workflowNotes, setWorkflowNotes] = useState("")
+// Loading skeleton components
+const FormSkeleton = () => (
+  <div className="space-y-6">
+    <Skeleton className="h-10 w-full" />
+    <Skeleton className="h-10 w-full" />
+    <Skeleton className="h-20 w-full" />
+    <Skeleton className="h-10 w-full" />
+  </div>
+)
 
-  const handleSaveProject = () => {
-    // API call to update project
-    console.log("Saving project:", project)
-  }
+export default function EditTailoringProject() {
+  const params = useParams()
+  const router = useRouter()
+  const id = params.id as string
 
-  const handleAddWorkflow = () => {
-    if (selectedTemplate) {
-      const template = workflowTemplates.find((t) => t.id === selectedTemplate)
-      if (template) {
-        const newWorkflow: ProjectWorkflow = {
-          id: Math.max(...project.workflows.map((w) => w.id)) + 1,
-          stepNo: project.workflows.length + 1,
-          configId: template.id,
-          notes: newWorkflowNotes,
-          status: "pending",
-          config: template,
-        }
-        setProject({
-          ...project,
-          workflows: [...project.workflows, newWorkflow],
-        })
-        setSelectedTemplate(null)
-        setNewWorkflowNotes("")
-        setIsAddWorkflowOpen(false)
+  const [activeTab, setActiveTab] = useState("details")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<UpdateTailoringDto>({
+    defaultValues: {
+      rush: false,
+      workflows: [],
+    },
+  })
+
+  const { fields, append, remove, replace } = useFieldArray({
+    control,
+    name: "workflows",
+  })
+
+  const watchedValues = watch()
+
+  // Fetch project details using the same API as detail page
+  const {
+    data: project,
+    isLoading: isProjectLoading,
+    error: projectError,
+    refetch,
+  } = useQuery<ProjectDetails>({
+    queryKey: ["tailoring-project", id],
+    queryFn: async () => {
+      const response = await fetch(`http://3.29.240.212/api/v1/tailoring/${id}`)
+      const json = await response.json()
+      if (!response.ok) {
+        throw new Error(json.message || `Failed to load project #${id}`)
       }
+      return json
+    },
+    enabled: !!id,
+  })
+
+  // Fetch workflow templates
+  const { data: workflowConfigs = [] } = useQuery<WorkflowConfig[]>({
+    queryKey: ["workflow-configs"],
+    queryFn: async () => {
+      const response = await fetch("http://3.29.240.212/api/v1/tailoring/workflow/templates")
+      const json = await response.json()
+      if (!response.ok) {
+        toast.error("Failed to load workflow templates!")
+      }
+      return json
+    },
+  })
+
+  // Populate form when project data loads
+  useEffect(() => {
+    if (project) {
+      reset({
+        orderId: project.orderId,
+        customerId: project.customerId,
+        description: project.description,
+        deadline: new Date(project.deadline),
+        rush: project.rush,
+        instructions: project.instructions,
+        tailorId: project.tailorId,
+        workflows: project.workflows.map((workflow) => ({
+          stepNo: workflow.stepNo,
+          configId: workflow.config.id,
+          notes: workflow.notes,
+          estimatedHours: workflow.estimatedHours,
+        })),
+      })
+    }
+  }, [project, reset])
+
+  const addWorkflowStep = () => {
+    const nextStepNo = Math.max(0, ...fields.map((f) => f.stepNo)) + 1
+    append({
+      stepNo: nextStepNo,
+      configId: 0,
+      notes: "",
+      estimatedHours: 1,
+    })
+  }
+
+  const removeWorkflowStep = (index: number) => {
+    if (fields.length > 1) {
+      remove(index)
+      // Update step numbers to maintain sequence
+      const updatedWorkflows = fields
+        .filter((_, idx) => idx !== index)
+        .map((workflow, idx) => ({
+          ...workflow,
+          stepNo: idx + 1,
+        }))
+      replace(updatedWorkflows)
     }
   }
 
-  const handleUpdateWorkflowNotes = (workflowId: number) => {
-    setProject({
-      ...project,
-      workflows: project.workflows.map((w) => (w.id === workflowId ? { ...w, notes: workflowNotes } : w)),
-    })
-    setEditingWorkflow(null)
-    setWorkflowNotes("")
-  }
+  const onSubmit = async (data: UpdateTailoringDto) => {
+    try {
+      setIsSubmitting(true)
 
-  const handleDeleteWorkflow = (workflowId: number) => {
-    setProject({
-      ...project,
-      workflows: project.workflows.filter((w) => w.id !== workflowId),
-    })
-  }
+      // Validate required fields
+      if (!data.description?.trim()) {
+        toast.error("Project description is required")
+        return
+      }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
-        return <Badge variant="outline">Pending</Badge>
-      case "in-progress":
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">In Progress</Badge>
-      case "completed":
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Completed</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
+      if (!data.instructions?.trim()) {
+        toast.error("Instructions are required")
+        return
+      }
+
+      if (!data.deadline) {
+        toast.error("Deadline is required")
+        return
+      }
+
+      // Validate workflows if provided
+      if (data.workflows && data.workflows.length > 0) {
+        for (const workflow of data.workflows) {
+          if (!workflow.configId || workflow.configId === 0) {
+            toast.error("Please select a configuration for all workflow steps")
+            return
+          }
+          if (!workflow.notes.trim()) {
+            toast.error("Notes are required for all workflow steps")
+            return
+          }
+          if (!workflow.estimatedHours || workflow.estimatedHours <= 0) {
+            toast.error("Estimated hours must be greater than 0 for all workflow steps")
+            return
+          }
+        }
+      }
+
+      const response = await fetch(`http://3.29.240.212/api/v1/tailoring/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to update tailoring project")
+      }
+
+      toast.success(result.message || "Tailoring project updated successfully!")
+      router.push(`/tailoring/${id}`)
+    } catch (error) {
+      console.error("Error updating tailoring project:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to update project")
+    } finally {
+      setIsSubmitting(false)
     }
+  }
+
+  if (projectError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="text-red-600 text-lg font-medium">Failed to load project</div>
+        <p className="text-gray-600">
+          {projectError instanceof Error ? projectError.message : "Unknown error occurred"}
+        </p>
+        <Link href="/tailoring">
+          <Button variant="outline">Back to Projects</Button>
+        </Link>
+      </div>
+    )
+  }
+
+  if (isProjectLoading) {
+    return (
+      <div className="flex flex-col gap-8">
+        {/* Header Skeleton */}
+        <div className="flex items-center gap-6">
+          <Skeleton className="h-10 w-10" />
+          <div className="flex-1">
+            <div className="flex items-center gap-4 mb-2">
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+            </div>
+            <Skeleton className="h-6 w-96" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+
+        {/* Form Skeleton */}
+        <Card className="border-gray-200 shadow-sm">
+          <div className="border-b border-gray-200 px-6">
+            <div className="flex gap-6 py-4">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-6 w-28" />
+            </div>
+          </div>
+          <div className="p-8">
+            <FormSkeleton />
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  if (!project) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="text-gray-600 text-lg font-medium">Project not found</div>
+        <Link href="/tailoring">
+          <Button variant="outline">Back to Projects</Button>
+        </Link>
+      </div>
+    )
   }
 
   return (
     <div className="flex flex-col gap-8">
       {/* Header */}
       <div className="flex items-center gap-6">
-        <Link href={`/tailoring/${params.id}`}>
+        <Link href={`/tailoring/${id}`}>
           <Button variant="outline" size="icon" className="border-gray-300">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-4 mb-2">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Edit Project TP-{project.id}</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Edit Project #{project.id}</h1>
             {project.rush && (
               <Badge className="bg-amber-100 text-amber-800 border-amber-200 flex gap-1 items-center">
                 <AlertTriangle className="h-3 w-3" />
                 Rush Order
               </Badge>
             )}
-            {getStatusBadge(project.status)}
           </div>
-          <p className="text-gray-600">Update project details and manage workflow steps</p>
+          <p className="text-gray-600 mt-1">Update project details and workflow configuration</p>
         </div>
-        <Button onClick={handleSaveProject} className="bg-green-600 hover:bg-green-700">
-          <Save className="mr-2 h-4 w-4" />
-          Save Changes
-        </Button>
       </div>
 
-      {/* Project Details Form */}
-      <div className="grid gap-8 lg:grid-cols-2">
+      <form onSubmit={handleSubmit(onSubmit)}>
         <Card className="border-gray-200 shadow-sm">
-          <CardHeader className="border-b border-gray-200 bg-gray-50/50">
-            <CardTitle className="text-lg text-gray-900">Project Information</CardTitle>
-            <CardDescription>Update basic project details</CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-medium text-gray-700">
-                Project Description
-              </Label>
-              <Input
-                id="description"
-                value={project.description}
-                onChange={(e) => setProject({ ...project, description: e.target.value })}
-                className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">Delivery Deadline</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal border-gray-300",
-                      !project.deadline && "text-gray-500",
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {project.deadline ? format(project.deadline, "PPP") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={project.deadline}
-                    onSelect={(date) => date && setProject({ ...project, deadline: date })}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="estimatedHours" className="text-sm font-medium text-gray-700">
-                Estimated Hours
-              </Label>
-              <Input
-                id="estimatedHours"
-                type="number"
-                value={project.estimatedHours}
-                onChange={(e) => setProject({ ...project, estimatedHours: Number.parseInt(e.target.value) || 0 })}
-                className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="flex items-center space-x-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
-              <Checkbox
-                id="rush"
-                checked={project.rush}
-                onCheckedChange={(checked) => setProject({ ...project, rush: checked as boolean })}
-              />
-              <Label htmlFor="rush" className="flex items-center gap-2 text-sm font-medium text-amber-800">
-                <AlertTriangle className="h-4 w-4" />
-                Rush Order (Priority Processing)
-              </Label>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="instructions" className="text-sm font-medium text-gray-700">
-                Special Instructions
-              </Label>
-              <Textarea
-                id="instructions"
-                value={project.instructions}
-                onChange={(e) => setProject({ ...project, instructions: e.target.value })}
-                className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                rows={4}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-gray-200 shadow-sm">
-          <CardHeader className="border-b border-gray-200 bg-gray-50/50">
-            <CardTitle className="text-lg text-gray-900">Assignment Details</CardTitle>
-            <CardDescription>Customer and tailor information</CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            <div className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-700">Customer</Label>
-                <div className="mt-2 p-4 bg-gray-50 rounded-lg border">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src="/frequency-modulation-spectrum.png" alt={project.customerName} />
-                      <AvatarFallback className="bg-gray-200 text-gray-700">
-                        {project.customerName
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium text-gray-900">{project.customerName}</div>
-                      <div className="text-sm text-gray-600">Customer ID: {project.customerId}</div>
-                    </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="bg-transparent border-none p-0 h-auto">
+              <TabsTrigger
+                value="details"
+                className="border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-6 py-4"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium bg-blue-600 text-white">
+                    1
                   </div>
+                  Project Details
                 </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium text-gray-700">Assigned Tailor</Label>
-                <div className="mt-2 p-4 bg-gray-50 rounded-lg border">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src="/stylized-letter-ma.png" alt={project.tailorName} />
-                      <AvatarFallback className="bg-gray-200 text-gray-700">
-                        {project.tailorName
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium text-gray-900">{project.tailorName}</div>
-                      <div className="text-sm text-gray-600">Tailor ID: {project.tailorId}</div>
-                    </div>
+              </TabsTrigger>
+              <TabsTrigger
+                value="workflows"
+                className="border-b-2 border-transparent data-[state=active]:border-blue-600 data-[state=active]:bg-transparent rounded-none px-6 py-4"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium bg-blue-600 text-white">
+                    2
                   </div>
+                  Workflows
                 </div>
-              </div>
+              </TabsTrigger>
+            </TabsList>
 
-              <div>
-                <Label className="text-sm font-medium text-gray-700">Related Order</Label>
-                <div className="mt-2 p-4 bg-gray-50 rounded-lg border">
-                  <div className="font-medium text-gray-900">Order #{project.orderId}</div>
-                  <div className="text-sm text-gray-600">View order details</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Workflow Management */}
-      <Card className="border-gray-200 shadow-sm">
-        <CardHeader className="border-b border-gray-200 bg-gray-50/50">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg text-gray-900">Workflow Steps</CardTitle>
-              <CardDescription>Manage the project workflow and track progress</CardDescription>
-            </div>
-            <Dialog open={isAddWorkflowOpen} onOpenChange={setIsAddWorkflowOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Step
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Add Workflow Step</DialogTitle>
-                  <DialogDescription>Add a new step to the project workflow</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-6 py-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Workflow Template</Label>
-                    <Select
-                      value={selectedTemplate?.toString()}
-                      onValueChange={(value) => setSelectedTemplate(Number.parseInt(value))}
-                    >
-                      <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                        <SelectValue placeholder="Select a workflow template" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {workflowTemplates.map((template) => (
-                          <SelectItem key={template.id} value={template.id.toString()}>
-                            <div>
-                              <div className="font-medium">{template.title}</div>
-                              <div className="text-sm text-gray-500">{template.description}</div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="workflow-notes" className="text-sm font-medium text-gray-700">
-                      Initial Notes
-                    </Label>
-                    <Textarea
-                      id="workflow-notes"
-                      placeholder="Add any initial notes for this workflow step..."
-                      value={newWorkflowNotes}
-                      onChange={(e) => setNewWorkflowNotes(e.target.value)}
-                      className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                      rows={3}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsAddWorkflowOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleAddWorkflow}
-                    disabled={!selectedTemplate}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    Add Step
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-gray-50">
-              <TableRow>
-                <TableHead className="font-semibold text-gray-900">Step</TableHead>
-                <TableHead className="font-semibold text-gray-900">Workflow</TableHead>
-                <TableHead className="font-semibold text-gray-900">Status</TableHead>
-                <TableHead className="font-semibold text-gray-900">Notes</TableHead>
-                <TableHead className="font-semibold text-gray-900">Completed</TableHead>
-                <TableHead className="font-semibold text-gray-900 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {project.workflows.map((workflow) => (
-                <TableRow key={workflow.id} className="hover:bg-gray-50">
-                  <TableCell>
-                    <Badge variant="outline" className="border-blue-200 text-blue-800">
-                      Step {workflow.stepNo}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium text-gray-900">{workflow.config.title}</div>
-                      <div className="text-sm text-gray-500">{workflow.config.description}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {workflow.status === "completed" ? (
-                      <Badge className="bg-green-100 text-green-800 border-green-200">Completed</Badge>
-                    ) : (
-                      <Badge variant="outline">Pending</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {editingWorkflow === workflow.id ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={workflowNotes}
-                          onChange={(e) => setWorkflowNotes(e.target.value)}
-                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                          rows={2}
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleUpdateWorkflowNotes(workflow.id)}
-                            className="bg-blue-600 hover:bg-blue-700"
-                          >
-                            Save
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingWorkflow(null)}>
-                            Cancel
-                          </Button>
+            <div className="p-8">
+              <TabsContent value="details" className="mt-0 space-y-8">
+                <div className="grid gap-8">
+                  {/* Customer and Tailor Info (Read-only) */}
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <Card className="border-gray-200 shadow-sm">
+                      <CardHeader className="border-b border-gray-200 bg-gray-50/50">
+                        <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+                          <User className="h-5 w-5 text-blue-600" />
+                          Customer Information
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback className="bg-gray-200 text-gray-700">
+                              {project.customerName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium text-gray-900 text-lg">{project.customerName}</div>
+                            <div className="text-sm text-gray-500">Customer ID: {project.customerId}</div>
+                          </div>
                         </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-gray-200 shadow-sm">
+                      <CardHeader className="border-b border-gray-200 bg-gray-50/50">
+                        <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+                          <Scissors className="h-5 w-5 text-blue-600" />
+                          Assigned Tailor
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback className="bg-gray-200 text-gray-700">
+                              {project.tailorName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium text-gray-900 text-lg">{project.tailorName}</div>
+                            <div className="text-sm text-gray-500">Tailor ID: {project.tailorId}</div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Editable Project Fields */}
+                  <Card className="border-gray-200 shadow-sm">
+                    <CardHeader className="border-b border-gray-200 bg-gray-50/50">
+                      <CardTitle className="text-lg text-gray-900">Project Information</CardTitle>
+                      <CardDescription className="text-gray-600">
+                        Update the project details and requirements
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="description" className="text-sm font-medium text-gray-700">
+                          Project Description *
+                        </Label>
+                        <Input
+                          id="description"
+                          {...register("description", {
+                            required: "Project description is required",
+                            minLength: {
+                              value: 1,
+                              message: "Description cannot be empty",
+                            },
+                          })}
+                          placeholder="e.g., 2 Custom Kanduras with Traditional Embroidery"
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                        {errors.description && <p className="text-sm text-red-600">{errors.description.message}</p>}
                       </div>
-                    ) : (
-                      <div className="max-w-xs">
-                        <div className="text-sm text-gray-700">{workflow.notes || "No notes added"}</div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setEditingWorkflow(workflow.id)
-                            setWorkflowNotes(workflow.notes)
-                          }}
-                          className="mt-1 h-6 px-2 text-xs"
-                        >
-                          <Edit className="mr-1 h-3 w-3" />
-                          Edit
-                        </Button>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Delivery Deadline *</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal border-gray-300 focus:border-blue-500 focus:ring-blue-500",
+                                !watchedValues.deadline && "text-gray-500",
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {watchedValues.deadline ? format(watchedValues.deadline, "PPP") : "Select delivery date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={watchedValues.deadline}
+                              onSelect={(date) => setValue("deadline", date!)}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        {errors.deadline && <p className="text-sm text-red-600">{errors.deadline.message}</p>}
                       </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {workflow.completedAt ? (
-                      <div className="text-sm text-gray-600">{format(workflow.completedAt, "MMM dd, yyyy")}</div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
+
+                      <div className="flex items-center space-x-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                        <Checkbox
+                          id="rush"
+                          {...register("rush")}
+                          checked={watchedValues.rush}
+                          onCheckedChange={(checked) => setValue("rush", checked === true)}
+                        />
+                        <Label htmlFor="rush" className="flex items-center gap-2 text-sm font-medium text-amber-800">
+                          <AlertTriangle className="h-4 w-4" />
+                          Rush Order (Priority Processing)
+                        </Label>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="instructions" className="text-sm font-medium text-gray-700">
+                          Special Instructions *
+                        </Label>
+                        <Textarea
+                          id="instructions"
+                          {...register("instructions", {
+                            required: "Instructions are required",
+                            minLength: {
+                              value: 1,
+                              message: "Instructions cannot be empty",
+                            },
+                          })}
+                          placeholder="Any special requirements, measurements notes, or design preferences..."
+                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                          rows={3}
+                        />
+                        {errors.instructions && <p className="text-sm text-red-600">{errors.instructions.message}</p>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="flex justify-end pt-6 border-t border-gray-200">
+                  <Button
+                    type="button"
+                    onClick={() => setActiveTab("workflows")}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-8"
+                  >
+                    Next: Configure Workflows
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="workflows" className="mt-0 space-y-6">
+                <Card className="border-gray-200 shadow-sm">
+                  <CardHeader className="border-b border-gray-200 bg-gray-50/50">
+                    <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+                      <Settings className="h-5 w-5 text-blue-600" />
+                      Project Workflows
+                    </CardTitle>
+                    <CardDescription className="text-gray-600">
+                      Configure the workflow steps for this tailoring project. Changes will synchronize existing steps
+                      by step number.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-6">
+                    <div className="space-y-4">
+                      {fields.map((field, index) => (
+                        <Card key={field.id} className="border-gray-200">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-base">Step {index + 1}</CardTitle>
+                              {fields.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeWorkflowStep(index)}
+                                  className="text-red-600 border-red-200 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <input
+                              type="hidden"
+                              {...register(`workflows.${index}.stepNo` as const)}
+                              value={index + 1}
+                            />
+
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium text-gray-700">Workflow Configuration *</Label>
+                              <Select
+                                value={String(watchedValues.workflows?.[index]?.configId || "")}
+                                onValueChange={(value) =>
+                                  setValue(`workflows.${index}.configId`, Number.parseInt(value))
+                                }
+                              >
+                                <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                                  <SelectValue placeholder="Select workflow configuration" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {workflowConfigs.map((config) => (
+                                    <SelectItem key={config.id} value={String(config.id)}>
+                                      <div>
+                                        <div className="font-medium">{config.title}</div>
+                                        <div className="text-sm text-gray-500">{config.description}</div>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {errors.workflows?.[index]?.configId && (
+                                <p className="text-sm text-red-600">Configuration is required</p>
+                              )}
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium text-gray-700">Estimated Hours *</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                {...register(`workflows.${index}.estimatedHours` as const, {
+                                  valueAsNumber: true,
+                                  required: "Estimated hours is required",
+                                  min: {
+                                    value: 1,
+                                    message: "Estimated hours must be at least 1",
+                                  },
+                                })}
+                                placeholder="Enter estimated hours"
+                                className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                              />
+                              {errors.workflows?.[index]?.estimatedHours && (
+                                <p className="text-sm text-red-600">
+                                  {errors.workflows[index]?.estimatedHours?.message}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium text-gray-700">Notes *</Label>
+                              <Textarea
+                                {...register(`workflows.${index}.notes` as const, {
+                                  required: "Notes are required",
+                                  minLength: {
+                                    value: 1,
+                                    message: "Notes cannot be empty",
+                                  },
+                                })}
+                                placeholder="Enter specific notes for this workflow step..."
+                                className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                rows={2}
+                              />
+                              {errors.workflows?.[index]?.notes && (
+                                <p className="text-sm text-red-600">{errors.workflows[index]?.notes?.message}</p>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
                     <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDeleteWorkflow(workflow.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      type="button"
+                      variant="outline"
+                      onClick={addWorkflowStep}
+                      className="w-full border-dashed border-gray-300 text-gray-600 hover:bg-gray-50"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Workflow Step
                     </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                  </CardContent>
+                </Card>
+
+                <div className="flex justify-between pt-6 border-t border-gray-200">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setActiveTab("details")}
+                    className="border-gray-300"
+                  >
+                    Back to Details
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg font-medium"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    {isSubmitting ? "Updating..." : "Update Project"}
+                  </Button>
+                </div>
+              </TabsContent>
+            </div>
+          </Tabs>
+        </Card>
+      </form>
     </div>
   )
 }

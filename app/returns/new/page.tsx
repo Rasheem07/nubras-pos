@@ -11,7 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,11 +28,7 @@ import {
   Calculator,
   CheckCircle,
   ArrowLeft,
-  AlertTriangle,
   RefreshCw,
-  CreditCard,
-  Banknote,
-  Receipt,
   User,
   Phone,
   Calendar,
@@ -41,51 +36,43 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 interface OrderItem {
-  id: string
+  id: number
   name: string
   sku: string
   price: number
   quantity: number
   category: string
-  description?: string
 }
 
 interface Order {
-  id: string
+  id: number
   date: Date
   customer: {
-    id: string
+    id: number
     name: string
     phone: string
     email: string
-    address: string
   }
   items: OrderItem[]
-  subtotal: number
-  discount: number
-  tax: number
   total: number
-  amountPaid: number
-  amountDue: number
   paymentMethod: string
-  paymentReference?: string
-  status: "pending" | "confirmed" | "completed" | "cancelled"
+  status: string
 }
 
 interface ReturnItem {
-  id: string
-  name: string
-  sku: string
-  originalPrice: number
-  originalQuantity: number
-  returnQuantity: number
+  itemName: string
+  qty: number
   reason: string
-  returnType: "refund" | "exchange" | "store-credit"
-  condition: "new" | "good" | "damaged" | "defective"
-  refundAmount: number
+  type: string
+  condition: string
+  refundAmount: string
   selected: boolean
+  originalPrice: number
+  maxQty: number
 }
 
 export default function NewReturnPage() {
@@ -95,101 +82,23 @@ export default function NewReturnPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [returnItems, setReturnItems] = useState<ReturnItem[]>([])
   const [returnNotes, setReturnNotes] = useState("")
-  const [refundMethod, setRefundMethod] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("")
+  const [status, setStatus] = useState("pending")
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
   // Sample orders data
-  const sampleOrders: Order[] = [
-    {
-      id: "ORD-2024-001",
-      date: new Date("2024-05-15"),
-      customer: {
-        id: "CUST-001",
-        name: "Fatima Mohammed Al Zahra",
-        phone: "+971 50 123 4567",
-        email: "fatima.alzahra@example.com",
-        address: "Villa 123, Al Wasl Road, Jumeirah 1, Dubai, UAE",
-      },
-      items: [
-        {
-          id: "item1",
-          name: "Premium Kandura - White",
-          sku: "KAN-PREM-WHT-001",
-          price: 450,
-          quantity: 2,
-          category: "Ready-made",
-          description: "Premium cotton kandura with traditional embroidery",
-        },
-        {
-          id: "item2",
-          name: "Silk Scarf - Gold Pattern",
-          sku: "SCF-SILK-GLD-001",
-          price: 120,
-          quantity: 1,
-          category: "Accessories",
-          description: "Hand-woven silk scarf with gold thread pattern",
-        },
-        {
-          id: "item3",
-          name: "Traditional Abaya - Black",
-          sku: "ABA-TRAD-BLK-001",
-          price: 380,
-          quantity: 1,
-          category: "Ready-made",
-          description: "Traditional black abaya with pearl details",
-        },
-      ],
-      subtotal: 1400,
-      discount: 140,
-      tax: 63,
-      total: 1323,
-      amountPaid: 1323,
-      amountDue: 0,
-      paymentMethod: "Credit Card",
-      paymentReference: "CC-2024-001-789",
-      status: "completed",
-    },
-    {
-      id: "ORD-2024-002",
-      date: new Date("2024-05-10"),
-      customer: {
-        id: "CUST-002",
-        name: "Ahmed Al Mansouri",
-        phone: "+971 55 987 6543",
-        email: "ahmed.mansouri@example.com",
-        address: "Apartment 456, Sheikh Zayed Road, Business Bay, Dubai, UAE",
-      },
-      items: [
-        {
-          id: "item4",
-          name: "Custom Thobe - Navy Blue",
-          sku: "THO-CUST-NVY-001",
-          price: 650,
-          quantity: 1,
-          category: "Custom",
-          description: "Custom-tailored thobe with personalized measurements",
-        },
-        {
-          id: "item5",
-          name: "Leather Belt - Brown",
-          sku: "BLT-LEAT-BRN-001",
-          price: 85,
-          quantity: 2,
-          category: "Accessories",
-          description: "Genuine leather belt with traditional buckle",
-        },
-      ],
-      subtotal: 820,
-      discount: 0,
-      tax: 41,
-      total: 861,
-      amountPaid: 861,
-      amountDue: 0,
-      paymentMethod: "Cash",
-      status: "completed",
-    },
-  ]
+  const {data: orders = [], isLoading: orderLoading} = useQuery<Order[]>({
+    queryKey: ['orders'],
+    queryFn: async () => {
+      const response = await fetch("http://3.29.240.212/api/v1/sales/list/orders");
+      const json = await response.json();
+      if(!response.ok) {
+        toast.error("Failed to load orders")
+      }
+      return json;
+    }
+  })
 
   const returnReasons = [
     "Size/Fit Issue",
@@ -203,11 +112,7 @@ export default function NewReturnPage() {
     "Other",
   ]
 
-  const returnTypes = [
-    { value: "refund", label: "Full Refund" },
-    { value: "exchange", label: "Exchange" },
-    { value: "store-credit", label: "Store Credit" },
-  ]
+  const returnTypes = ["refund", "exchange", "store-credit"]
 
   const conditionOptions = [
     { value: "new", label: "New/Resellable", refundPercentage: 100 },
@@ -216,22 +121,20 @@ export default function NewReturnPage() {
     { value: "defective", label: "Defective", refundPercentage: 100 },
   ]
 
-  const refundMethods = [
-    { value: "original", label: "Original Payment Method", icon: CreditCard },
-    { value: "store-credit", label: "Store Credit", icon: Receipt },
-    { value: "cash", label: "Cash Refund", icon: Banknote },
-  ]
+  const paymentMethods = ["cash", "mobile", "card", "bank_transfer", "cheque"]
+
+  const statusOptions = ["pending", "approved", "rejected", "completed"]
 
   // Search for orders
   const searchOrders = () => {
     if (!searchQuery.trim()) {
-      alert("Please enter a search term")
+      toast.message("Please enter a search term")
       return
     }
 
-    const found = sampleOrders.find(
+    const found = orders.find(
       (order) =>
-        order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.id.toString().includes(searchQuery) ||
         order.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.customer.phone.includes(searchQuery),
     )
@@ -241,68 +144,55 @@ export default function NewReturnPage() {
       initializeReturnItems(found)
       setActiveTab("item-selection")
     } else {
-      alert("Order not found. Please check the order number, customer name, or phone number.")
+      toast.error("Order not found. Please check the order number, customer name, or phone number.")
     }
   }
 
   // Initialize return items from order
   const initializeReturnItems = (order: Order) => {
     const initialReturnItems: ReturnItem[] = order.items.map((item) => ({
-      id: item.id,
-      name: item.name,
-      sku: item.sku,
-      originalPrice: item.price,
-      originalQuantity: item.quantity,
-      returnQuantity: 1,
+      itemName: item.name,
+      qty: 1,
       reason: "",
-      returnType: "refund",
+      type: "refund",
       condition: "new",
-      refundAmount: item.price,
+      refundAmount: item.price.toString(),
       selected: false,
+      orderItemId: item.id,
+      originalPrice: item.price,
+      maxQty: item.quantity,
     }))
     setReturnItems(initialReturnItems)
   }
 
   // Toggle item selection
-  const toggleItemSelection = (itemId: string, selected: boolean) => {
+  const toggleItemSelection = (index: number, selected: boolean) => {
     setReturnItems(
-      returnItems.map((item) =>
-        item.id === itemId
+      returnItems.map((item, i) =>
+        i === index
           ? {
-              ...item,
+              ...item, 
               selected,
               reason: selected ? "Customer Changed Mind" : "",
-              returnType: selected ? "refund" : "refund",
+              type: selected ? "refund" : "refund",
             }
           : item,
       ),
     )
   }
 
-  // Select all items
-  const selectAllItems = (selected: boolean) => {
-    setReturnItems(
-      returnItems.map((item) => ({
-        ...item,
-        selected,
-        reason: selected ? "Customer Changed Mind" : "",
-        returnType: selected ? "refund" : "refund",
-      })),
-    )
-  }
-
   // Update return item
-  const updateReturnItem = (itemId: string, field: keyof ReturnItem, value: any) => {
+  const updateReturnItem = (index: number, field: keyof ReturnItem, value: any) => {
     setReturnItems(
-      returnItems.map((item) => {
-        if (item.id === itemId) {
+      returnItems.map((item, i) => {
+        if (i === index) {
           const updated = { ...item, [field]: value }
 
           // Recalculate refund amount when quantity or condition changes
-          if (field === "returnQuantity" || field === "condition") {
+          if (field === "qty" || field === "condition") {
             const condition = conditionOptions.find((c) => c.value === updated.condition)
             const refundPercentage = condition?.refundPercentage || 100
-            updated.refundAmount = (updated.returnQuantity * updated.originalPrice * refundPercentage) / 100
+            updated.refundAmount = ((updated.qty * updated.originalPrice * refundPercentage) / 100).toString()
           }
 
           return updated
@@ -314,61 +204,70 @@ export default function NewReturnPage() {
 
   // Calculate totals
   const selectedItems = returnItems.filter((item) => item.selected)
-  const totalRefund = selectedItems.reduce((sum, item) => sum + item.refundAmount, 0)
-  const totalItems = selectedItems.length
-  const totalQuantity = selectedItems.reduce((sum, item) => sum + item.returnQuantity, 0)
-
-  // Check if manager approval is required
-  const requiresManagerApproval = totalRefund > 1000 || selectedItems.some((item) => item.condition === "defective")
+  const totalRefund = selectedItems.reduce((sum, item) => sum + Number.parseFloat(item.refundAmount), 0)
 
   // Validation
   const canProceedToProcessing = () => {
     return (
       selectedItems.length > 0 &&
-      selectedItems.every((item) => item.reason && item.returnType && item.condition && item.returnQuantity > 0)
+      selectedItems.every((item) => item.reason && item.type && item.condition && item.qty > 0)
     )
   }
 
   const canSubmitReturn = () => {
-    return canProceedToProcessing() && refundMethod
+    return canProceedToProcessing() && paymentMethod && status
   }
 
   // Process return
   const processReturn = async () => {
-    if (!canSubmitReturn()) {
-      alert("Please complete all required fields")
+    if (!canSubmitReturn() || !selectedOrder) {
+      toast.message("Please complete all required fields")
       return
     }
 
     setIsProcessing(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
       const returnData = {
-        id: `RET-${Date.now()}`,
-        orderId: selectedOrder!.id,
-        customerName: selectedOrder!.customer.name,
-        customerPhone: selectedOrder!.customer.phone,
-        customerEmail: selectedOrder!.customer.email,
-        returnDate: new Date(),
-        items: selectedItems,
-        totalRefund,
-        refundMethod,
-        status: requiresManagerApproval ? "pending" : "approved",
-        processedBy: "Current User",
+        customerId: selectedOrder.customer.id,
+        customerName: selectedOrder.customer.name,
+        orderId: selectedOrder.id,
+        paymentMethod,
         notes: returnNotes,
-        requiresManagerApproval,
+        status,
+        items: selectedItems.map((item) => ({
+          returnId: 0, // Will be set by backend
+          orderItemId: item.orderItemId,
+          itemName: item.itemName,
+          qty: item.qty,
+          reason: item.reason,
+          type: item.type,
+          condition: item.condition,
+          refundAmount: item.refundAmount,
+        })),
       }
 
-      console.log("Return processed:", returnData)
-      alert(`Return processed successfully! Return ID: ${returnData.id}`)
+      const response = await fetch("http://3.29.240.212/api/v1/returns", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(returnData),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create return")
+      }
+
+      const result = await response.json()
+
+      toast.success(result.message || "Return processed successfully!")
 
       // Reset and redirect
-      router.push("/pos/returns")
+      router.push("/returns")
     } catch (error) {
-      alert("Error processing return. Please try again.")
+      console.error("Error processing return:", error)
+      toast.error("Error processing return. Please try again.")
     } finally {
       setIsProcessing(false)
       setShowConfirmDialog(false)
@@ -441,7 +340,7 @@ export default function NewReturnPage() {
               <div className="border-t pt-6">
                 <h4 className="font-medium mb-4">Recent Orders (Click to Select):</h4>
                 <div className="grid gap-4">
-                  {sampleOrders.map((order) => (
+                  {orders.map((order) => (
                     <Card
                       key={order.id}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -456,8 +355,8 @@ export default function NewReturnPage() {
                           <div className="space-y-2">
                             <div className="flex items-center gap-4">
                               <div>
-                                <p className="font-medium text-lg">{order.id}</p>
-                                <p className="text-sm text-muted-foreground">{order.date.toLocaleDateString()}</p>
+                                <p className="font-medium text-lg">Order #{order.id}</p>
+                                <p className="text-sm text-muted-foreground">{new Date(order.date).toLocaleDateString()}</p>
                               </div>
                               <Badge variant="outline">{order.status}</Badge>
                             </div>
@@ -494,7 +393,7 @@ export default function NewReturnPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <ShoppingCart className="h-5 w-5" />
-                    Order Summary - {selectedOrder.id}
+                    Order Summary - #{selectedOrder.id}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -520,7 +419,7 @@ export default function NewReturnPage() {
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <div>
                           <p className="text-sm text-muted-foreground">Order Date</p>
-                          <p className="font-medium">{selectedOrder.date.toLocaleDateString()}</p>
+                          <p className="font-medium">{new Date(selectedOrder.date).toLocaleDateString()}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -532,13 +431,6 @@ export default function NewReturnPage() {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <CreditCard className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Payment Method</p>
-                          <p className="font-medium">{selectedOrder.paymentMethod}</p>
-                        </div>
-                      </div>
                       <div className="flex items-center gap-3">
                         <Package className="h-4 w-4 text-muted-foreground" />
                         <div>
@@ -554,20 +446,8 @@ export default function NewReturnPage() {
               {/* Item Selection */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Select Items to Return</CardTitle>
-                      <CardDescription>Choose items and specify return details</CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => selectAllItems(true)}>
-                        Select All
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => selectAllItems(false)}>
-                        Clear All
-                      </Button>
-                    </div>
-                  </div>
+                  <CardTitle>Select Items to Return</CardTitle>
+                  <CardDescription>Choose items and specify return details</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -575,7 +455,6 @@ export default function NewReturnPage() {
                       <TableRow>
                         <TableHead className="w-[50px]">Select</TableHead>
                         <TableHead>Item Details</TableHead>
-                        <TableHead className="text-center w-[80px]">Qty</TableHead>
                         <TableHead className="text-center w-[100px]">Return Qty</TableHead>
                         <TableHead className="w-[150px]">Reason</TableHead>
                         <TableHead className="w-[120px]">Type</TableHead>
@@ -584,34 +463,30 @@ export default function NewReturnPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {returnItems.map((item) => (
-                        <TableRow key={item.id} className={item.selected ? "bg-muted/50" : ""}>
+                      {returnItems.map((item, index) => (
+                        <TableRow key={index} className={item.selected ? "bg-muted/50" : ""}>
                           <TableCell>
                             <Checkbox
                               checked={item.selected}
-                              onCheckedChange={(checked) => toggleItemSelection(item.id, !!checked)}
+                              onCheckedChange={(checked) => toggleItemSelection(index, !!checked)}
                             />
                           </TableCell>
                           <TableCell>
                             <div className="space-y-1">
-                              <div className="font-medium">{item.name}</div>
-                              <div className="text-sm text-muted-foreground">SKU: {item.sku}</div>
+                              <div className="font-medium">{item.itemName}</div>
                               <div className="text-sm text-muted-foreground">
-                                AED {item.originalPrice.toFixed(2)} each
+                                AED {item.originalPrice.toFixed(2)} each (Max: {item.maxQty})
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-center font-medium">{item.originalQuantity}</TableCell>
                           <TableCell className="text-center">
                             {item.selected ? (
                               <Input
                                 type="number"
                                 min="1"
-                                max={item.originalQuantity}
-                                value={item.returnQuantity}
-                                onChange={(e) =>
-                                  updateReturnItem(item.id, "returnQuantity", Number.parseInt(e.target.value) || 1)
-                                }
+                                max={item.maxQty}
+                                value={item.qty}
+                                onChange={(e) => updateReturnItem(index, "qty", Number.parseInt(e.target.value) || 1)}
                                 className="w-16 text-center"
                               />
                             ) : (
@@ -622,7 +497,7 @@ export default function NewReturnPage() {
                             {item.selected ? (
                               <Select
                                 value={item.reason}
-                                onValueChange={(value) => updateReturnItem(item.id, "reason", value)}
+                                onValueChange={(value) => updateReturnItem(index, "reason", value)}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select" />
@@ -642,18 +517,16 @@ export default function NewReturnPage() {
                           <TableCell>
                             {item.selected ? (
                               <Select
-                                value={item.returnType}
-                                onValueChange={(value: "refund" | "exchange" | "store-credit") =>
-                                  updateReturnItem(item.id, "returnType", value)
-                                }
+                                value={item.type}
+                                onValueChange={(value) => updateReturnItem(index, "type", value)}
                               >
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {returnTypes.map((type) => (
-                                    <SelectItem key={type.value} value={type.value}>
-                                      {type.label}
+                                    <SelectItem key={type} value={type}>
+                                      {type}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -666,9 +539,7 @@ export default function NewReturnPage() {
                             {item.selected ? (
                               <Select
                                 value={item.condition}
-                                onValueChange={(value: "new" | "good" | "damaged" | "defective") =>
-                                  updateReturnItem(item.id, "condition", value)
-                                }
+                                onValueChange={(value) => updateReturnItem(index, "condition", value)}
                               >
                                 <SelectTrigger>
                                   <SelectValue />
@@ -692,7 +563,7 @@ export default function NewReturnPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             {item.selected ? (
-                              <div className="font-medium">AED {item.refundAmount.toFixed(2)}</div>
+                              <div className="font-medium">AED {Number.parseFloat(item.refundAmount).toFixed(2)}</div>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -705,31 +576,20 @@ export default function NewReturnPage() {
                   {/* Selection Summary */}
                   {selectedItems.length > 0 && (
                     <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                         <div>
-                          <div className="text-2xl font-bold text-primary">{totalItems}</div>
+                          <div className="text-2xl font-bold text-primary">{selectedItems.length}</div>
                           <p className="text-sm text-muted-foreground">Items Selected</p>
                         </div>
                         <div>
-                          <div className="text-2xl font-bold text-primary">{totalQuantity}</div>
+                          <div className="text-2xl font-bold text-primary">
+                            {selectedItems.reduce((sum, item) => sum + item.qty, 0)}
+                          </div>
                           <p className="text-sm text-muted-foreground">Total Quantity</p>
                         </div>
                         <div>
                           <div className="text-2xl font-bold text-red-600">AED {totalRefund.toFixed(2)}</div>
                           <p className="text-sm text-muted-foreground">Total Refund</p>
-                        </div>
-                        <div>
-                          {requiresManagerApproval ? (
-                            <Badge variant="destructive" className="text-xs">
-                              <AlertTriangle className="mr-1 h-3 w-3" />
-                              Manager Approval Required
-                            </Badge>
-                          ) : (
-                            <Badge variant="default" className="text-xs">
-                              <CheckCircle className="mr-1 h-3 w-3" />
-                              Auto-Approved
-                            </Badge>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -771,11 +631,11 @@ export default function NewReturnPage() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span>Items to Return:</span>
-                          <span className="font-medium">{totalItems}</span>
+                          <span className="font-medium">{selectedItems.length}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Total Quantity:</span>
-                          <span className="font-medium">{totalQuantity}</span>
+                          <span className="font-medium">{selectedItems.reduce((sum, item) => sum + item.qty, 0)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Return Date:</span>
@@ -784,36 +644,27 @@ export default function NewReturnPage() {
                       </div>
                     </div>
                     <div className="space-y-4">
-                      <h4 className="font-medium">Original Order</h4>
+                      <h4 className="font-medium">Customer Information</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span>Order Total:</span>
-                          <span className="font-medium">AED {selectedOrder.total.toFixed(2)}</span>
+                          <span>Customer ID:</span>
+                          <span className="font-medium">{selectedOrder.customer.id}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Payment Method:</span>
-                          <span className="font-medium">{selectedOrder.paymentMethod}</span>
+                          <span>Customer Name:</span>
+                          <span className="font-medium">{selectedOrder.customer.name}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Payment Reference:</span>
-                          <span className="font-medium text-xs">{selectedOrder.paymentReference || "N/A"}</span>
+                          <span>Order ID:</span>
+                          <span className="font-medium">{selectedOrder.id}</span>
                         </div>
                       </div>
                     </div>
                     <div className="space-y-4">
                       <h4 className="font-medium">Refund Calculation</h4>
                       <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Gross Refund:</span>
-                          <span className="font-medium">AED {totalRefund.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Processing Fee:</span>
-                          <span className="font-medium">AED 0.00</span>
-                        </div>
-                        <Separator />
                         <div className="flex justify-between text-lg font-bold">
-                          <span>Net Refund:</span>
+                          <span>Total Refund:</span>
                           <span className="text-green-600">AED {totalRefund.toFixed(2)}</span>
                         </div>
                       </div>
@@ -822,85 +673,55 @@ export default function NewReturnPage() {
                 </CardContent>
               </Card>
 
-              {/* Refund Method Selection */}
+              {/* Return Configuration */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Refund Method</CardTitle>
-                  <CardDescription>Select how the refund should be processed</CardDescription>
+                  <CardTitle>Return Configuration</CardTitle>
+                  <CardDescription>Configure payment method and status</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {refundMethods.map((method) => {
-                      const Icon = method.icon
-                      return (
-                        <div
-                          key={method.value}
-                          className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                            refundMethod === method.value
-                              ? "border-primary bg-primary/5"
-                              : "border-muted hover:border-primary/50"
-                          }`}
-                          onClick={() => setRefundMethod(method.value)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`p-2 rounded ${
-                                refundMethod === method.value ? "bg-primary text-primary-foreground" : "bg-muted"
-                              }`}
-                            >
-                              <Icon className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <div className="font-medium">{method.label}</div>
-                              {method.value === "original" && selectedOrder && (
-                                <div className="text-sm text-muted-foreground">
-                                  Refund to {selectedOrder.paymentMethod}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="payment-method">Payment Method</Label>
+                      <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select payment method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentMethods.map((method) => (
+                            <SelectItem key={method} value={method}>
+                              {method.replace("_", " ").toUpperCase()}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status</Label>
+                      <Select value={status} onValueChange={setStatus}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusOptions.map((statusOption) => (
+                            <SelectItem key={statusOption} value={statusOption}>
+                              {statusOption.toUpperCase()}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
 
-              {/* Additional Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Additional Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="return-notes">Return Notes (Optional)</Label>
                     <Textarea
                       id="return-notes"
                       placeholder="Add any additional notes about this return..."
                       value={returnNotes}
                       onChange={(e) => setReturnNotes(e.target.value)}
-                      className="mt-1"
                     />
                   </div>
-
-                  {/* Approval Requirements */}
-                  {requiresManagerApproval && (
-                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium text-amber-800">Manager Approval Required</h4>
-                          <p className="text-sm text-amber-700 mt-1">This return requires manager approval due to:</p>
-                          <ul className="text-sm text-amber-700 mt-2 space-y-1">
-                            {totalRefund > 1000 && <li>• High refund amount (over AED 1,000)</li>}
-                            {selectedItems.some((item) => item.condition === "defective") && (
-                              <li>• Contains defective items</li>
-                            )}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
 
@@ -942,24 +763,22 @@ export default function NewReturnPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>Items to Return:</span>
-                  <span className="font-medium">{totalItems}</span>
+                  <span className="font-medium">{selectedItems.length}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Total Refund:</span>
                   <span className="font-medium text-green-600">AED {totalRefund.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Refund Method:</span>
-                  <span className="font-medium">{refundMethods.find((m) => m.value === refundMethod)?.label}</span>
+                  <span>Payment Method:</span>
+                  <span className="font-medium">{paymentMethod}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Status:</span>
+                  <span className="font-medium">{status}</span>
                 </div>
               </div>
             </div>
-            {requiresManagerApproval && (
-              <div className="flex items-center gap-2 text-amber-600 text-sm">
-                <AlertTriangle className="h-4 w-4" />
-                <span>This return will be pending manager approval</span>
-              </div>
-            )}
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>

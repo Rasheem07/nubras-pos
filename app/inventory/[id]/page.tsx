@@ -1,22 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   ArrowLeft,
   Edit,
@@ -29,98 +31,150 @@ import {
   Printer,
   FileText,
   Building,
+  Loader2,
 } from "lucide-react"
+
+interface Restock {
+  id: number
+  itemId: number
+  qty: number
+  cost: string
+  total: string
+  supplierId: number
+  invNo?: string
+  restockDate: string
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+interface InventoryItem {
+  id: number
+  name: string
+  sku: string
+  category: string
+  uom: string
+  description?: string
+  cost: string
+  stock: number
+  minStock: number
+  reorderPoint: number
+  barcode?: string
+  supplierId?: number
+  weight?: string
+  notes?: string
+  createdAt: string
+  updatedAt: string
+  restocks: Restock[]
+}
+
+interface Supplier {
+  id: number
+  name: string
+  phone: string
+  location?: string
+  email?: string
+}
 
 export default function InventoryItemDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const [item, setItem] = useState<InventoryItem | null>(null)
+  const [supplier, setSupplier] = useState<Supplier | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
-  // In a real app, this would fetch the item from the database using the ID
   const itemId = params.id as string
 
-  // Mock data matching your service structure
-  const item = {
-    id: Number(itemId),
-    name: "White Linen Fabric",
-    sku: "FAB-LIN-WHT-001",
-    category: "Fabrics",
-    uom: "meter",
-    description:
-      "High-quality white linen fabric, perfect for premium kanduras and other garments. Sourced from the finest mills in Europe.",
-    cost: 30.0,
-    stock: 150,
-    minStock: 50,
-    reorderPoint: 75,
-    barcode: "5901234123457",
-    supplierId: 1,
-    weight: "200g per meter",
-    notes: "Popular during summer months. Consider increasing minimum stock level during peak season.",
-    createdAt: new Date("2024-01-15"),
-    updatedAt: new Date("2024-04-15"),
+  // Fetch inventory item details
+  useEffect(() => {
+    const fetchItemDetails = async () => {
+      setIsLoading(true)
+      try {
+        const response = await fetch(`http://3.29.240.212/api/v1/inventory/${itemId}`)
+        if (!response.ok) {
+          throw new Error("Failed to fetch item details")
+        }
+        const data = await response.json()
+        setItem(data)
 
-    // Nested restocks from your service
-    restocks: [
-      {
-        id: 1,
-        itemId: Number(itemId),
-        qty: 50,
-        cost: 30.0,
-        total: 1500.0,
-        supplierId: 1,
-        invNo: "INV-2024-001",
-        restockDate: new Date("2024-04-15"),
-        notes: "Regular monthly restock",
-        createdAt: new Date("2024-04-15"),
-        updatedAt: new Date("2024-04-15"),
-      },
-      {
-        id: 2,
-        itemId: Number(itemId),
-        qty: 100,
-        cost: 28.0,
-        total: 2800.0,
-        supplierId: 1,
-        invNo: "INV-2024-002",
-        restockDate: new Date("2024-03-20"),
-        notes: "Initial stock",
-        createdAt: new Date("2024-03-20"),
-        updatedAt: new Date("2024-03-20"),
-      },
-    ],
+        // If item has a supplier, fetch supplier details
+        if (data.supplierId) {
+          const supplierResponse = await fetch(`http://3.29.240.212/api/v1/suppliers/${data.supplierId}`)
+          if (supplierResponse.ok) {
+            const supplierData = await supplierResponse.json()
+            setSupplier(supplierData)
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching item details:", error)
+        toast.error("Failed to load item details")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchItemDetails()
+  }, [itemId])
+
+  const handleDelete = async () => {
+    try {
+      const response = await fetch(`http://3.29.240.212/api/v1/inventory/${itemId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete item")
+      }
+
+      const data = await response.json()
+      toast.success(data.message || "Item deleted successfully")
+      router.push("/inventory")
+    } catch (error) {
+      console.error("Error deleting item:", error)
+      toast.error("Failed to delete item")
+    } finally {
+      setIsDeleteDialogOpen(false)
+    }
   }
 
-  // Mock supplier data
-  const supplier = {
-    id: 1,
-    name: "Dubai Textile Co.",
-    phone: "+971501234567",
-    location: "Dubai Textile Souk, Bur Dubai",
-    email: "orders@dubaitextile.ae",
-  }
-
-  const handleDelete = () => {
-    // In a real app, this would delete the item from the database
-    console.log(`Deleting ${item.name}`)
-    setIsDeleteDialogOpen(false)
-    router.push("/inventory")
-  }
-
-  const getStockStatus = () => {
-    if (item.stock === 0) {
+  const getStockStatus = (stock: number, reorderPoint: number) => {
+    if (stock === 0) {
       return <Badge variant="destructive">Out of Stock</Badge>
-    } else if (item.stock <= item.minStock) {
+    } else if (stock <= reorderPoint) {
       return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Low Stock</Badge>
-    } else if (item.stock <= item.reorderPoint) {
-      return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Reorder Point</Badge>
     } else {
       return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">In Stock</Badge>
     }
   }
 
-  const totalRestockValue = item.restocks.reduce((sum, restock) => sum + restock.total, 0)
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!item) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <h2 className="text-2xl font-bold mb-2">Item Not Found</h2>
+        <p className="text-muted-foreground mb-4">The inventory item you're looking for doesn't exist.</p>
+        <Button asChild>
+          <Link href="/inventory">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Inventory
+          </Link>
+        </Button>
+      </div>
+    )
+  }
+
+  // Calculate statistics
   const totalRestockQty = item.restocks.reduce((sum, restock) => sum + restock.qty, 0)
-  const avgCostPrice = totalRestockQty > 0 ? totalRestockValue / totalRestockQty : item.cost
+  const totalRestockValue = item.restocks.reduce((sum, restock) => sum + Number.parseFloat(restock.total), 0)
+  const avgCostPrice = totalRestockQty > 0 ? totalRestockValue / totalRestockQty : Number.parseFloat(item.cost)
 
   return (
     <div className="flex flex-col gap-5">
@@ -146,30 +200,10 @@ export default function InventoryItemDetailPage() {
               Edit
             </Link>
           </Button>
-          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete Inventory Item</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete this inventory item? This action cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button variant="destructive" onClick={handleDelete}>
-                  Delete
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </Button>
         </div>
       </div>
 
@@ -203,12 +237,16 @@ export default function InventoryItemDetailPage() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Supplier</h3>
-                    <div className="flex items-center gap-2">
-                      <Building className="h-4 w-4 text-muted-foreground" />
-                      <Link href={`/inventory/suppliers/${supplier.id}`} className="text-blue-600 hover:underline">
-                        {supplier.name}
-                      </Link>
-                    </div>
+                    {supplier ? (
+                      <div className="flex items-center gap-2">
+                        <Building className="h-4 w-4 text-muted-foreground" />
+                        <Link href={`/inventory/suppliers/${supplier.id}`} className="text-blue-600 hover:underline">
+                          {supplier.name}
+                        </Link>
+                      </div>
+                    ) : (
+                      <p>Not set</p>
+                    )}
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Weight</h3>
@@ -216,21 +254,24 @@ export default function InventoryItemDetailPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
-                    <p>{item.createdAt.toLocaleDateString()}</p>
+                    <p>{new Date(item.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
-                    <p>{item.updatedAt.toLocaleDateString()}</p>
+                    <p>{new Date(item.updatedAt).toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>
 
-              <Separator className="my-6" />
-
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
-                <p>{item.description || "No description provided."}</p>
-              </div>
+              {item.description && (
+                <>
+                  <Separator className="my-6" />
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
+                    <p>{item.description}</p>
+                  </div>
+                </>
+              )}
 
               {item.notes && (
                 <>
@@ -250,35 +291,42 @@ export default function InventoryItemDetailPage() {
               <CardDescription>Complete record of all restocks for this item</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Invoice</TableHead>
-                    <TableHead>Notes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {item.restocks.map((restock) => (
-                    <TableRow key={restock.id}>
-                      <TableCell>{restock.restockDate.toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <ArrowUpRight className="mr-1 h-4 w-4 text-green-600" />
-                          {restock.qty} {item.uom}
-                        </div>
-                      </TableCell>
-                      <TableCell>AED {restock.cost.toFixed(2)}</TableCell>
-                      <TableCell>AED {restock.total.toFixed(2)}</TableCell>
-                      <TableCell>{restock.invNo || "-"}</TableCell>
-                      <TableCell>{restock.notes || "-"}</TableCell>
+              {item.restocks && item.restocks.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Cost</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Invoice</TableHead>
+                      <TableHead>Notes</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {item.restocks.map((restock) => (
+                      <TableRow key={restock.id}>
+                        <TableCell>{new Date(restock.restockDate).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <ArrowUpRight className="mr-1 h-4 w-4 text-green-600" />
+                            {restock.qty} {item.uom}
+                          </div>
+                        </TableCell>
+                        <TableCell>AED {Number.parseFloat(restock.cost).toFixed(2)}</TableCell>
+                        <TableCell>AED {Number.parseFloat(restock.total).toFixed(2)}</TableCell>
+                        <TableCell>{restock.invNo || "-"}</TableCell>
+                        <TableCell>{restock.notes || "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Package className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                  <p className="mt-2">No restock history found</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -314,7 +362,7 @@ export default function InventoryItemDetailPage() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Status:</span>
-                <div>{getStockStatus()}</div>
+                <div>{getStockStatus(item.stock, item.reorderPoint)}</div>
               </div>
               <Separator />
               <Button className="w-full" asChild>
@@ -333,7 +381,7 @@ export default function InventoryItemDetailPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Current Cost:</span>
-                <span className="font-medium">AED {item.cost.toFixed(2)}</span>
+                <span className="font-medium">AED {Number.parseFloat(item.cost).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Average Cost:</span>
@@ -341,7 +389,7 @@ export default function InventoryItemDetailPage() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Total Value:</span>
-                <span className="font-medium">AED {(item.stock * avgCostPrice).toFixed(2)}</span>
+                <span className="font-medium">AED {(item.stock * Number.parseFloat(item.cost)).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Total Restocks:</span>
@@ -367,12 +415,14 @@ export default function InventoryItemDetailPage() {
                   Edit Item
                 </Link>
               </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link href={`/inventory/suppliers/${supplier.id}`}>
-                  <Building className="mr-2 h-4 w-4" />
-                  View Supplier
-                </Link>
-              </Button>
+              {supplier && (
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <Link href={`/inventory/suppliers/${supplier.id}`}>
+                    <Building className="mr-2 h-4 w-4" />
+                    View Supplier
+                  </Link>
+                </Button>
+              )}
               <Button variant="outline" className="w-full justify-start">
                 <TrendingUp className="mr-2 h-4 w-4" />
                 Usage Analytics
@@ -393,6 +443,23 @@ export default function InventoryItemDetailPage() {
           </Card>
         </div>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the inventory item.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

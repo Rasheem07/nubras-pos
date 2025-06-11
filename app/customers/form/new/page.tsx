@@ -1,4 +1,5 @@
 "use client"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,25 +10,60 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, User, Users, Ruler, Heart, X, Save, Phone } from "lucide-react"
+import { ArrowLeft, User, Ruler, Heart, X, Save, Phone, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { createCustomerSchema } from "../../validation"
+import { useCreateCustomer } from "../../use-customers"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 export default function NewCustomerPage() {
-  const [customerType, setCustomerType] = useState<"individual" | "family_head" | "family_member">("individual")
-  const [phoneNumber, setPhoneNumber] = useState("")
-  const [existingGroup, setExistingGroup] = useState<any>(null)
+  const router = useRouter()
+  const createCustomer = useCreateCustomer()
+
   const [preferences, setPreferences] = useState<string[]>([])
   const [newPreference, setNewPreference] = useState("")
   const [measurements, setMeasurements] = useState({
-    frontLength: "", // الطول أمام
-    backLength: "", // الطول خلف
-    shoulder: "", // الكتف
-    sleeves: "", // الأيدي
-    neck: "", // الرقبة
-    waist: "", // الوسط
-    chest: "", // الصدر
-    widthEnd: "", // نهاية العرض
-    notes: "",
+    arabic: {
+      frontLength: "",
+      backLength: "",
+      shoulder: "",
+      sleeves: "",
+      neck: "",
+      waist: "",
+      chest: "",
+      widthEnd: "",
+      notes: "",
+    },
+    kuwaiti: {
+      frontLength: "",
+      backLength: "",
+      shoulder: "",
+      sleeves: "",
+      neck: "",
+      waist: "",
+      chest: "",
+      widthEnd: "",
+      notes: "",
+    },
+  })
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(createCustomerSchema),
+    defaultValues: {
+      name: "",
+      phone: "",
+      email: undefined,
+      status: "new",
+    },
   })
 
   const preferenceOptions = [
@@ -47,36 +83,6 @@ export default function NewCustomerPage() {
     "Traditional Wear",
   ]
 
-  // Mock existing groups for phone number lookup
-  const existingGroups = [
-    {
-      groupId: "GRP-001",
-      phoneNumber: "+971 50 123 4567",
-      primaryCustomer: "Fatima Mohammed Al Zahra",
-      totalMembers: 3,
-    },
-    {
-      groupId: "GRP-002",
-      phoneNumber: "+971 55 987 6543",
-      primaryCustomer: "Ahmed Abdullah Al Mansouri",
-      totalMembers: 1,
-    },
-  ]
-
-  const handlePhoneNumberChange = (value: string) => {
-    setPhoneNumber(value)
-
-    // Check if phone number exists in any group
-    const group = existingGroups.find((g) => g.phoneNumber === value)
-    if (group) {
-      setExistingGroup(group)
-      setCustomerType("family_member")
-    } else {
-      setExistingGroup(null)
-      setCustomerType("individual")
-    }
-  }
-
   const addPreference = (pref: string) => {
     if (pref && !preferences.includes(pref)) {
       setPreferences([...preferences, pref])
@@ -88,19 +94,45 @@ export default function NewCustomerPage() {
     setPreferences(preferences.filter((p) => p !== pref))
   }
 
-  const updateMeasurement = (field: string, value: string) => {
-    setMeasurements((prev) => ({ ...prev, [field]: value }))
+  const updateMeasurement = (style: "arabic" | "kuwaiti", field: string, value: string) => {
+    setMeasurements((prev) => ({
+      ...prev,
+      [style]: {
+        ...prev[style],
+        [field]: value,
+      },
+    }))
   }
 
-  const handleSave = () => {
-    // Save logic here
-    console.log("Creating new customer:", {
-      customerType,
-      phoneNumber,
-      existingGroup,
-      measurements,
-      preferences,
-    })
+  const onSubmit = async (data: any) => {
+    try {
+      // Convert string measurements to numbers
+      const processedMeasurements = {
+        arabic: Object.fromEntries(
+          Object.entries(measurements.arabic).map(([key, value]) =>
+            key === "notes" ? [key, value] : [key, value ? Number.parseFloat(value) : 0],
+          ),
+        ),
+        kuwaiti: Object.fromEntries(
+          Object.entries(measurements.kuwaiti).map(([key, value]) =>
+            key === "notes" ? [key, value] : [key, value ? Number.parseFloat(value) : 0],
+          ),
+        ),
+      }
+
+      // Add measurements and preferences to form data
+      const customerData = {
+        ...data,
+        preferences,
+        measurement: processedMeasurements,
+      }
+
+      await createCustomer.mutateAsync(customerData)
+      router.push("/customers")
+    } catch (error) {
+      console.error("Error creating customer:", error)
+      toast.error("Failed to create customer")
+    }
   }
 
   return (
@@ -116,13 +148,13 @@ export default function NewCustomerPage() {
           <h1 className="text-3xl font-bold tracking-tight">Add New Customer</h1>
           <p className="text-muted-foreground">Create a new customer profile with measurements and preferences</p>
         </div>
-        <Button onClick={handleSave}>
-          <Save className="mr-2 h-4 w-4" />
+        <Button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
           Create Customer
         </Button>
       </div>
 
-      <form className="space-y-6">
+      <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
         <Tabs defaultValue="basic" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
@@ -143,7 +175,13 @@ export default function NewCustomerPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name (English) *</Label>
-                      <Input id="name" placeholder="Enter full name" required />
+                      <Input
+                        id="name"
+                        placeholder="Enter full name"
+                        {...register("name")}
+                        className={errors.name ? "border-red-500" : ""}
+                      />
+                      {errors.name && <p className="text-xs text-red-500">{errors.name.message as string}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="nameArabic">Full Name (Arabic)</Label>
@@ -154,20 +192,36 @@ export default function NewCustomerPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email Address</Label>
-                      <Input id="email" type="email" placeholder="customer@example.com" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="customer@example.com"
+                        {...register("email")}
+                        className={errors.email ? "border-red-500" : ""}
+                      />
+                      {errors.email && <p className="text-xs text-red-500">{errors.email.message as string}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="status">Customer Status</Label>
-                      <Select defaultValue="new">
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="new">New</SelectItem>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="vip">VIP</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Controller
+                        name="status"
+                        control={control}
+                        render={({ field }) => (
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="new">New</SelectItem>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="platinum">Platinum</SelectItem>
+                              <SelectItem value="gold">Gold</SelectItem>
+                              <SelectItem value="diamond">Diamond</SelectItem>
+                              <SelectItem value="inactive">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
                     </div>
                   </div>
                 </CardContent>
@@ -182,49 +236,21 @@ export default function NewCustomerPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phoneNumber">Phone Number *</Label>
+                    <Label htmlFor="phone">Phone Number *</Label>
                     <Input
-                      id="phoneNumber"
-                      value={phoneNumber}
-                      onChange={(e) => handlePhoneNumberChange(e.target.value)}
+                      id="phone"
                       placeholder="+971 50 123 4567"
-                      required
+                      {...register("phone")}
+                      className={errors.phone ? "border-red-500" : ""}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Phone number is used for customer grouping. Family members share the same phone number.
-                    </p>
+                    {errors.phone ? (
+                      <p className="text-xs text-red-500">{errors.phone.message as string}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Phone number is used for customer grouping. Family members share the same phone number.
+                      </p>
+                    )}
                   </div>
-
-                  {existingGroup && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Users className="h-4 w-4 text-blue-600" />
-                        <p className="text-sm font-medium text-blue-800">Existing Group Found</p>
-                      </div>
-                      <p className="text-xs text-blue-700">
-                        Group ID: {existingGroup.groupId}
-                        <br />
-                        Primary Contact: {existingGroup.primaryCustomer}
-                        <br />
-                        Total Members: {existingGroup.totalMembers}
-                      </p>
-                      <p className="text-xs text-blue-600 mt-2">
-                        This customer will be added to the existing group as a family member.
-                      </p>
-                    </div>
-                  )}
-
-                  {!existingGroup && phoneNumber && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <User className="h-4 w-4 text-green-600" />
-                        <p className="text-sm font-medium text-green-800">New Group</p>
-                      </div>
-                      <p className="text-xs text-green-700">
-                        A new customer group will be created for this phone number.
-                      </p>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </div>
@@ -237,143 +263,285 @@ export default function NewCustomerPage() {
                   <Ruler className="h-5 w-5" />
                   Body Measurements
                 </CardTitle>
-                <CardDescription>
-                  Professional measurements for custom tailoring (based on Arabic invoice format)
-                </CardDescription>
+                <CardDescription>Professional measurements for custom tailoring</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="frontLength" className="text-sm">
-                      Front Length
-                    </Label>
-                    <Label htmlFor="frontLength" className="text-xs text-muted-foreground font-arabic">
-                      الطول أمام
-                    </Label>
-                    <Input
-                      id="frontLength"
-                      value={measurements.frontLength}
-                      onChange={(e) => updateMeasurement("frontLength", e.target.value)}
-                      placeholder="27¾"
-                    />
-                  </div>
+                <Tabs defaultValue="arabic">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="arabic">Arabic Style</TabsTrigger>
+                    <TabsTrigger value="kuwaiti">Kuwaiti Style</TabsTrigger>
+                  </TabsList>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="backLength" className="text-sm">
-                      Back Length
-                    </Label>
-                    <Label htmlFor="backLength" className="text-xs text-muted-foreground font-arabic">
-                      الطول خلف
-                    </Label>
-                    <Input
-                      id="backLength"
-                      value={measurements.backLength}
-                      onChange={(e) => updateMeasurement("backLength", e.target.value)}
-                      placeholder="27¾"
-                    />
-                  </div>
+                  <TabsContent value="arabic">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="arabic-frontLength" className="text-sm">
+                          Front Length
+                        </Label>
+                        <Label htmlFor="arabic-frontLength" className="text-xs text-muted-foreground font-arabic">
+                          الطول أمام
+                        </Label>
+                        <Input
+                          id="arabic-frontLength"
+                          value={measurements.arabic.frontLength}
+                          onChange={(e) => updateMeasurement("arabic", "frontLength", e.target.value)}
+                          placeholder="27¾"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="shoulder" className="text-sm">
-                      Shoulder
-                    </Label>
-                    <Label htmlFor="shoulder" className="text-xs text-muted-foreground font-arabic">
-                      الكتف
-                    </Label>
-                    <Input
-                      id="shoulder"
-                      value={measurements.shoulder}
-                      onChange={(e) => updateMeasurement("shoulder", e.target.value)}
-                      placeholder="16½"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="arabic-backLength" className="text-sm">
+                          Back Length
+                        </Label>
+                        <Label htmlFor="arabic-backLength" className="text-xs text-muted-foreground font-arabic">
+                          الطول خلف
+                        </Label>
+                        <Input
+                          id="arabic-backLength"
+                          value={measurements.arabic.backLength}
+                          onChange={(e) => updateMeasurement("arabic", "backLength", e.target.value)}
+                          placeholder="27¾"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="sleeves" className="text-sm">
-                      Sleeves
-                    </Label>
-                    <Label htmlFor="sleeves" className="text-xs text-muted-foreground font-arabic">
-                      الأيدي
-                    </Label>
-                    <Input
-                      id="sleeves"
-                      value={measurements.sleeves}
-                      onChange={(e) => updateMeasurement("sleeves", e.target.value)}
-                      placeholder="24¼"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="arabic-shoulder" className="text-sm">
+                          Shoulder
+                        </Label>
+                        <Label htmlFor="arabic-shoulder" className="text-xs text-muted-foreground font-arabic">
+                          الكتف
+                        </Label>
+                        <Input
+                          id="arabic-shoulder"
+                          value={measurements.arabic.shoulder}
+                          onChange={(e) => updateMeasurement("arabic", "shoulder", e.target.value)}
+                          placeholder="16½"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="neck" className="text-sm">
-                      Neck
-                    </Label>
-                    <Label htmlFor="neck" className="text-xs text-muted-foreground font-arabic">
-                      الرقبة
-                    </Label>
-                    <Input
-                      id="neck"
-                      value={measurements.neck}
-                      onChange={(e) => updateMeasurement("neck", e.target.value)}
-                      placeholder="11½"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="arabic-sleeves" className="text-sm">
+                          Sleeves
+                        </Label>
+                        <Label htmlFor="arabic-sleeves" className="text-xs text-muted-foreground font-arabic">
+                          الأيدي
+                        </Label>
+                        <Input
+                          id="arabic-sleeves"
+                          value={measurements.arabic.sleeves}
+                          onChange={(e) => updateMeasurement("arabic", "sleeves", e.target.value)}
+                          placeholder="24¼"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="waist" className="text-sm">
-                      Waist
-                    </Label>
-                    <Label htmlFor="waist" className="text-xs text-muted-foreground font-arabic">
-                      الوسط
-                    </Label>
-                    <Input
-                      id="waist"
-                      value={measurements.waist}
-                      onChange={(e) => updateMeasurement("waist", e.target.value)}
-                      placeholder="32"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="arabic-neck" className="text-sm">
+                          Neck
+                        </Label>
+                        <Label htmlFor="arabic-neck" className="text-xs text-muted-foreground font-arabic">
+                          الرقبة
+                        </Label>
+                        <Input
+                          id="arabic-neck"
+                          value={measurements.arabic.neck}
+                          onChange={(e) => updateMeasurement("arabic", "neck", e.target.value)}
+                          placeholder="11½"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="chest" className="text-sm">
-                      Chest
-                    </Label>
-                    <Label htmlFor="chest" className="text-xs text-muted-foreground font-arabic">
-                      الصدر
-                    </Label>
-                    <Input
-                      id="chest"
-                      value={measurements.chest}
-                      onChange={(e) => updateMeasurement("chest", e.target.value)}
-                      placeholder="38"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="arabic-waist" className="text-sm">
+                          Waist
+                        </Label>
+                        <Label htmlFor="arabic-waist" className="text-xs text-muted-foreground font-arabic">
+                          الوسط
+                        </Label>
+                        <Input
+                          id="arabic-waist"
+                          value={measurements.arabic.waist}
+                          onChange={(e) => updateMeasurement("arabic", "waist", e.target.value)}
+                          placeholder="32"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="widthEnd" className="text-sm">
-                      Width End
-                    </Label>
-                    <Label htmlFor="widthEnd" className="text-xs text-muted-foreground font-arabic">
-                      نهاية العرض
-                    </Label>
-                    <Input
-                      id="widthEnd"
-                      value={measurements.widthEnd}
-                      onChange={(e) => updateMeasurement("widthEnd", e.target.value)}
-                      placeholder="19½"
-                    />
-                  </div>
-                </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="arabic-chest" className="text-sm">
+                          Chest
+                        </Label>
+                        <Label htmlFor="arabic-chest" className="text-xs text-muted-foreground font-arabic">
+                          الصدر
+                        </Label>
+                        <Input
+                          id="arabic-chest"
+                          value={measurements.arabic.chest}
+                          onChange={(e) => updateMeasurement("arabic", "chest", e.target.value)}
+                          placeholder="38"
+                        />
+                      </div>
 
-                <div className="mt-6 space-y-2">
-                  <Label htmlFor="measurementNotes">Measurement Notes</Label>
-                  <Textarea
-                    id="measurementNotes"
-                    value={measurements.notes}
-                    onChange={(e) => updateMeasurement("notes", e.target.value)}
-                    placeholder="Additional notes about measurements or fitting preferences..."
-                    rows={3}
-                  />
-                </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="arabic-widthEnd" className="text-sm">
+                          Width End
+                        </Label>
+                        <Label htmlFor="arabic-widthEnd" className="text-xs text-muted-foreground font-arabic">
+                          نهاية العرض
+                        </Label>
+                        <Input
+                          id="arabic-widthEnd"
+                          value={measurements.arabic.widthEnd}
+                          onChange={(e) => updateMeasurement("arabic", "widthEnd", e.target.value)}
+                          placeholder="19½"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-6 space-y-2">
+                      <Label htmlFor="arabic-notes">Measurement Notes</Label>
+                      <Textarea
+                        id="arabic-notes"
+                        value={measurements.arabic.notes}
+                        onChange={(e) => updateMeasurement("arabic", "notes", e.target.value)}
+                        placeholder="Additional notes about measurements or fitting preferences..."
+                        rows={3}
+                      />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="kuwaiti">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="kuwaiti-frontLength" className="text-sm">
+                          Front Length
+                        </Label>
+                        <Label htmlFor="kuwaiti-frontLength" className="text-xs text-muted-foreground font-arabic">
+                          الطول أمام
+                        </Label>
+                        <Input
+                          id="kuwaiti-frontLength"
+                          value={measurements.kuwaiti.frontLength}
+                          onChange={(e) => updateMeasurement("kuwaiti", "frontLength", e.target.value)}
+                          placeholder="27¾"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="kuwaiti-backLength" className="text-sm">
+                          Back Length
+                        </Label>
+                        <Label htmlFor="kuwaiti-backLength" className="text-xs text-muted-foreground font-arabic">
+                          الطول خلف
+                        </Label>
+                        <Input
+                          id="kuwaiti-backLength"
+                          value={measurements.kuwaiti.backLength}
+                          onChange={(e) => updateMeasurement("kuwaiti", "backLength", e.target.value)}
+                          placeholder="27¾"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="kuwaiti-shoulder" className="text-sm">
+                          Shoulder
+                        </Label>
+                        <Label htmlFor="kuwaiti-shoulder" className="text-xs text-muted-foreground font-arabic">
+                          الكتف
+                        </Label>
+                        <Input
+                          id="kuwaiti-shoulder"
+                          value={measurements.kuwaiti.shoulder}
+                          onChange={(e) => updateMeasurement("kuwaiti", "shoulder", e.target.value)}
+                          placeholder="16½"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="kuwaiti-sleeves" className="text-sm">
+                          Sleeves
+                        </Label>
+                        <Label htmlFor="kuwaiti-sleeves" className="text-xs text-muted-foreground font-arabic">
+                          الأيدي
+                        </Label>
+                        <Input
+                          id="kuwaiti-sleeves"
+                          value={measurements.kuwaiti.sleeves}
+                          onChange={(e) => updateMeasurement("kuwaiti", "sleeves", e.target.value)}
+                          placeholder="24¼"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="kuwaiti-neck" className="text-sm">
+                          Neck
+                        </Label>
+                        <Label htmlFor="kuwaiti-neck" className="text-xs text-muted-foreground font-arabic">
+                          الرقبة
+                        </Label>
+                        <Input
+                          id="kuwaiti-neck"
+                          value={measurements.kuwaiti.neck}
+                          onChange={(e) => updateMeasurement("kuwaiti", "neck", e.target.value)}
+                          placeholder="11½"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="kuwaiti-waist" className="text-sm">
+                          Waist
+                        </Label>
+                        <Label htmlFor="kuwaiti-waist" className="text-xs text-muted-foreground font-arabic">
+                          الوسط
+                        </Label>
+                        <Input
+                          id="kuwaiti-waist"
+                          value={measurements.kuwaiti.waist}
+                          onChange={(e) => updateMeasurement("kuwaiti", "waist", e.target.value)}
+                          placeholder="32"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="kuwaiti-chest" className="text-sm">
+                          Chest
+                        </Label>
+                        <Label htmlFor="kuwaiti-chest" className="text-xs text-muted-foreground font-arabic">
+                          الصدر
+                        </Label>
+                        <Input
+                          id="kuwaiti-chest"
+                          value={measurements.kuwaiti.chest}
+                          onChange={(e) => updateMeasurement("kuwaiti", "chest", e.target.value)}
+                          placeholder="38"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="kuwaiti-widthEnd" className="text-sm">
+                          Width End
+                        </Label>
+                        <Label htmlFor="kuwaiti-widthEnd" className="text-xs text-muted-foreground font-arabic">
+                          نهاية العرض
+                        </Label>
+                        <Input
+                          id="kuwaiti-widthEnd"
+                          value={measurements.kuwaiti.widthEnd}
+                          onChange={(e) => updateMeasurement("kuwaiti", "widthEnd", e.target.value)}
+                          placeholder="19½"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-6 space-y-2">
+                      <Label htmlFor="kuwaiti-notes">Measurement Notes</Label>
+                      <Textarea
+                        id="kuwaiti-notes"
+                        value={measurements.kuwaiti.notes}
+                        onChange={(e) => updateMeasurement("kuwaiti", "notes", e.target.value)}
+                        placeholder="Additional notes about measurements or fitting preferences..."
+                        rows={3}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
 
                 {/* Measurement Guide */}
                 <div className="mt-6 p-4 bg-muted/50 rounded-lg">
@@ -455,7 +623,7 @@ export default function NewCustomerPage() {
                       value={newPreference}
                       onChange={(e) => setNewPreference(e.target.value)}
                       placeholder="Enter custom preference"
-                      onKeyPress={(e) => e.key === "Enter" && addPreference(newPreference)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPreference(newPreference))}
                     />
                     <Button type="button" onClick={() => addPreference(newPreference)}>
                       Add
@@ -466,26 +634,31 @@ export default function NewCustomerPage() {
                 <div className="space-y-2">
                   <Label>Selected Preferences</Label>
                   <div className="flex flex-wrap gap-2">
-                    {preferences.map((pref) => (
-                      <Badge key={pref} variant="secondary" className="flex items-center gap-1">
-                        {pref}
-                        <X className="h-3 w-3 cursor-pointer" onClick={() => removePreference(pref)} />
-                      </Badge>
-                    ))}
+                    {preferences.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No preferences selected</p>
+                    ) : (
+                      preferences.map((pref) => (
+                        <Badge key={pref} variant="secondary" className="flex items-center gap-1">
+                          {pref}
+                          <X className="h-3 w-3 cursor-pointer" onClick={() => removePreference(pref)} />
+                        </Badge>
+                      ))
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
         </Tabs>
 
         <div className="flex justify-end gap-4">
           <Link href="/customers">
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline" type="button">
+              Cancel
+            </Button>
           </Link>
-          <Button type="submit" onClick={handleSave}>
-            <Save className="mr-2 h-4 w-4" />
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Create Customer
           </Button>
         </div>

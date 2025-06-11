@@ -1,9 +1,12 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,6 +28,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -42,7 +55,18 @@ import {
   Package,
   TrendingUp,
   FileText,
+  Loader2,
 } from "lucide-react"
+
+// Create a schema that matches the CreateSupplierDto
+const supplierSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  phone: z.string().min(1, "Phone is required"),
+  location: z.string().optional(),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+})
+
+type SupplierFormValues = z.infer<typeof supplierSchema>
 
 interface Supplier {
   id: number
@@ -50,74 +74,122 @@ interface Supplier {
   phone: string
   location?: string
   email?: string
-  createdAt: Date
-  updatedAt: Date
+  createdAt: string
+  updatedAt: string
   restockCount: number
   totalQuantity: number
   totalAmount: number
 }
 
 export default function SuppliersPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    location: "",
-    email: "",
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [deleteSupplier, setDeleteSupplier] = useState<Supplier | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<SupplierFormValues>({
+    resolver: zodResolver(supplierSchema),
+    defaultValues: {
+      name: "",
+      phone: "",
+      location: "",
+      email: "",
+    },
   })
 
-  // Mock data matching your backend structure
-  const suppliers: Supplier[] = [
-    {
-      id: 1,
-      name: "Dubai Textile Co.",
-      phone: "+971 4 123 4567",
-      location: "Dubai Textile Souk, Dubai",
-      email: "orders@dubaitextile.ae",
-      createdAt: new Date("2023-01-15"),
-      updatedAt: new Date("2024-04-20"),
-      restockCount: 45,
-      totalQuantity: 2850,
-      totalAmount: 125000,
-    },
-    {
-      id: 2,
-      name: "Luxury Textiles LLC",
-      phone: "+971 2 987 6543",
-      location: "Abu Dhabi",
-      email: "sales@luxurytextiles.ae",
-      createdAt: new Date("2023-03-10"),
-      updatedAt: new Date("2024-04-18"),
-      restockCount: 28,
-      totalQuantity: 1200,
-      totalAmount: 89000,
-    },
-    {
-      id: 3,
-      name: "Al Noor Garments",
-      phone: "+971 6 555 0123",
-      location: "Sharjah",
-      email: "info@alnoorgarments.ae",
-      createdAt: new Date("2023-02-20"),
-      updatedAt: new Date("2024-04-15"),
-      restockCount: 32,
-      totalQuantity: 1850,
-      totalAmount: 95000,
-    },
-    {
-      id: 4,
-      name: "Fashion Accessories Trading",
-      phone: "+971 4 777 8888",
-      location: "Deira, Dubai",
-      email: "wholesale@fashionacc.ae",
-      createdAt: new Date("2023-05-12"),
-      updatedAt: new Date("2024-04-10"),
-      restockCount: 67,
-      totalQuantity: 5200,
-      totalAmount: 45000,
-    },
-  ]
+  // Fetch suppliers
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      setIsLoading(true)
+      try {
+        const response = await fetch("http://3.29.240.212/api/v1/suppliers")
+        if (!response.ok) {
+          throw new Error("Failed to fetch suppliers")
+        }
+        const data = await response.json()
+        setSuppliers(data)
+      } catch (error) {
+        console.error("Error fetching suppliers:", error)
+        toast.error("Failed to load suppliers")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchSuppliers()
+  }, [])
+
+  const onSubmit = async (data: SupplierFormValues) => {
+    setIsSubmitting(true)
+    try {
+      const response = await fetch("http://3.29.240.212/api/v1/suppliers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to create supplier")
+      }
+
+      const result = await response.json()
+      toast.success(result.message || "Supplier created successfully!")
+
+      // Refresh suppliers list
+      const suppliersResponse = await fetch("http://3.29.240.212/api/v1/suppliers")
+      if (suppliersResponse.ok) {
+        const suppliersData = await suppliersResponse.json()
+        setSuppliers(suppliersData)
+      }
+
+      // Close modal and reset form
+      setIsCreateModalOpen(false)
+      reset()
+    } catch (error) {
+      console.error("Error creating supplier:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to create supplier")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteSupplier = async () => {
+    if (!deleteSupplier) return
+
+    try {
+      const response = await fetch(`http://3.29.240.212/api/v1/suppliers/${deleteSupplier.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete supplier")
+      }
+
+      const data = await response.json()
+      toast.success(data.message || "Supplier deleted successfully")
+
+      // Remove the deleted supplier from the state
+      setSuppliers(suppliers.filter((s) => s.id !== deleteSupplier.id))
+    } catch (error) {
+      console.error("Error deleting supplier:", error)
+      toast.error("Failed to delete supplier")
+    } finally {
+      setDeleteSupplier(null)
+      setIsDeleteDialogOpen(false)
+    }
+  }
 
   const filteredSuppliers = suppliers.filter(
     (supplier) =>
@@ -127,18 +199,19 @@ export default function SuppliersPage() {
       supplier.location?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // In real app, this would call your backend API
-    console.log("Creating supplier:", formData)
-    setIsCreateModalOpen(false)
-    setFormData({ name: "", phone: "", location: "", email: "" })
-  }
-
+  // Calculate statistics
   const totalSuppliers = suppliers.length
   const totalRestocks = suppliers.reduce((sum, s) => sum + s.restockCount, 0)
   const totalValue = suppliers.reduce((sum, s) => sum + s.totalAmount, 0)
-  const avgOrderValue = totalValue / totalRestocks
+  const avgOrderValue = totalRestocks > 0 ? totalValue / totalRestocks : 0
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -168,7 +241,7 @@ export default function SuppliersPage() {
                 <DialogTitle>Add New Supplier</DialogTitle>
                 <DialogDescription>Create a new supplier for your inventory management.</DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
                     <Label htmlFor="name">
@@ -177,10 +250,10 @@ export default function SuppliersPage() {
                     <Input
                       id="name"
                       placeholder="Enter supplier name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
+                      {...register("name")}
+                      className={errors.name ? "border-red-500" : ""}
                     />
+                    {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="phone">
@@ -189,10 +262,10 @@ export default function SuppliersPage() {
                     <Input
                       id="phone"
                       placeholder="+971 XX XXX XXXX"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      required
+                      {...register("phone")}
+                      className={errors.phone ? "border-red-500" : ""}
                     />
+                    {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="email">Email Address</Label>
@@ -200,17 +273,17 @@ export default function SuppliersPage() {
                       id="email"
                       type="email"
                       placeholder="supplier@example.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      {...register("email")}
+                      className={errors.email ? "border-red-500" : ""}
                     />
+                    {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="location">Location</Label>
                     <Textarea
                       id="location"
                       placeholder="Enter supplier address/location"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      {...register("location")}
                       rows={3}
                     />
                   </div>
@@ -219,7 +292,16 @@ export default function SuppliersPage() {
                   <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">Create Supplier</Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Creating...
+                      </div>
+                    ) : (
+                      "Create Supplier"
+                    )}
+                  </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -355,7 +437,7 @@ export default function SuppliersPage() {
                     <span className="font-medium">AED {supplier.totalAmount.toLocaleString()}</span>
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm">{supplier.updatedAt.toLocaleDateString()}</span>
+                    <span className="text-sm">{new Date(supplier.updatedAt).toLocaleDateString()}</span>
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -375,13 +457,19 @@ export default function SuppliersPage() {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/inventory/suppliers/${supplier.id}?mode=edit`}>
+                          <Link href={`/inventory/suppliers/${supplier.id}/edit`}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Supplier
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setDeleteSupplier(supplier)
+                            setIsDeleteDialogOpen(true)
+                          }}
+                          className="text-destructive"
+                        >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
                         </DropdownMenuItem>
@@ -394,6 +482,24 @@ export default function SuppliersPage() {
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the supplier and may affect inventory items
+              associated with this supplier.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSupplier} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

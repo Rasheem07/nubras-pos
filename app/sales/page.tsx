@@ -1,10 +1,10 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ShoppingBag, Search, Filter } from "lucide-react"
-import { SalesTable } from "./sales-table"
-import { SalesOverview } from "./sales-overview"
-import Link from "next/link"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ShoppingBag, Search, Filter, Banknote } from "lucide-react";
+import { SalesTable } from "./sales-table";
+import { SalesOverview } from "./sales-overview";
+import Link from "next/link";
 
 export default function SalesPage() {
   return (
@@ -13,14 +13,24 @@ export default function SalesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Sales Orders</h1>
-          <p className="text-muted-foreground">Manage and track all sales orders and invoices</p>
+          <p className="text-muted-foreground">
+            Manage and track all sales orders and invoices
+          </p>
         </div>
-        <Button asChild>
-          <Link href="/terminal">
-            <ShoppingBag className="mr-2 h-4 w-4" />
-            New Sale
-          </Link>
-        </Button>
+        <div className="flex gap-x-6">
+          <Button variant={"outline"} asChild>
+            <Link href="/sales/transactions">
+              <Banknote className="mr-2 h-4 w-4" />
+              Sales transactions
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/terminal">
+              <ShoppingBag className="mr-2 h-4 w-4" />
+              New Sale
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Sales Overview Analytics */}
@@ -73,5 +83,5 @@ export default function SalesPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

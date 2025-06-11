@@ -1,19 +1,42 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +44,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Save,
@@ -38,133 +61,107 @@ import {
   Settings,
   CheckCircle,
   AlertCircle,
-} from "lucide-react"
-import Link from "next/link"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import Link from "next/link";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { listAllProducts } from "@/services/listProducts";
+import { listAllCustomers } from "@/services/listCustomers";
+import { toast } from "sonner";
 
 interface Customer {
-  id: string
-  name: string
-  email: string
-  phone: string
-  address: string
-  image?: string
-  type: "individual" | "business"
-  taxId?: string
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  status: string;
 }
 
 interface Product {
-  id: string
-  name: string
-  description: string
-  category: "ready-made" | "custom" | "alteration" | "fabric" | "accessory"
-  basePrice: number
-  image?: string
-  inStock: boolean
-  customizable: boolean
+  id: number;
+  name: string;
+  category: string;
+  price: number;
+  sku: string;
+  image: string;
 }
 
 interface QuotationItem {
-  id: string
-  productId?: string
-  name: string
-  description: string
-  category: string
-  quantity: number
-  unitPrice: number
-  discount: number
-  discountType: "amount" | "percentage"
-  total: number
-  notes?: string
+  id: string;
+  catalogId?: number;
+  description: string;
+  sku: string;
+  qty: number;
+  price: string;
+  total: string;
+  notes?: string;
   customizations?: {
-    measurements?: Record<string, string>
-    fabric?: string
-    color?: string
-    embroidery?: string
-    rushOrder?: boolean
-  }
+    measurements?: Record<string, string>;
+    fabric?: string;
+    color?: string;
+    embroidery?: string;
+    rushOrder?: boolean;
+  };
 }
 
 interface QuotationTemplate {
-  id: string
-  name: string
-  items: Omit<QuotationItem, "id" | "total">[]
-  terms: string
-  validityDays: number
+  id: string;
+  name: string;
+  items: Omit<QuotationItem, "id" | "total">[];
+  terms: string;
+  validityDays: number;
+}
+
+// DTO interfaces matching backend
+interface CreateQuoteItemDto {
+  description: string;
+  catalogId: number;
+  sku: string;
+  qty: number;
+  price: string;
+  total: string;
+}
+
+interface CreateQuotationDto {
+  validUntil: Date;
+  customerId: number;
+  customerName: string;
+  notes?: string;
+  terms?: string;
+  subtotal: string;
+  discountAmount: string;
+  taxAmount: string;
+  totalAmount: string;
+  items: CreateQuoteItemDto[];
 }
 
 export default function NewQuotationPage() {
-  const [customers] = useState<Customer[]>([
-    {
-      id: "cust_001",
-      name: "Fatima Mohammed",
-      email: "fatima.m@example.com",
-      phone: "+971 50 123 4567",
-      address: "123 Al Wasl Road, Dubai, UAE",
-      type: "individual",
-      image: "/frequency-modulation-spectrum.png",
+  const { data: customers = [], isLoading: customerLoading } = useQuery({
+    queryKey: ["customers"],
+    queryFn: async () => {
+      try {
+        return await listAllCustomers();
+      } catch (err: any) {
+        toast.error(err.message);
+        return [];
+      }
     },
-    {
-      id: "cust_002",
-      name: "Ahmed Al Mansouri",
-      email: "ahmed.m@example.com",
-      phone: "+971 55 987 6543",
-      address: "456 Sheikh Zayed Road, Dubai, UAE",
-      type: "business",
-      taxId: "TRN123456789",
-      image: "/abstract-am.png",
-    },
-    {
-      id: "cust_003",
-      name: "Mariam Hassan",
-      email: "mariam.h@example.com",
-      phone: "+971 52 111 2222",
-      address: "789 Jumeirah Beach Road, Dubai, UAE",
-      type: "individual",
-    },
-  ])
+  });
 
-  const [products] = useState<Product[]>([
-    {
-      id: "prod_001",
-      name: "Premium Kandura",
-      description: "High-quality traditional kandura with premium fabric",
-      category: "custom",
-      basePrice: 650,
-      inStock: true,
-      customizable: true,
-      image: "/stylized-letter-ma.png",
+  const { data: products = [], isLoading: productLoading } = useQuery<
+    Product[]
+  >({
+    queryKey: ["productsCatalog"],
+    queryFn: async () => {
+      try {
+        return await listAllProducts();
+      } catch (err: any) {
+        toast.error(err.message);
+        return [];
+      }
     },
-    {
-      id: "prod_002",
-      name: "Classic Abaya",
-      description: "Elegant black abaya with modern cut",
-      category: "ready-made",
-      basePrice: 450,
-      inStock: true,
-      customizable: false,
-      image: "/abstract-geometric-lk.png",
-    },
-    {
-      id: "prod_003",
-      name: "Alteration Service",
-      description: "Professional alteration services",
-      category: "alteration",
-      basePrice: 100,
-      inStock: true,
-      customizable: true,
-    },
-    {
-      id: "prod_004",
-      name: "Premium Silk Fabric",
-      description: "High-quality silk fabric per meter",
-      category: "fabric",
-      basePrice: 85,
-      inStock: true,
-      customizable: false,
-    },
-  ])
+  });
 
   const [templates] = useState<QuotationTemplate[]>([
     {
@@ -172,181 +169,244 @@ export default function NewQuotationPage() {
       name: "Custom Kandura Package",
       items: [
         {
-          productId: "prod_001",
-          name: "Premium Kandura",
+          catalogId: 1,
           description: "Custom kandura with premium fabric and embroidery",
-          category: "custom",
-          quantity: 1,
-          unitPrice: 650,
-          discount: 0,
-          discountType: "amount",
+          sku: "KAND-001",
+          qty: 1,
+          price: "650.00",
           notes: "Includes custom measurements and fitting",
         },
         {
-          name: "Premium Finishing",
-          description: "Hand-finished seams and custom buttons",
-          category: "custom",
-          quantity: 1,
-          unitPrice: 100,
-          discount: 0,
-          discountType: "amount",
+          catalogId: 2,
+          description:
+            "Premium Finishing - Hand-finished seams and custom buttons",
+          sku: "FINISH-001",
+          qty: 1,
+          price: "100.00",
         },
       ],
-      terms: "50% deposit required to start production. Delivery in 2-3 weeks. Final fitting included.",
+      terms:
+        "50% deposit required to start production. Delivery in 2-3 weeks. Final fitting included.",
       validityDays: 30,
     },
-  ])
+  ]);
 
   // Form state
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [quotationNumber, setQuotationNumber] = useState("")
-  const [items, setItems] = useState<QuotationItem[]>([])
-  const [notes, setNotes] = useState("")
-  const [terms, setTerms] = useState("Payment terms: 50% deposit required, balance due upon completion.")
-  const [validUntil, setValidUntil] = useState<Date>()
-  const [taxRate, setTaxRate] = useState(5)
-  const [globalDiscount, setGlobalDiscount] = useState(0)
-  const [globalDiscountType, setGlobalDiscountType] = useState<"amount" | "percentage">("percentage")
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null
+  );
+  const [quotationNumber, setQuotationNumber] = useState("");
+  const [items, setItems] = useState<QuotationItem[]>([]);
+  const [notes, setNotes] = useState("");
+  const [terms, setTerms] = useState(
+    "Payment terms: 50% deposit required, balance due upon completion."
+  );
+  const [validUntil, setValidUntil] = useState<Date>();
+  const [taxRate, setTaxRate] = useState(5);
+  const [globalDiscount, setGlobalDiscount] = useState(0);
+  const [globalDiscountType, setGlobalDiscountType] = useState<
+    "amount" | "percentage"
+  >("percentage");
 
   // Dialog states
-  const [showCustomerDialog, setShowCustomerDialog] = useState(false)
-  const [showProductDialog, setShowProductDialog] = useState(false)
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false)
-  const [showCustomizationDialog, setShowCustomizationDialog] = useState(false)
-  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null)
+  const [showCustomerDialog, setShowCustomerDialog] = useState(false);
+  const [showProductDialog, setShowProductDialog] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [showCustomizationDialog, setShowCustomizationDialog] = useState(false);
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(
+    null
+  );
 
   // Search states
-  const [customerSearch, setCustomerSearch] = useState("")
-  const [productSearch, setProductSearch] = useState("")
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+
+  // Loading state
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Generate quotation number on mount
   useEffect(() => {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, "0")
-    const day = String(today.getDate()).padStart(2, "0")
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
     const random = Math.floor(Math.random() * 1000)
       .toString()
-      .padStart(3, "0")
-    setQuotationNumber(`QUO-${year}${month}${day}-${random}`)
+      .padStart(3, "0");
+    setQuotationNumber(`QUO-${year}${month}${day}-${random}`);
 
     // Set default validity (30 days from now)
-    const defaultValidity = new Date()
-    defaultValidity.setDate(defaultValidity.getDate() + 30)
-    setValidUntil(defaultValidity)
-  }, [])
+    const defaultValidity = new Date();
+    defaultValidity.setDate(defaultValidity.getDate() + 30);
+    setValidUntil(defaultValidity);
+  }, []);
 
   // Calculations
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0)
-  const discountAmount = globalDiscountType === "percentage" ? (subtotal * globalDiscount) / 100 : globalDiscount
-  const afterDiscount = subtotal - discountAmount
-  const taxAmount = (afterDiscount * taxRate) / 100
-  const total = afterDiscount + taxAmount
+  const subtotal = items.reduce(
+    (sum, item) => sum + Number.parseFloat(item.total),
+    0
+  );
+  const discountAmount =
+    globalDiscountType === "percentage"
+      ? (subtotal * globalDiscount) / 100
+      : globalDiscount;
+  const afterDiscount = subtotal - discountAmount;
+  const taxAmount = (afterDiscount * taxRate) / 100;
+  const total = afterDiscount + taxAmount;
 
   const addItem = (product?: Product) => {
+    const rawPrice = product?.price ?? 0;
+    const unitPrice =
+      typeof rawPrice === "string" ? parseFloat(rawPrice) : rawPrice;
+
+    const quantity = 1;
+    const itemTotal = (unitPrice * quantity).toFixed(2);
+
     const newItem: QuotationItem = {
       id: `item_${Date.now()}`,
-      productId: product?.id,
-      name: product?.name || "",
-      description: product?.description || "",
-      category: product?.category || "custom",
-      quantity: 1,
-      unitPrice: product?.basePrice || 0,
-      discount: 0,
-      discountType: "amount",
-      total: product?.basePrice || 0,
+      catalogId: product?.id,
+      description: product?.name || "",
+      sku: product?.sku || "",
+      qty: quantity,
+      price: unitPrice.toFixed(2),
+      total: itemTotal,
       notes: "",
-    }
-    setItems([...items, newItem])
-    setShowProductDialog(false)
-  }
+    };
+    setItems([...items, newItem]);
+    setShowProductDialog(false);
+  };
 
   const updateItem = (index: number, updates: Partial<QuotationItem>) => {
-    const updatedItems = [...items]
-    const item = { ...updatedItems[index], ...updates }
+    const updatedItems = [...items];
+    const item = { ...updatedItems[index], ...updates };
 
-    // Recalculate total
-    const discountAmount =
-      item.discountType === "percentage" ? (item.quantity * item.unitPrice * item.discount) / 100 : item.discount
-    item.total = item.quantity * item.unitPrice - discountAmount
+    // Recalculate total when qty or price changes
+    if (updates.qty !== undefined || updates.price !== undefined) {
+      const qty = updates.qty !== undefined ? updates.qty : item.qty;
+      const price =
+        updates.price !== undefined
+          ? Number.parseFloat(updates.price)
+          : Number.parseFloat(item.price);
+      item.total = (qty * price).toFixed(2);
+    }
 
-    updatedItems[index] = item
-    setItems(updatedItems)
-  }
+    updatedItems[index] = item;
+    setItems(updatedItems);
+  };
 
   const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index))
-  }
+    setItems(items.filter((_, i) => i !== index));
+  };
 
   const applyTemplate = (template: QuotationTemplate) => {
-    const templateItems: QuotationItem[] = template.items.map((item, index) => ({
-      id: `item_${Date.now()}_${index}`,
-      ...item,
-      total:
-        item.quantity * item.unitPrice -
-        (item.discountType === "percentage" ? (item.quantity * item.unitPrice * item.discount) / 100 : item.discount),
-    }))
+    const templateItems: QuotationItem[] = template.items.map(
+      (item, index) => ({
+        id: `item_${Date.now()}_${index}`,
+        ...item,
+        total: (item.qty * Number.parseFloat(item.price)).toFixed(2),
+      })
+    );
 
-    setItems(templateItems)
-    setTerms(template.terms)
+    setItems(templateItems);
+    setTerms(template.terms);
 
-    const validity = new Date()
-    validity.setDate(validity.getDate() + template.validityDays)
-    setValidUntil(validity)
+    const validity = new Date();
+    validity.setDate(validity.getDate() + template.validityDays);
+    setValidUntil(validity);
 
-    setShowTemplateDialog(false)
-  }
+    setShowTemplateDialog(false);
+  };
 
-  const saveQuotation = (status: "draft" | "sent") => {
+  const createQuotation = async (status: "draft" | "sent") => {
     if (!selectedCustomer) {
-      alert("Please select a customer")
-      return
+      toast.error("Please select a customer");
+      return;
     }
 
     if (items.length === 0) {
-      alert("Please add at least one item")
-      return
+      toast.error("Please add at least one item");
+      return;
     }
 
-    const quotationData = {
-      number: quotationNumber,
-      customer: selectedCustomer,
-      items,
-      subtotal,
-      discount: discountAmount,
-      tax: taxAmount,
-      total,
-      validUntil,
-      status,
-      notes,
-      terms,
-      createdAt: new Date(),
+    if (!validUntil) {
+      toast.error("Please set a validity date");
+      return;
     }
 
-    console.log("Saving quotation:", quotationData)
+    setIsSubmitting(true);
 
-    if (status === "sent") {
-      alert(`Quotation ${quotationNumber} sent to ${selectedCustomer.email}`)
-    } else {
-      alert(`Quotation ${quotationNumber} saved as draft`)
+    try {
+      // Transform items to match DTO structure
+      const quotationItems: CreateQuoteItemDto[] = items.map((item) => ({
+        description: item.description,
+        catalogId: item.catalogId || 0, // Default to 0 for custom items
+        sku: item.sku,
+        qty: item.qty,
+        price: item.price,
+        total: item.total,
+      }));
+
+      // Create DTO matching backend expectations
+      const createQuotationDto: CreateQuotationDto = {
+        validUntil: new Date(validUntil),
+        customerId: selectedCustomer.id,
+        customerName: selectedCustomer.name,
+        notes: notes || undefined,
+        terms: terms || undefined,
+        subtotal: subtotal.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        discountAmount: discountAmount.toFixed(2),
+        totalAmount: total.toFixed(2),
+        items: quotationItems,
+      };
+
+      console.log("Creating quotation:", createQuotationDto);
+
+      const response = await fetch("http://3.29.240.212/api/v1/quotations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(createQuotationDto)
+      })
+      const json = await response.json()
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      if(!response.ok) {
+        throw new Error(json.message)
+      }
+
+      if (status === "sent") {
+        toast.success(
+          `Quotation ${quotationNumber} sent to ${selectedCustomer.phone}`
+        );
+      } else {
+        toast.success(`Quotation ${quotationNumber} saved as draft`);
+      }
+
+      // In a real app, you would navigate back to the quotations list
+      // router.push("/sales/quotations")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create quotation");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // In a real app, you would navigate back to the quotations list
-    // router.push("/sales/quotations")
-  }
+  };
 
   const filteredCustomers = customers.filter(
-    (customer) =>
+    (customer: Customer) =>
       customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
       customer.email.toLowerCase().includes(customerSearch.toLowerCase()) ||
-      customer.phone.includes(customerSearch),
-  )
+      customer.phone.includes(customerSearch)
+  );
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-      product.description.toLowerCase().includes(productSearch.toLowerCase()),
-  )
+  const filteredProducts = products.filter((product: Product) => {
+    const name = (product.name || "").toLowerCase();
+    const sku = (product.sku || "").toLowerCase();
+    const search = productSearch.toLowerCase();
+    return name.includes(search) || sku.includes(search);
+  });
 
   return (
     <div className="space-y-6">
@@ -359,7 +419,9 @@ export default function NewQuotationPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">New Quotation</h1>
-            <p className="text-muted-foreground">Create a new sales quotation for a customer</p>
+            <p className="text-muted-foreground">
+              Create a new sales quotation for a customer
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -367,11 +429,18 @@ export default function NewQuotationPage() {
             <FileText className="mr-2 h-4 w-4" />
             Use Template
           </Button>
-          <Button variant="outline" onClick={() => saveQuotation("draft")}>
+          <Button
+            variant="outline"
+            onClick={() => createQuotation("draft")}
+            disabled={isSubmitting}
+          >
             <Save className="mr-2 h-4 w-4" />
             Save Draft
           </Button>
-          <Button onClick={() => saveQuotation("sent")}>
+          <Button
+            onClick={() => createQuotation("sent")}
+            disabled={isSubmitting}
+          >
             <Send className="mr-2 h-4 w-4" />
             Send Quotation
           </Button>
@@ -385,7 +454,9 @@ export default function NewQuotationPage() {
           <Card>
             <CardHeader>
               <CardTitle>Quotation Details</CardTitle>
-              <CardDescription>Basic information about this quotation</CardDescription>
+              <CardDescription>
+                Basic information about this quotation
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -406,7 +477,7 @@ export default function NewQuotationPage() {
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
-                          !validUntil && "text-muted-foreground",
+                          !validUntil && "text-muted-foreground"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -433,7 +504,11 @@ export default function NewQuotationPage() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 Customer Information
-                <Button variant="outline" size="sm" onClick={() => setShowCustomerDialog(true)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCustomerDialog(true)}
+                >
                   <User className="mr-2 h-4 w-4" />
                   {selectedCustomer ? "Change Customer" : "Select Customer"}
                 </Button>
@@ -443,27 +518,34 @@ export default function NewQuotationPage() {
               {selectedCustomer ? (
                 <div className="flex items-center gap-4 p-4 border rounded-lg">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={selectedCustomer.image || "/placeholder.svg"} alt={selectedCustomer.name} />
-                    <AvatarFallback>{selectedCustomer.name.charAt(0)}</AvatarFallback>
+                    <AvatarImage
+                      src={"/placeholder.svg"}
+                      alt={selectedCustomer.name}
+                    />
+                    <AvatarFallback>
+                      {selectedCustomer.name.charAt(0)}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium">{selectedCustomer.name}</h3>
-                      <Badge variant="outline">{selectedCustomer.type}</Badge>
+                      <Badge variant="outline">{selectedCustomer.status}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{selectedCustomer.email}</p>
-                    <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
-                    <p className="text-sm text-muted-foreground">{selectedCustomer.address}</p>
-                    {selectedCustomer.taxId && (
-                      <p className="text-sm text-muted-foreground">Tax ID: {selectedCustomer.taxId}</p>
-                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {selectedCustomer.email}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedCustomer.phone}
+                    </p>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <User className="mx-auto h-12 w-12 mb-4 opacity-50" />
                   <p>No customer selected</p>
-                  <p className="text-sm">Click "Select Customer" to choose a customer</p>
+                  <p className="text-sm">
+                    Click "Select Customer" to choose a customer
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -485,10 +567,10 @@ export default function NewQuotationPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Item</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>SKU</TableHead>
                       <TableHead className="text-center">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
-                      <TableHead className="text-right">Discount</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
@@ -499,42 +581,52 @@ export default function NewQuotationPage() {
                         <TableCell>
                           <div>
                             <Input
-                              value={item.name}
-                              onChange={(e) => updateItem(index, { name: e.target.value })}
-                              className="font-medium mb-1"
-                              placeholder="Item name"
-                            />
-                            <Input
                               value={item.description}
-                              onChange={(e) => updateItem(index, { description: e.target.value })}
-                              className="text-sm"
-                              placeholder="Description"
+                              onChange={(e) =>
+                                updateItem(index, {
+                                  description: e.target.value,
+                                })
+                              }
+                              className="font-medium mb-1"
+                              placeholder="Item description"
                             />
                             <div className="flex items-center gap-2 mt-2">
-                              <Badge variant="outline" className="text-xs">
-                                {item.category}
-                              </Badge>
-                              {item.productId && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedItemIndex(index)
-                                    setShowCustomizationDialog(true)
-                                  }}
-                                >
-                                  <Settings className="h-3 w-3 mr-1" />
-                                  Customize
-                                </Button>
+                              {item.catalogId && (
+                                <Badge variant="outline" className="text-xs">
+                                  ID: {item.catalogId}
+                                </Badge>
                               )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedItemIndex(index);
+                                  setShowCustomizationDialog(true);
+                                }}
+                              >
+                                <Settings className="h-3 w-3 mr-1" />
+                                Customize
+                              </Button>
                             </div>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            value={item.sku}
+                            onChange={(e) =>
+                              updateItem(index, { sku: e.target.value })
+                            }
+                            placeholder="SKU"
+                            className="w-24"
+                          />
                         </TableCell>
                         <TableCell className="text-center">
                           <Input
                             type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
+                            value={item.qty}
+                            onChange={(e) =>
+                              updateItem(index, { qty: Number(e.target.value) })
+                            }
                             className="w-16 text-center"
                             min="1"
                           />
@@ -542,38 +634,17 @@ export default function NewQuotationPage() {
                         <TableCell className="text-right">
                           <Input
                             type="number"
-                            value={item.unitPrice}
-                            onChange={(e) => updateItem(index, { unitPrice: Number(e.target.value) })}
+                            value={item.price}
+                            onChange={(e) =>
+                              updateItem(index, { price: e.target.value })
+                            }
                             className="w-24 text-right"
                             step="0.01"
                           />
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              value={item.discount}
-                              onChange={(e) => updateItem(index, { discount: Number(e.target.value) })}
-                              className="w-16 text-right"
-                              step="0.01"
-                            />
-                            <Select
-                              value={item.discountType}
-                              onValueChange={(value: "amount" | "percentage") =>
-                                updateItem(index, { discountType: value })
-                              }
-                            >
-                              <SelectTrigger className="w-16">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="amount">AED</SelectItem>
-                                <SelectItem value="percentage">%</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+                        <TableCell className="text-right font-medium">
+                          AED {Number.parseFloat(item.total).toFixed(2)}
                         </TableCell>
-                        <TableCell className="text-right font-medium">AED {item.total.toFixed(2)}</TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
@@ -592,7 +663,9 @@ export default function NewQuotationPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <Package className="mx-auto h-12 w-12 mb-4 opacity-50" />
                   <p>No items added</p>
-                  <p className="text-sm">Click "Add Item" to start building your quotation</p>
+                  <p className="text-sm">
+                    Click "Add Item" to start building your quotation
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -652,7 +725,9 @@ export default function NewQuotationPage() {
                     <Input
                       type="number"
                       value={globalDiscount}
-                      onChange={(e) => setGlobalDiscount(Number(e.target.value))}
+                      onChange={(e) =>
+                        setGlobalDiscount(Number(e.target.value))
+                      }
                       className="flex-1"
                       step="0.01"
                     />
@@ -716,7 +791,11 @@ export default function NewQuotationPage() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start" onClick={() => setShowTemplateDialog(true)}>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => setShowTemplateDialog(true)}
+              >
                 <FileText className="mr-2 h-4 w-4" />
                 Load Template
               </Button>
@@ -782,7 +861,9 @@ export default function NewQuotationPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Select Customer</DialogTitle>
-            <DialogDescription>Choose a customer for this quotation</DialogDescription>
+            <DialogDescription>
+              Choose a customer for this quotation
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative">
@@ -795,33 +876,40 @@ export default function NewQuotationPage() {
               />
             </div>
             <div className="max-h-[400px] overflow-y-auto space-y-2">
-              {filteredCustomers.map((customer) => (
+              {filteredCustomers.map((customer: Customer) => (
                 <div
                   key={customer.id}
                   className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
                   onClick={() => {
-                    setSelectedCustomer(customer)
-                    setShowCustomerDialog(false)
+                    setSelectedCustomer(customer);
+                    setShowCustomerDialog(false);
                   }}
                 >
                   <Avatar>
-                    <AvatarImage src={customer.image || "/placeholder.svg"} alt={customer.name} />
+                    <AvatarImage src={"/placeholder.svg"} alt={customer.name} />
                     <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium">{customer.name}</h3>
-                      <Badge variant="outline">{customer.type}</Badge>
+                      <Badge variant="outline">{customer.status}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{customer.email}</p>
-                    <p className="text-sm text-muted-foreground">{customer.phone}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {customer.email}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {customer.phone}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCustomerDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowCustomerDialog(false)}
+            >
               Cancel
             </Button>
             <Button>
@@ -837,7 +925,9 @@ export default function NewQuotationPage() {
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Add Product/Service</DialogTitle>
-            <DialogDescription>Select a product or service to add to the quotation</DialogDescription>
+            <DialogDescription>
+              Select a product or service to add to the quotation
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative">
@@ -851,9 +941,10 @@ export default function NewQuotationPage() {
             </div>
             <div className="grid gap-4 md:grid-cols-2 max-h-[400px] overflow-y-auto">
               {filteredProducts.map((product) => (
-                <div
+                <button
+                  type="button"
                   key={product.id}
-                  className="flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50"
+                  className="w-full flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 text-left"
                   onClick={() => addItem(product)}
                 >
                   <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
@@ -871,17 +962,21 @@ export default function NewQuotationPage() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium">{product.name}</h3>
                       <Badge variant="outline">{product.category}</Badge>
-                      {product.customizable && <Badge variant="secondary">Customizable</Badge>}
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
-                    <p className="text-sm font-medium">AED {product.basePrice.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      SKU: {product.sku}
+                    </p>
+                    <p className="text-sm font-medium">AED {product.price}</p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowProductDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowProductDialog(false)}
+            >
               Cancel
             </Button>
             <Button onClick={() => addItem()}>
@@ -897,7 +992,9 @@ export default function NewQuotationPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Load Template</DialogTitle>
-            <DialogDescription>Choose a template to quickly populate the quotation</DialogDescription>
+            <DialogDescription>
+              Choose a template to quickly populate the quotation
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 max-h-[400px] overflow-y-auto">
             {templates.map((template) => (
@@ -908,24 +1005,32 @@ export default function NewQuotationPage() {
               >
                 <h3 className="font-medium">{template.name}</h3>
                 <p className="text-sm text-muted-foreground mb-2">
-                  {template.items.length} items • Valid for {template.validityDays} days
+                  {template.items.length} items • Valid for{" "}
+                  {template.validityDays} days
                 </p>
                 <div className="space-y-1">
                   {template.items.slice(0, 3).map((item, index) => (
                     <div key={index} className="flex justify-between text-sm">
-                      <span>{item.name}</span>
-                      <span>AED {item.unitPrice.toFixed(2)}</span>
+                      <span>{item.description}</span>
+                      <span>
+                        AED {Number.parseFloat(item.price).toFixed(2)}
+                      </span>
                     </div>
                   ))}
                   {template.items.length > 3 && (
-                    <p className="text-xs text-muted-foreground">+{template.items.length - 3} more items</p>
+                    <p className="text-xs text-muted-foreground">
+                      +{template.items.length - 3} more items
+                    </p>
                   )}
                 </div>
               </div>
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowTemplateDialog(false)}
+            >
               Cancel
             </Button>
           </DialogFooter>
@@ -933,11 +1038,17 @@ export default function NewQuotationPage() {
       </Dialog>
 
       {/* Customization Dialog */}
-      <Dialog open={showCustomizationDialog} onOpenChange={setShowCustomizationDialog}>
+      <Dialog
+        open={showCustomizationDialog}
+        onOpenChange={setShowCustomizationDialog}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Item Customization</DialogTitle>
-            <DialogDescription>{selectedItemIndex !== null && items[selectedItemIndex]?.name}</DialogDescription>
+            <DialogDescription>
+              {selectedItemIndex !== null &&
+                items[selectedItemIndex]?.description}
+            </DialogDescription>
           </DialogHeader>
           {selectedItemIndex !== null && (
             <div className="space-y-4">
@@ -945,60 +1056,65 @@ export default function NewQuotationPage() {
                 <Label>Special Instructions</Label>
                 <Textarea
                   value={items[selectedItemIndex]?.notes || ""}
-                  onChange={(e) => updateItem(selectedItemIndex, { notes: e.target.value })}
+                  onChange={(e) =>
+                    updateItem(selectedItemIndex, { notes: e.target.value })
+                  }
                   placeholder="Special instructions for this item..."
                 />
               </div>
 
-              {items[selectedItemIndex]?.category === "custom" && (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Fabric Choice</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select fabric" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cotton">Premium Cotton</SelectItem>
-                        <SelectItem value="silk">Pure Silk</SelectItem>
-                        <SelectItem value="linen">Linen Blend</SelectItem>
-                        <SelectItem value="wool">Wool</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Color</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select color" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="white">White</SelectItem>
-                        <SelectItem value="black">Black</SelectItem>
-                        <SelectItem value="navy">Navy Blue</SelectItem>
-                        <SelectItem value="gray">Gray</SelectItem>
-                        <SelectItem value="beige">Beige</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Switch id="rush-order" />
-                    <Label htmlFor="rush-order">Rush Order (+25%)</Label>
-                  </div>
+              <div className="space-y-4">
+                <div>
+                  <Label>Fabric Choice</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select fabric" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cotton">Premium Cotton</SelectItem>
+                      <SelectItem value="silk">Pure Silk</SelectItem>
+                      <SelectItem value="linen">Linen Blend</SelectItem>
+                      <SelectItem value="wool">Wool</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
+
+                <div>
+                  <Label>Color</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select color" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="white">White</SelectItem>
+                      <SelectItem value="black">Black</SelectItem>
+                      <SelectItem value="navy">Navy Blue</SelectItem>
+                      <SelectItem value="gray">Gray</SelectItem>
+                      <SelectItem value="beige">Beige</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch id="rush-order" />
+                  <Label htmlFor="rush-order">Rush Order (+25%)</Label>
+                </div>
+              </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCustomizationDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowCustomizationDialog(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={() => setShowCustomizationDialog(false)}>Save Customization</Button>
+            <Button onClick={() => setShowCustomizationDialog(false)}>
+              Save Customization
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

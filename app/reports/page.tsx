@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 
 // Import sample charts
 import { SalesChart } from "@/components/sales-chart"
+import SalesTabContent from "./_components/salesReportTab"
 
 export default function ReportsPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
@@ -101,7 +102,7 @@ export default function ReportsPage() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="sales">Sales</TabsTrigger>
+          <TabsTrigger value="sales">Sales reports</TabsTrigger>
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
           <TabsTrigger value="staff">Staff</TabsTrigger>
           <TabsTrigger value="customers">Customers</TabsTrigger>
@@ -287,20 +288,8 @@ export default function ReportsPage() {
             </Card>
           </div>
         </TabsContent>
-
-        <TabsContent value="sales" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sales Analysis</CardTitle>
-              <CardDescription>Detailed breakdown of sales performance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Select the "Sales" tab to view detailed sales reports and analytics.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
+ 
+         <SalesTabContent />
 
         <TabsContent value="inventory" className="space-y-4">
           <Card>
