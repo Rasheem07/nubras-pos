@@ -146,7 +146,6 @@ export default function Sidebar() {
         <nav className="grid items-start px-2 text-sm font-medium">
           {routes.map((route) => (
             <Link
-              target={route.href == "/terminal" ? "_blank" : undefined}
               key={route.href}
               href={route.href}
               className={cn(

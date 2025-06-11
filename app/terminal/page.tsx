@@ -52,7 +52,7 @@ import {
 } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-
+import SidebarToggleButton from "@/components/sidebarCloseButton"
 // Zod schemas matching the exact DTOs
 const SalesOrderItemSchema = z.object({
   description: z.string().max(100),
@@ -540,7 +540,8 @@ export default function POSTerminalPage() {
             {/* Desktop: All controls in one row */}
             <div className="hidden lg:flex items-center gap-x-6 gap-y-4 w-full justify-end">
               {/* Customer Selection */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-x-12">
+                <SidebarToggleButton />
                 <div className="w-48">
                   <CustomerSelectDialog
                     customers={customers}
