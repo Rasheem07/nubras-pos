@@ -27,7 +27,7 @@ import {
 interface CartItem {
   id: string
   name: string
-  type: "ready-made" | "custom" | "alteration" | "fabric"
+  type: "ready-made" | "custom" 
   price: number
   quantity: number
 }

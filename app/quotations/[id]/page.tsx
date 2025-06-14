@@ -36,7 +36,7 @@ export default function QuotationDetailPage() {
     queryKey: ["quotation", id],
     queryFn: async () => {
       const response = await fetch(
-        `https://api.alnubras.co/api/v1/quotations/${id}`
+        `http://localhost:5005/api/v1/quotations/${id}`
       );
       const json = await response.json();
       if (!response.ok) {

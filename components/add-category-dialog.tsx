@@ -31,11 +31,12 @@ interface AddCategoryDialogProps {
   onCategoryAdded?: (categoryName: string) => void
 }
 
-export function AddCategoryDialog({ onCategoryAdded }: AddCategoryDialogProps) {
+export default function AddCategoryDialog({ onCategoryAdded }: AddCategoryDialogProps) {
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
 
   const form = useForm<AddCategoryFormData>({
+    //@ts-ignore
     resolver: zodResolver(addCategorySchema),
     defaultValues: {
       name: "",
@@ -66,8 +67,8 @@ export function AddCategoryDialog({ onCategoryAdded }: AddCategoryDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="w-full justify-start">
-          <Plus className="mr-2 h-4 w-4" />
+        <Button variant="ghost" size="sm" className="max-w-max justify-start">
+          <Plus className="mr-1 h-4 w-4" />
           Add New Category
         </Button>
       </DialogTrigger>

@@ -159,7 +159,7 @@ export default function NewTailoringProject() {
     queryKey: ["orders"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/sales/list/tailoring"
+        "http://localhost:5005/api/v1/sales/list/tailoring"
       );
       const json = await response.json();
       if (!response.ok) {
@@ -173,7 +173,7 @@ export default function NewTailoringProject() {
     queryKey: ["tailors"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/staff/list/tailors"
+        "http://localhost:5005/api/v1/staff/list/tailors"
       );
       const json = await response.json();
       if (!response.ok) {
@@ -187,7 +187,7 @@ export default function NewTailoringProject() {
     queryKey: ["workflow-configs"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/tailoring/workflow/templates"
+        "http://localhost:5005/api/v1/tailoring/workflow/templates"
       );
       const json = await response.json();
       if (!response.ok) {
@@ -390,7 +390,7 @@ export default function NewTailoringProject() {
         }
       }
 
-      const response = await fetch("https://api.alnubras.co/api/v1/tailoring", {
+      const response = await fetch("http://localhost:5005/api/v1/tailoring", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1330,7 +1330,7 @@ export default function NewTailoringProject() {
                                 </div>
                                 <div className="text-gray-600">
                                   Level {selectedTailor.level} • ★{" "}
-                                  {selectedTailor.performance}% efficiency
+                                  {Number(selectedTailor.performance).toFixed(2)}% efficiency
                                 </div>
                               </div>
                             </div>

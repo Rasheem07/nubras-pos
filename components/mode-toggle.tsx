@@ -33,8 +33,8 @@ export function ModeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="default">
-           {icon} {theme?.charAt(0).toUpperCase().concat(theme.slice(1))}
+        <Button variant="outline" size="sm" className="relative h-7 w-7 p-0">
+           {icon}
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>

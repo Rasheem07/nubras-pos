@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Building } from "lucide-react"
+import { queryClient } from "./providers"
 
 interface SupplierCreateModalProps {
   trigger?: React.ReactNode
@@ -48,6 +49,7 @@ export function SupplierCreateModal({ trigger, onSupplierCreated }: SupplierCrea
     // Call the callback if provided
     onSupplierCreated?.(newSupplier)
 
+    queryClient.invalidateQueries({queryKey: ['suppliers']})
     // Reset form and close modal
     setFormData({ name: "", phone: "", location: "", email: "" })
     setIsOpen(false)

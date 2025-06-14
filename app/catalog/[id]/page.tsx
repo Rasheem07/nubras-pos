@@ -1,32 +1,8 @@
-"use client";
+"use client"
 
-import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useQuery } from "@tanstack/react-query"
+import Link from "next/link"
+import { useParams } from "next/navigation"
 import {
   ArrowLeft,
   Edit,
@@ -38,14 +14,85 @@ import {
   Calendar,
   User,
   Loader2,
-} from "lucide-react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { productsApi } from "@/lib/api/products";
+  Printer,
+  Share2,
+} from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Separator } from "@/components/ui/separator"
+
+// API functions
+const productsApi = {
+  getById: async (id: number) => {
+    const response = await fetch(`http://localhost:5005/api/v1/products/${id}`)
+    if (!response.ok) {
+      throw new Error("Failed to fetch product details")
+    }
+    return response.json()
+  },
+}
+
+// Types
+interface CustomModel {
+  id: number
+  product_id: number
+  name: string
+  model_charge: string
+  created_at: Date
+  updated_at: Date
+}
+
+interface RecentOrder {
+  orderId: number
+  orderedAt: Date
+  customerId: number
+  customerName: string
+  qty: number
+  unitPrice: string
+  itemTotal: string
+}
+
+interface TopCustomer {
+  customerId: number
+  customerName: string
+  totalQty: number
+  orderCount: number
+}
+
+interface Product {
+  id: number
+  name: string
+  sku: string
+  barcode: string
+  image: string
+  category: string
+  price: string
+  stock?: number
+  minQty?: number
+  type: "ready-made" | "custom" | "both"
+  enabled: boolean
+  status: string
+  inStock: boolean
+  recentOrders: RecentOrder[]
+  topCustomers: TopCustomer[]
+  models: CustomModel[]
+}
 
 export default function ProductViewPage() {
-  const params = useParams();
-  const productId = Number.parseInt(params.id as string);
+  const params = useParams()
+  const productId = Number.parseInt(params.id as string)
 
   const {
     data: product,
@@ -54,38 +101,39 @@ export default function ProductViewPage() {
   } = useQuery({
     queryKey: ["product", productId],
     queryFn: () => productsApi.getById(productId),
-  });
+  })
 
-  const getStockStatus = () => {
-    switch (product?.status) {
+  const getStockStatus = (status: string) => {
+    switch (status) {
       case "In stock":
-        return (
-          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-            In Stock
-          </Badge>
-        );
-
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">In Stock</Badge>
       case "Out of stock":
-        return <Badge variant="destructive">Out of Stock</Badge>;
-
+        return <Badge variant="destructive">Out of Stock</Badge>
       case "Available":
-        return (
-          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-            Available
-          </Badge>
-        );
-
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Available</Badge>
       case "Unavailable":
-        return <Badge variant="destructive">Unavailable</Badge>;
-
+        return <Badge variant="destructive">Unavailable</Badge>
       default:
-        return <Badge variant="outline">N/A</Badge>;
+        return <Badge variant="outline">N/A</Badge>
     }
-  };
+  }
+
+  const getProductTypeLabel = (type: string) => {
+    switch (type) {
+      case "ready-made":
+        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Ready Made</Badge>
+      case "custom":
+        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Custom</Badge>
+      case "both":
+        return <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100">Ready Made & Custom</Badge>
+      default:
+        return <Badge>Unknown</Badge>
+    }
+  }
 
   const formatCurrency = (amount: string | number) => {
-    return `AED ${Number.parseFloat(amount.toString()).toFixed(2)}`;
-  };
+    return `AED ${amount}`
+  }
 
   const formatDate = (date: Date | string) => {
     return new Intl.DateTimeFormat("en-AE", {
@@ -94,41 +142,55 @@ export default function ProductViewPage() {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(new Date(date));
-  };
+    }).format(new Date(date))
+  }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
       </div>
-    );
+    )
   }
 
   if (error || !product) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-destructive">Failed to load product</p>
+      <div className="container mx-auto py-6">
+        <div className="flex flex-col items-center justify-center h-64">
+          <h2 className="text-2xl font-bold mb-2">Product Not Found</h2>
+          <p className="text-muted-foreground mb-4">
+            The product you're looking for doesn't exist or couldn't be loaded.
+          </p>
+          <Button asChild>
+            <Link href="/catalog">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Catalog
+            </Link>
+          </Button>
+        </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="outline" size="icon" asChild>
             <Link href="/catalog">
               <ArrowLeft className="h-4 w-4" />
-              <span className="sr-only">Back to catalog</span>
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {product.name}
-            </h1>
-            <p className="text-muted-foreground">SKU: {product.sku}</p>
+            <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span>SKU: {product.sku}</span>
+              <span>•</span>
+              <span>Barcode: {product.barcode}</span>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -142,7 +204,6 @@ export default function ProductViewPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon">
                 <MoreHorizontal className="h-4 w-4" />
-                <span className="sr-only">More actions</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -156,9 +217,17 @@ export default function ProductViewPage() {
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Add to Sale
               </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Printer className="mr-2 h-4 w-4" />
+                Print Details
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share Product
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive">
-                Disable Product
+                {product.enabled ? "Disable Product" : "Enable Product"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -167,88 +236,105 @@ export default function ProductViewPage() {
 
       {/* Product Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card
-          className={`${
-            product.type === "ready-made" || product.type === "fabric"
-              ? "md:col-span-2"
-              : "col-span-full"
-          }`}
-        >
+        {/* Product Details */}
+        <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>Product Details</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-6">
-              <div className="w-32 h-32 rounded-lg overflow-hidden bg-muted">
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="w-full md:w-1/3 rounded-lg overflow-hidden bg-muted">
                 <img
                   src={product.image || "/placeholder.svg"}
                   alt={product.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover aspect-square"
                 />
               </div>
-              <div className="flex-1 space-y-4">
+              <div className="flex-1 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      Category
-                    </h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">Category</h3>
                     <p className="font-medium">{product.category}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      Barcode
-                    </h3>
-                    <p className="font-medium font-mono">{product.barcode}</p>
+                    <h3 className="text-sm font-medium text-muted-foreground">Product Type</h3>
+                    <div className="mt-1">{getProductTypeLabel(product.type)}</div>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      Selling Price
-                    </h3>
-                    <p className="font-medium text-lg">
-                      {formatCurrency(product.price)}
-                    </p>
+                    <h3 className="text-sm font-medium text-muted-foreground">Selling Price</h3>
+                    <p className="font-medium text-lg">{formatCurrency(product.price)}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      Stock Status
-                    </h3>
-                    <div className="mt-1">{getStockStatus()}</div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
+                    <div className="mt-1">{getStockStatus(product.status)}</div>
                   </div>
                 </div>
+
+                {/* Custom Models - Only show if product type is custom or both */}
+                {(product.type === "custom" || product.type === "both") && product.models.length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Custom Models</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {product.models.map((model) => (
+                          <div key={model.id} className="flex items-center justify-between p-3 border rounded-md">
+                            <span className="font-medium">{model.name}</span>
+                            <Badge variant="outline">+{formatCurrency(model.model_charge)}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
-        {product.type === "ready-made" ||
-          (product.type === "fabric" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Inventory Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+
+        {/* Stock Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Stock Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {product.type === "ready-made" || product.type === "both" ? (
+              <>
                 <div className="text-center">
                   <div className="text-3xl font-bold">{product.stock || 0}</div>
-                  <p className="text-sm text-muted-foreground">
-                    Units in Stock
-                  </p>
+                  <p className="text-sm text-muted-foreground">Units in Stock</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">
-                      Min. Quantity:
-                    </span>
-                    <p className="font-medium">{product.minQty || 0}</p>
+                <Separator />
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Minimum Quantity:</span>
+                    <span className="font-medium">{product.minQty || 0}</span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Available:</span>
-                    <p className="font-medium">
-                      {product.inStock ? "Yes" : "No"}
-                    </p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Status:</span>
+                    <div>{getStockStatus(product.status)}</div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">In Stock:</span>
+                    <span className="font-medium">{product.inStock ? "Yes" : "No"}</span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <Package className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                <p className="mt-2 text-muted-foreground">
+                  {product.type === "custom"
+                    ? "Custom products don't have stock information"
+                    : "No stock information available"}
+                </p>
+                <div className="mt-4">
+                  <Badge variant={product.status === "Available" ? "outline" : "destructive"}>{product.status}</Badge>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Analytics Tabs */}
@@ -265,9 +351,7 @@ export default function ProductViewPage() {
                 <Calendar className="h-5 w-5" />
                 Recent Orders
               </CardTitle>
-              <CardDescription>
-                Last 10 orders containing this product
-              </CardDescription>
+              <CardDescription>Last 10 orders containing this product</CardDescription>
             </CardHeader>
             <CardContent>
               {product.recentOrders.length === 0 ? (
@@ -300,21 +384,14 @@ export default function ProductViewPage() {
                             </Link>
                           </TableCell>
                           <TableCell>
-                            <Link
-                              href={`/customers/${order.customerId}`}
-                              className="hover:underline"
-                            >
+                            <Link href={`/customers/${order.customerId}`} className="hover:underline">
                               {order.customerName}
                             </Link>
                           </TableCell>
                           <TableCell>{formatDate(order.orderedAt)}</TableCell>
                           <TableCell>{order.qty}</TableCell>
-                          <TableCell>
-                            {formatCurrency(order.unitPrice)}
-                          </TableCell>
-                          <TableCell>
-                            {formatCurrency(order.itemTotal)}
-                          </TableCell>
+                          <TableCell>{formatCurrency(order.unitPrice)}</TableCell>
+                          <TableCell>{formatCurrency(order.itemTotal)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -332,9 +409,7 @@ export default function ProductViewPage() {
                 <Users className="h-5 w-5" />
                 Top Customers
               </CardTitle>
-              <CardDescription>
-                Customers who purchase this product most frequently
-              </CardDescription>
+              <CardDescription>Customers who purchase this product most frequently</CardDescription>
             </CardHeader>
             <CardContent>
               {product.topCustomers.length === 0 ? (
@@ -361,10 +436,7 @@ export default function ProductViewPage() {
                               <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
                                 {index + 1}
                               </div>
-                              <Link
-                                href={`/customers/${customer.customerId}`}
-                                className="hover:underline"
-                              >
+                              <Link href={`/customers/${customer.customerId}`} className="hover:underline">
                                 {customer.customerName}
                               </Link>
                             </div>
@@ -376,11 +448,7 @@ export default function ProductViewPage() {
                             </div>
                           </TableCell>
                           <TableCell>{customer.orderCount}</TableCell>
-                          <TableCell>
-                            {(customer.totalQty / customer.orderCount).toFixed(
-                              1
-                            )}
-                          </TableCell>
+                          <TableCell>{(customer.totalQty / customer.orderCount).toFixed(1)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -392,5 +460,5 @@ export default function ProductViewPage() {
         </TabsContent>
       </Tabs>
     </div>
-  );
+  )
 }

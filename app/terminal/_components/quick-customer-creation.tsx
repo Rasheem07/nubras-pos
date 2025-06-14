@@ -1,34 +1,24 @@
-// src/components/CustomerAddFields.tsx
-"use client";
+"use client"
+import { useForm, type Resolver } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 
-import * as React from "react";
-import { useForm, Controller, Resolver} from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Separator } from "@/components/ui/separator"
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
+import { toast } from "sonner"
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
-import { CustomerListItem } from "./customerSelect";
-import { toast } from "sonner";
+interface CustomerListItem {
+  id: number
+  name: string
+  phone: string
+  email: string
+  status: "new" | "active" | "gold" | "platinum" | "diamond" | "inactive"
+}
 
 //
 // 1) Zod schema
@@ -42,8 +32,7 @@ const measurementShape = z.object({
   chest: z.number().min(0),
   widthEnd: z.number().min(0),
   notes: z.string().optional().or(z.literal("")),
-});
-
+})
 
 const formSchema = z.object({
   name: z.string().min(1),
@@ -57,28 +46,27 @@ const formSchema = z.object({
       kuwaiti: measurementShape,
     })
     .optional(),
-});
+})
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof formSchema>
 
 //
 // 2) Measurement fields
 //
 const measurementFields: Array<{
-  key: keyof z.infer<typeof measurementShape>;
-  label: string;
+  key: keyof z.infer<typeof measurementShape>
+  label: string
 }> = [
-    { key: "frontLength", label: "Front Length" },
-    { key: "backLength", label: "Back Length" },
-    { key: "shoulder", label: "Shoulder" },
-    { key: "sleeves", label: "Sleeves" },
-    { key: "neck", label: "Neck" },
-    { key: "waist", label: "Waist" },
-    { key: "chest", label: "Chest" },
-    { key: "widthEnd", label: "Width End" },
-    { key: "notes", label: "Notes" },
-  ];
-
+  { key: "frontLength", label: "Front Length" },
+  { key: "backLength", label: "Back Length" },
+  { key: "shoulder", label: "Shoulder" },
+  { key: "sleeves", label: "Sleeves" },
+  { key: "neck", label: "Neck" },
+  { key: "waist", label: "Waist" },
+  { key: "chest", label: "Chest" },
+  { key: "widthEnd", label: "Width End" },
+  { key: "notes", label: "Notes" },
+]
 
 //
 // 3) Component
@@ -87,8 +75,8 @@ export default function QuickCustomerCreationForm({
   onBack,
   handleSelect,
 }: {
-  onBack: () => void;
-  handleSelect: (data: CustomerListItem) => void;
+  onBack: () => void
+  handleSelect: (data: CustomerListItem) => void
 }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as Resolver<FormValues>,
@@ -98,35 +86,34 @@ export default function QuickCustomerCreationForm({
       email: undefined,
       status: "new",
       measurementsRequired: false,
-      measurement: undefined
-    }
+      measurement: undefined,
+    },
+  })
 
-  });
-
-  const { control, watch, handleSubmit } = form;
-  const measurementsRequired = watch("measurementsRequired");
+  const { control, watch, handleSubmit } = form
+  const measurementsRequired = watch("measurementsRequired")
 
   const onAddAndSelect = async (data: FormValues) => {
-    console.log(data);
+    console.log(data)
     const response = await fetch("http://localhost:5005/api/v1/customers", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-    });
-    const json = await response.json();
+    })
+    const json = await response.json()
     if (!response.ok) {
-      toast.error(json.message);
-      return;
+      toast.error(json.message)
+      return
     }
-    toast.success(json.message);
-    handleSelect(json.newCustomer[0]);
+    toast.success(json.message)
+    handleSelect(json.newCustomer[0])
   }
 
   return (
-    <Form {...form} >
-      <form onSubmit={handleSubmit(onAddAndSelect)} className="space-y-6">
+    <Form {...form}>
+      <form onSubmit={handleSubmit(onAddAndSelect)} className="space-y-6 max-w-md">
         {/* header */}
         <div className="text-lg font-semibold">Add &amp; Select Customer</div>
 
@@ -182,10 +169,7 @@ export default function QuickCustomerCreationForm({
               <FormItem>
                 <FormLabel>Status</FormLabel>
                 <FormControl>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -212,14 +196,9 @@ export default function QuickCustomerCreationForm({
           render={({ field }) => (
             <FormItem className="flex items-center space-x-2">
               <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
               </FormControl>
-              <FormLabel className="!mb-0">
-                Measurements required
-              </FormLabel>
+              <FormLabel className="!mb-0">Measurements required</FormLabel>
             </FormItem>
           )}
         />
@@ -274,5 +253,5 @@ export default function QuickCustomerCreationForm({
         </div>
       </form>
     </Form>
-  );
+  )
 }

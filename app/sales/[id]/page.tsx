@@ -1,95 +1,122 @@
-"use client";
+"use client"
 
-import { useEffect, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ArrowLeft, Download, Printer, Edit3 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useEffect, useRef, useState } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ArrowLeft, Download, Printer, Edit3 } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { toast } from "sonner"
+
+type ItemMeasurement = {
+  id: number
+  orderItemId: number
+  frontLength: string
+  backLength: string
+  shoulder: string
+  sleeves: string
+  neck: string
+  waist: string
+  chest: string
+  widthEnd: string
+  notes: string
+  createdAt: string
+  updatedAt: string | null
+}
+
+type SalesOrderItem = {
+  id: number
+  type: string
+  orderId: number
+  description: string
+  catelogId: number
+  modelName: string
+  sku: string
+  qty: number
+  price: string
+  modelPrice: string
+  total: string
+  createdAt: string
+  updatedAt: string | null
+  measurement?: ItemMeasurement | null
+}
+
+type CustomerMeasurement = {
+  neck: number
+  chest: number
+  notes: string
+  waist: number
+  sleeves: number
+  shoulder: number
+  widthEnd: number
+  backLength: number
+  frontLength: number
+}
+
+type Customer = {
+  id: number
+  grpId: number
+  phone: string
+  name: string
+  email: string
+  status: string
+  measurement: {
+    arabic: CustomerMeasurement
+    kuwaiti: CustomerMeasurement
+  }
+  preferences: string[]
+  createdAt: string
+  updatedAt: string | null
+}
+
+type SalesPerson = {
+  id: number
+  name: string
+  department: string
+  email: string
+  phone: string
+  address: string
+  level: number
+  role: string | null
+  joinDate: string
+  status: string | null
+  salary: string
+  photo: string | null
+  specialties: string
+  createdAt: string
+  updatedAt: string | null
+}
 
 type SalesOrder = {
-  id: number;
-  status: string;
-  customerId: number;
-  customerName: string;
-  salesPersonId: number;
-  salesPersonName: string;
-  subtotal: string;
-  taxAmount: string;
-  discountAmount: string;
-  totalAmount: string;
-  paymentStatus: string;
-  notes: string;
-  priority: string;
-  paymentTerms: string;
-  dueDate: string;
-  deliveryDate: string;
-  completedDate: string | null;
-  createdAt: string;
-  updatedAt: string | null;
-  amountPaid: string;
-  amountPending: string;
-  items: any[] | null;
-  customer: {
-    id: number;
-    grpId: number;
-    phone: string;
-    name: string;
-    email: string;
-    status: string;
-    measurement: {
-      arabic: Measurement;
-      kuwaiti: Measurement;
-    };
-    preferences: string[];
-    createdAt: string;
-    updatedAt: string | null;
-  };
-  salesPerson: {
-    id: number;
-    name: string;
-    department: string;
-    email: string;
-    phone: string;
-    address: string;
-    level: number;
-    role: string | null;
-    joinDate: string;
-    status: string | null;
-    salary: string;
-    photo: string | null;
-    createdAt: string;
-    updatedAt: string | null;
-  };
-  discountPercentage?: number;
-};
-
-type Measurement = {
-  neck: number;
-  chest: number;
-  notes: string;
-  waist: number;
-  sleeves: number;
-  shoulder: number;
-  widthEnd: number;
-  backLength: number;
-  frontLength: number;
-};
+  id: number
+  status: string
+  customerId: number
+  customerName: string
+  salesPersonId: number
+  salesPersonName: string
+  subtotal: string
+  taxAmount: string
+  discountAmount: string
+  totalAmount: string
+  paymentStatus: string
+  notes: string
+  priority: string
+  paymentTerms: string
+  dueDate: string
+  deliveryDate: string | null
+  completedDate: string | null
+  quoteId: string | null
+  amountPaid: string
+  amountPending: string
+  paymentCompletedDate: string | null
+  createdAt: string
+  updatedAt: string | null
+  customer: Customer
+  salesPerson: SalesPerson
+  items: SalesOrderItem[]
+  discountPercentage?: number
+}
 
 // Terms and conditions mock data
 const termsAndConditions = `1. Payment Terms: Net 14 days from invoice date
@@ -101,16 +128,16 @@ const termsAndConditions = `1. Payment Terms: Net 14 days from invoice date
 7. Care Instructions: Dry clean only for best results
 8. Delivery: Standard delivery 7-10 business days, rush orders 3-5 days
 9. Measurements: Customer responsible for accurate measurements
-10. Disputes: Any disputes subject to Dubai Courts jurisdiction`;
+10. Disputes: Any disputes subject to Dubai Courts jurisdiction`
 
 export default function SalesOrderViewPage() {
-  const params = useParams();
-  const router = useRouter();
-  const printRef = useRef<HTMLDivElement>(null);
-  const [sale, setSale] = useState<SalesOrder | null>(null);
-  const searchParams = useSearchParams();
-  const mode = searchParams?.get("mode");
-  
+  const params = useParams()
+  const router = useRouter()
+  const printRef = useRef<HTMLDivElement>(null)
+  const [sale, setSale] = useState<SalesOrder | null>(null)
+  const searchParams = useSearchParams()
+  const mode = searchParams?.get("mode")
+
   const {
     data: saleOrder,
     isLoading,
@@ -119,52 +146,39 @@ export default function SalesOrderViewPage() {
   } = useQuery<SalesOrder>({
     queryKey: [`sales-${params?.id}`],
     queryFn: async () => {
-      const response = await fetch(
-        `https://api.alnubras.co/api/v1/sales/${params?.id}`
-      );
-      const json = await response.json();
+      const response = await fetch(`http://localhost:5005/api/v1/sales/${params?.id}`)
+      const json = await response.json()
       if (!response.ok) {
-        toast.error(json.message ?? "Failed to load sales order");
-        throw new Error(json.message ?? "Failed to load sales order");
+        toast.error(json.message ?? "Failed to load sales order")
+        throw new Error(json.message ?? "Failed to load sales order")
       }
-      return json;
+      return json
     },
-  });
+  })
 
   useEffect(() => {
     if (saleOrder) {
-      // Calculate amount due if not provided
+      // Calculate discount percentage if not provided
       const enhancedSale = {
         ...saleOrder,
-        amountPaid: saleOrder.amountPaid || "0",
-        amountDue:
-          saleOrder.amountPending ||
-          (
-            Number.parseFloat(saleOrder.totalAmount) -
-            Number.parseFloat(saleOrder.amountPaid || "0")
-          ).toFixed(2),
-        discountPercentage: saleOrder.discountPercentage || 10,
-      };
-      setSale(enhancedSale);
+        discountPercentage:
+          saleOrder.discountPercentage ||
+          (Number.parseFloat(saleOrder.discountAmount) / Number.parseFloat(saleOrder.subtotal)) * 100 ||
+          0,
+      }
+      setSale(enhancedSale)
     }
-  }, [saleOrder]);
+  }, [saleOrder])
 
   const handlePrint = () => {
-    const content = printRef.current;
-    if (!content) return;
+    const content = printRef.current
+    if (!content) return
 
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+    const printWindow = window.open("", "_blank")
+    if (!printWindow) return
 
-    const items = Array.isArray(sale?.items)
-      ? sale.items
-      : sale?.items
-        ? [sale.items]
-        : [];
-
-    const hasCustomItems = items.some((item) =>
-      item.description?.toLowerCase().includes("custom")
-    );
+    const items = sale?.items || []
+    const hasCustomItems = items.some((item) => item.type === "custom")
 
     printWindow.document.write(`
     <!DOCTYPE html>
@@ -308,137 +322,50 @@ export default function SalesOrderViewPage() {
             border-top: 1px solid #ccc;
           }
           
-          /* Compact Measurements Section */
-          .measurements-section {
+          /* Individual Item Measurements Section */
+          .item-measurements-section {
             margin: 15px 0;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 3px;
             background: #fafafa;
+            page-break-inside: avoid;
           }
-          .measurements-header {
+          .item-measurements-header {
             text-align: center;
             margin-bottom: 10px;
             font-size: 12px;
             font-weight: bold;
             color: #000;
           }
-          .measurements-container {
-            display: flex;
-            justify-content: space-between;
-            gap: 20px;
-          }
-          
-          /* Arabic Measurements */
-          .arabic-measurements {
-            flex: 1;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            padding: 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-          }
-          
-          /* Kuwaiti Measurements */
-          .kuwaiti-measurements {
-            flex: 1;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            padding: 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-          }
-          
-          .measurement-type-title {
-            font-size: 10px;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 8px;
-            color: #000;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 3px;
-            width: 100%;
-          }
-          
-          /* Diagram within each section */
-          .section-diagram {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 10px 0;
-            gap: 5px;
-          }
-          
-          .diagram-image {
-            width: 120px;
-            height: 150px;
-            object-fit: contain;
-          }
-          
-          .kuwaiti-diagrams {
-            display: flex;
-            gap: 10px;
-          }
-          
-          .kuwaiti-diagrams .diagram-image {
-            width: 120px;
-            height: 150px;
-          }
-          
-          .diagram-label {
-            font-size: 8px;
-            color: #666;
-            margin-top: 2px;
-          }
-          
-          /* Measurement fields in single column */
           .measurement-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
             font-size: 9px;
-            width: 100%;
           }
-          
           .measurement-item {
             display: flex;
-            justify-content: space-between;
-            padding: 4px 8px;
-            background: #f9f9f9;
-            border: 1px solid #eee;
+            flex-direction: column;
+            padding: 6px;
+            background: white;
+            border: 1px solid #ddd;
             border-radius: 2px;
-            align-items: center;
+            text-align: center;
           }
-          
           .measurement-label {
             font-weight: 500;
             color: #555;
             font-size: 8px;
-            line-height: 1.2;
-            flex: 1;
+            margin-bottom: 3px;
           }
-          
           .measurement-value {
             font-weight: bold;
             color: #000;
-            min-width: 35px;
-            text-align: right;
-            font-size: 9px;
-            background: white;
-            padding: 2px 5px;
-            border: 1px solid #ddd;
+            font-size: 10px;
+            background: #f0f0f0;
+            padding: 2px 4px;
             border-radius: 2px;
-          }
-          
-          .arabic-label {
-            font-size: 7px;
-            color: #999;
-            font-style: italic;
-            display: block;
           }
           
           .terms { 
@@ -508,13 +435,21 @@ export default function SalesOrderViewPage() {
                 ${sale?.customer?.phone || ""}
               </div>
             </div>
-          
+            <div class="billing">
+              <div class="section-title">Sales Person</div>
+              <div class="customer-info">
+                <strong>${sale?.salesPerson?.name}</strong><br>
+                ${sale?.salesPerson?.email || ""}<br>
+                ${sale?.salesPerson?.phone || ""}
+              </div>
+            </div>
           </div>
           
           <table>
             <thead>
               <tr>
                 <th>Description</th>
+                <th>Model</th>
                 <th>SKU</th>
                 <th class="text-center" width="8%">Qty</th>
                 <th class="text-right" width="12%">Price</th>
@@ -527,12 +462,13 @@ export default function SalesOrderViewPage() {
                   (item) => `
                 <tr>
                   <td>${item.description || ""}</td>
+                  <td>${item.modelName || ""}</td>
                   <td>${item.sku || ""}</td>
                   <td class="text-center">${item.qty || ""}</td>
                   <td class="text-right">AED ${item.price || ""}</td>
                   <td class="text-right">AED ${item.total || ""}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -545,7 +481,7 @@ export default function SalesOrderViewPage() {
                 <span>AED ${sale?.subtotal || "0"}</span>
               </div>
               <div class="total-row discount">
-                <span>Discount (${sale?.discountPercentage || 0}%):</span>
+                <span>Discount (${(sale?.discountPercentage || 0).toFixed(1)}%):</span>
                 <span>-AED ${sale?.discountAmount || "0"}</span>
               </div>
               <div class="total-row">
@@ -569,177 +505,59 @@ export default function SalesOrderViewPage() {
           
           ${
             hasCustomItems
-              ? `
-          <div class="measurements-section">
-            <div class="measurements-header">
-              Body Measurements / قياسات الجسم
+              ? items
+                  .filter((item) => item.type === "custom" && item.measurement)
+                  .map(
+                    (item) => `
+          <div class="item-measurements-section">
+            <div class="item-measurements-header">
+              Measurements for: ${item.description} (${item.modelName})
             </div>
-            <div class="measurements-container">
-              
-              <!-- Arabic Measurements -->
-              <div class="arabic-measurements">
-                <div class="measurement-type-title">Arabic Style / الطراز العربي</div>
-                
-                <!-- Arabic Diagram -->
-                <div class="section-diagram">
-                  <img src="/diagram1.png" alt="Arabic Style" class="diagram-image" />
-                  <div class="diagram-label">Arabic Style</div>
-                </div>
-                
-                <!-- Arabic Measurements Grid -->
-                <div class="measurement-grid">
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      الطول أمام<br>
-                      <span class="arabic-label">Front Length</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.arabic?.frontLength || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      الطول خلف<br>
-                      <span class="arabic-label">Back Length</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.arabic?.backLength || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      الكتف<br>
-                      <span class="arabic-label">Shoulder</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.arabic?.shoulder || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      الأيدي<br>
-                      <span class="arabic-label">Arms</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.arabic?.sleeves || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      الرقبة<br>
-                      <span class="arabic-label">Neck</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.arabic?.neck || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      الوسط<br>
-                      <span class="arabic-label">Waist</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.arabic?.waist || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      الصدر<br>
-                      <span class="arabic-label">Chest</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.arabic?.chest || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      نهاية العرض<br>
-                      <span class="arabic-label">Width End</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.arabic?.widthEnd || "___"}</span>
-                  </div>
-                </div>
+            <div class="measurement-grid">
+              <div class="measurement-item">
+                <span class="measurement-label">Front Length</span>
+                <span class="measurement-value">${item.measurement?.frontLength || "___"}</span>
               </div>
-              
-              <!-- Kuwaiti Measurements -->
-              <div class="kuwaiti-measurements">
-                <div class="measurement-type-title">Kuwaiti Style / الطراز الكويتي</div>
-                
-                <!-- Kuwaiti Diagrams -->
-                <div class="kuwaiti-diagrams">
-                  <div class="section-diagram">
-                    <img src="/diagram2.png" alt="Kuwaiti Front" class="diagram-image" />
-                    <div class="diagram-label">Front</div>
-                  </div>
-                  <div class="section-diagram">
-                    <img src="/diagram2.png" alt="Kuwaiti Back" class="diagram-image" />
-                    <div class="diagram-label">Back</div>
-                  </div>
-                </div>
-                
-                <!-- Kuwaiti Measurements Grid -->
-                <div class="measurement-grid">
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      الطول الأمامي<br>
-                      <span class="arabic-label">Front Length</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.kuwaiti?.frontLength || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      الطول الخلفي<br>
-                      <span class="arabic-label">Back Length</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.kuwaiti?.backLength || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      عرض الكتف<br>
-                      <span class="arabic-label">Shoulder Width</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.kuwaiti?.shoulder || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      طول الكم<br>
-                      <span class="arabic-label">Sleeve Length</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.kuwaiti?.sleeves || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      محيط الرقبة<br>
-                      <span class="arabic-label">Neck Circumference</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.kuwaiti?.neck || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      محيط الخصر<br>
-                      <span class="arabic-label">Waist Circumference</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.kuwaiti?.waist || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      محيط الصدر<br>
-                      <span class="arabic-label">Chest Circumference</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.kuwaiti?.chest || "___"}</span>
-                  </div>
-                  
-                  <div class="measurement-item">
-                    <span class="measurement-label">
-                      العرض السفلي<br>
-                      <span class="arabic-label">Bottom Width</span>
-                    </span>
-                    <span class="measurement-value">${sale?.customer?.measurement?.kuwaiti?.widthEnd || "___"}</span>
-                  </div>
-                </div>
+              <div class="measurement-item">
+                <span class="measurement-label">Back Length</span>
+                <span class="measurement-value">${item.measurement?.backLength || "___"}</span>
+              </div>
+              <div class="measurement-item">
+                <span class="measurement-label">Shoulder</span>
+                <span class="measurement-value">${item.measurement?.shoulder || "___"}</span>
+              </div>
+              <div class="measurement-item">
+                <span class="measurement-label">Sleeves</span>
+                <span class="measurement-value">${item.measurement?.sleeves || "___"}</span>
+              </div>
+              <div class="measurement-item">
+                <span class="measurement-label">Neck</span>
+                <span class="measurement-value">${item.measurement?.neck || "___"}</span>
+              </div>
+              <div class="measurement-item">
+                <span class="measurement-label">Waist</span>
+                <span class="measurement-value">${item.measurement?.waist || "___"}</span>
+              </div>
+              <div class="measurement-item">
+                <span class="measurement-label">Chest</span>
+                <span class="measurement-value">${item.measurement?.chest || "___"}</span>
+              </div>
+              <div class="measurement-item">
+                <span class="measurement-label">Width End</span>
+                <span class="measurement-value">${item.measurement?.widthEnd || "___"}</span>
               </div>
             </div>
+            ${
+              item.measurement?.notes
+                ? `<div style="margin-top: 10px; padding: 8px; background: white; border: 1px solid #ddd; border-radius: 3px;">
+                     <strong>Notes:</strong> ${item.measurement.notes}
+                   </div>`
+                : ""
+            }
           </div>
-          `
+          `,
+                  )
+                  .join("")
               : ""
           }
           
@@ -748,7 +566,7 @@ export default function SalesOrderViewPage() {
             <div class="terms-list">
               ${termsAndConditions
                 .split("\n")
-                .slice(0, 3)
+                .slice(0, 5)
                 .map((term) => `<div>${term}</div>`)
                 .join("")}
             </div>
@@ -768,15 +586,15 @@ export default function SalesOrderViewPage() {
         </script>
       </body>
     </html>
-  `);
-    printWindow.document.close();
-  };
+  `)
+    printWindow.document.close()
+  }
 
   useEffect(() => {
     if (mode == "print" && !isLoading && sale) {
-      handlePrint();
+      handlePrint()
     }
-  }, [mode, isLoading, sale]);
+  }, [mode, isLoading, sale])
 
   if (isLoading || !sale) {
     return (
@@ -784,13 +602,11 @@ export default function SalesOrderViewPage() {
         <Card className="w-[300px] text-center">
           <CardContent className="space-y-4 py-8">
             <div className="w-10 h-10 mx-auto border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
-            <p className="text-lg font-medium text-gray-700">
-              Loading invoice…
-            </p>
+            <p className="text-lg font-medium text-gray-700">Loading invoice…</p>
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -801,9 +617,7 @@ export default function SalesOrderViewPage() {
             <CardTitle className="text-red-600">Error</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-700">
-              {(error as Error).message || "Failed to load invoice."}
-            </p>
+            <p className="text-gray-700">{(error as Error).message || "Failed to load invoice."}</p>
           </CardContent>
           <CardFooter className="flex justify-end">
             <Button variant="outline" onClick={() => refetch()}>
@@ -812,7 +626,7 @@ export default function SalesOrderViewPage() {
           </CardFooter>
         </Card>
       </div>
-    );
+    )
   }
 
   return (
@@ -885,13 +699,25 @@ export default function SalesOrderViewPage() {
             </div>
           </div>
 
-          {/* Customer Information */}
-          <div className="mb-6">
-            <h4 className="font-semibold mb-3">Bill To:</h4>
-            <div className="p-4 bg-muted/50 rounded-lg text-sm">
-              <p className="font-medium">{sale.customer.name}</p>
-              <p>{sale.customer.email}</p>
-              <p>{sale.customer.phone}</p>
+          {/* Customer & Sales Person Information */}
+          <div className="grid grid-cols-2 gap-6 mb-6">
+            <div>
+              <h4 className="font-semibold mb-3">Bill To:</h4>
+              <div className="p-4 bg-muted/50 rounded-lg text-sm">
+                <p className="font-medium">{sale.customer.name}</p>
+                <p>{sale.customer.email}</p>
+                <p>{sale.customer.phone}</p>
+                <p className="text-xs text-muted-foreground mt-2">Customer ID: {sale.customer.id}</p>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-3">Sales Person:</h4>
+              <div className="p-4 bg-muted/50 rounded-lg text-sm">
+                <p className="font-medium">{sale.salesPerson.name}</p>
+                <p>{sale.salesPerson.email}</p>
+                <p>{sale.salesPerson.phone}</p>
+                <p className="text-xs text-muted-foreground mt-2">Department: {sale.salesPerson.department}</p>
+              </div>
             </div>
           </div>
 
@@ -902,6 +728,7 @@ export default function SalesOrderViewPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Description</TableHead>
+                  <TableHead>Model</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Price</TableHead>
@@ -910,25 +737,28 @@ export default function SalesOrderViewPage() {
               </TableHeader>
               <TableBody>
                 {sale.items && sale.items.length > 0 ? (
-                  sale.items.map((item, index) => (
-                    <TableRow key={item.id || index}>
-                      <TableCell>{item.description}</TableCell>
+                  sale.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div>
+                          <p>{item.description}</p>
+                          {item.type === "custom" && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-1">
+                              Custom Item
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{item.modelName}</TableCell>
                       <TableCell>{item.sku}</TableCell>
                       <TableCell className="text-right">{item.qty}</TableCell>
-                      <TableCell className="text-right">
-                        AED {item.price}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        AED {item.total}
-                      </TableCell>
+                      <TableCell className="text-right">AED {item.price}</TableCell>
+                      <TableCell className="text-right font-medium">AED {item.total}</TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-center py-4 text-muted-foreground"
-                    >
+                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
                       No items found
                     </TableCell>
                   </TableRow>
@@ -936,6 +766,65 @@ export default function SalesOrderViewPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Individual Item Measurements */}
+          {sale.items?.some((item) => item.type === "custom" && item.measurement) && (
+            <div className="mb-6">
+              <h4 className="font-semibold mb-3">Custom Item Measurements</h4>
+              <div className="space-y-4">
+                {sale.items
+                  .filter((item) => item.type === "custom" && item.measurement)
+                  .map((item) => (
+                    <Card key={item.id} className="p-4">
+                      <h5 className="font-medium mb-3">
+                        {item.description} - {item.modelName}
+                      </h5>
+                      <div className="grid grid-cols-4 gap-4 text-sm">
+                        <div className="text-center p-2 bg-muted/50 rounded">
+                          <p className="font-medium">Front Length</p>
+                          <p className="text-lg font-bold">{item.measurement?.frontLength}</p>
+                        </div>
+                        <div className="text-center p-2 bg-muted/50 rounded">
+                          <p className="font-medium">Back Length</p>
+                          <p className="text-lg font-bold">{item.measurement?.backLength}</p>
+                        </div>
+                        <div className="text-center p-2 bg-muted/50 rounded">
+                          <p className="font-medium">Shoulder</p>
+                          <p className="text-lg font-bold">{item.measurement?.shoulder}</p>
+                        </div>
+                        <div className="text-center p-2 bg-muted/50 rounded">
+                          <p className="font-medium">Sleeves</p>
+                          <p className="text-lg font-bold">{item.measurement?.sleeves}</p>
+                        </div>
+                        <div className="text-center p-2 bg-muted/50 rounded">
+                          <p className="font-medium">Neck</p>
+                          <p className="text-lg font-bold">{item.measurement?.neck}</p>
+                        </div>
+                        <div className="text-center p-2 bg-muted/50 rounded">
+                          <p className="font-medium">Waist</p>
+                          <p className="text-lg font-bold">{item.measurement?.waist}</p>
+                        </div>
+                        <div className="text-center p-2 bg-muted/50 rounded">
+                          <p className="font-medium">Chest</p>
+                          <p className="text-lg font-bold">{item.measurement?.chest}</p>
+                        </div>
+                        <div className="text-center p-2 bg-muted/50 rounded">
+                          <p className="font-medium">Width End</p>
+                          <p className="text-lg font-bold">{item.measurement?.widthEnd}</p>
+                        </div>
+                      </div>
+                      {item.measurement?.notes && (
+                        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                          <p className="text-sm">
+                            <strong>Notes:</strong> {item.measurement.notes}
+                          </p>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+              </div>
+            </div>
+          )}
 
           {/* Enhanced Totals */}
           <div className="flex justify-end mb-6">
@@ -945,7 +834,7 @@ export default function SalesOrderViewPage() {
                 <span>AED {sale.subtotal}</span>
               </div>
               <div className="flex justify-between text-sm text-red-600 font-medium">
-                <span>Discount ({sale.discountPercentage || 0}%):</span>
+                <span>Discount ({(sale.discountPercentage || 0).toFixed(1)}%):</span>
                 <span>-AED {sale.discountAmount}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -958,18 +847,27 @@ export default function SalesOrderViewPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span>Amount Paid:</span>
-                <span>AED {sale.amountPaid || "0"}</span>
+                <span>AED {sale.amountPaid}</span>
               </div>
               <div className="flex justify-between text-lg font-bold text-red-600 pt-2 border-t">
                 <span>Amount Due:</span>
-                <span>AED {sale.amountPending || "0"}</span>
+                <span>AED {sale.amountPending}</span>
               </div>
             </div>
           </div>
 
           {/* Payment & Notes */}
           <div className="grid grid-cols-2 gap-6 pt-6 border-t mb-6">
-            
+            <div>
+              <h4 className="font-semibold mb-2">Payment Terms</h4>
+              <p className="text-sm">{sale.paymentTerms}</p>
+              <p className="text-sm mt-1">
+                <span className="font-medium">Priority:</span> {sale.priority}
+              </p>
+              <p className="text-sm mt-1">
+                <span className="font-medium">Payment Status:</span> {sale.paymentStatus}
+              </p>
+            </div>
             <div>
               <h4 className="font-semibold mb-2">Notes</h4>
               <p className="text-sm">{sale.notes || "No notes provided"}</p>
@@ -980,17 +878,15 @@ export default function SalesOrderViewPage() {
           <div className="pt-6 border-t">
             <h4 className="font-semibold mb-3">Terms & Conditions</h4>
             <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-1">
-              {termsAndConditions
-                ? termsAndConditions.split("\n").map((term, index) => (
-                    <p key={index} className="text-muted-foreground">
-                      {term}
-                    </p>
-                  ))
-                : ""}
+              {termsAndConditions.split("\n").map((term, index) => (
+                <p key={index} className="text-muted-foreground">
+                  {term}
+                </p>
+              ))}
             </div>
           </div>
         </Card>
       </div>
     </div>
-  );
+  )
 }

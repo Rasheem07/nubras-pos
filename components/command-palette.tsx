@@ -33,13 +33,10 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 
-interface CommandPaletteProps {
-  open: boolean
-  setOpen: (open: boolean) => void
-}
 
-export function CommandPalette({ open, setOpen }: CommandPaletteProps) {
+export default function CommandPalette() {
   const router = useRouter()
+  const [open, setOpen] = React.useState(false)
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {

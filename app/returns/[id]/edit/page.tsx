@@ -163,13 +163,13 @@ export default function EditReturnPage() {
   useEffect(() => {
     const loadReturnData = async () => {
       try {
-        const response = await fetch(`https://api.alnubras.co/api/v1/returns/${returnId}`)
+        const response = await fetch(`http://localhost:5005/api/v1/returns/${returnId}`)
         if (!response.ok) {
           throw new Error("Failed to load return data")
         }
         const data = await response.json()
         setReturnData(data)
-
+ 
         // Set form values
         form.reset({
           customerId: data.customerId,
@@ -186,7 +186,7 @@ export default function EditReturnPage() {
             reason: item.reason,
             type: item.type as "refund" | "exchange" | "store-credit",
             condition: item.condition as "new" | "good" | "damaged" | "defective",
-            refundAmount: item.refundAmount,
+            refundAmount: item.refundAmount.toString( ),
           })),
         })
       } catch (error) {
@@ -213,7 +213,7 @@ export default function EditReturnPage() {
 
     setLoadingOrderItems(true)
     try {
-      const response = await fetch(`https://api.alnubras.co/api/v1/sales/${returnData.orderId}/items`)
+      const response = await fetch(`http://localhost:5005/api/v1/sales/${returnData.orderId}/items`)
       if (!response.ok) {
         throw new Error("Failed to load order items")
       }
@@ -306,7 +306,7 @@ export default function EditReturnPage() {
         })),
       }
 
-      const response = await fetch(`https://api.alnubras.co/api/v1/returns/${returnId}`, {
+      const response = await fetch(`http://localhost:5005/api/v1/returns/${returnId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
