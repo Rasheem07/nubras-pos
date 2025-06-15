@@ -22,6 +22,7 @@ import {
   Shield,
   Store,
   ChevronDown,
+  Warehouse,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +51,7 @@ const navigationGroups = {
       { label: "Orders", href: "/sales", icon: ShoppingBag },
       { label: "Quotations", href: "/quotations", icon: FileText },
       { label: "Returns", href: "/returns", icon: RefreshCw },
+      { label: "Promotions", href: "/promotions", icon: Tag },
     ],
   },
   operations: {
@@ -58,16 +60,14 @@ const navigationGroups = {
     items: [
       { label: "Tailoring", href: "/tailoring", icon: Scissors },
       { label: "Calendar", href: "/calendar", icon: Calendar },
-      { label: "Stores", href: "/stores", icon: Store },
     ],
   },
   inventory: {
-    label: "Inventory",
+    label: "Product",
     icon: Package,
     items: [
       { label: "Catalog", href: "/catalog", icon: Package },
-      { label: "Inventory", href: "/inventory", icon: Package },
-      { label: "Promotions", href: "/promotions", icon: Tag },
+      { label: "Inventory", href: "/inventory", icon: Warehouse },
     ],
   },
   people: {

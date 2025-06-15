@@ -19,19 +19,58 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Save, X, Plus, Trash2, Search, ShoppingCart } from "lucide-react"
+import { ArrowLeft, Save, X, Plus, Trash2, Search, ShoppingCart, Ruler } from "lucide-react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+// Types matching your DTOs exactly
+type CustomItemMeasurement = {
+  frontLength: string
+  backLength: string
+  shoulder: string
+  sleeves: string
+  neck: string
+  waist: string
+  chest: string
+  widthEnd: string
+  notes?: string
+}
+
 type SalesOrderItem = {
   id?: number
+  type: "ready-made" | "custom"
   description: string
   catelogId: number
   sku?: string
   qty: number
   price: string
+  modelPrice?: string
   total: string
+  modelName?: string
+  measurement?: CustomItemMeasurement
   isNew?: boolean
+}
+
+type UpdateSalesOrderDto = {
+  status: string
+  customerId: number
+  customerName: string
+  salesPersonId: number
+  salesPersonName: string
+  subtotal: string
+  taxAmount: string
+  discountAmount: string
+  totalAmount: string
+  paymentMethod: string
+  paymentStatus: "no-payment" | "partial" | "paid"
+  notes?: string
+  priority: "low" | "medium" | "high"
+  paymentTerms: string
+  dueDate: Date
+  deliveryDate?: Date
+  completedDate?: Date
+  items: SalesOrderItem[]
+  partialAmount: string
 }
 
 type Product = {
@@ -69,6 +108,7 @@ type SalesOrder = {
   createdAt: string
   updatedAt?: string
   items: SalesOrderItem[]
+  partialAmount: string
   customer: {
     id: number
     grpId: number
@@ -121,14 +161,27 @@ export default function SalesOrderEditPage() {
   const [sale, setSale] = useState<SalesOrder | null>(null)
   const [isCalculating, setIsCalculating] = useState(false)
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false)
+  const [isMeasurementDialogOpen, setIsMeasurementDialogOpen] = useState(false)
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentItemForMeasurement, setCurrentItemForMeasurement] = useState<SalesOrderItem | null>(null)
+  const [measurementData, setMeasurementData] = useState<CustomItemMeasurement>({
+    frontLength: "",
+    backLength: "",
+    shoulder: "",
+    sleeves: "",
+    neck: "",
+    waist: "",
+    chest: "",
+    widthEnd: "",
+    notes: "",
+  })
 
   // Fetch products for the dialog
   const { data: productCategories, isLoading: isLoadingProducts } = useQuery<ProductCategory[]>({
     queryKey: ["active-products"],
     queryFn: async () => {
-      const response = await fetch("http://localhost:5005/api/v1/products/list/catalog")
+      const response = await fetch("https://api.alnubras.co/api/v1/products/list/catalog")
       const json = await response.json()
       if (!response.ok) {
         throw new Error("Failed to load products")
@@ -146,7 +199,7 @@ export default function SalesOrderEditPage() {
   } = useQuery<SalesOrder>({
     queryKey: [`sales-edit-${params?.id}`],
     queryFn: async () => {
-      const response = await fetch(`http://localhost:5005/api/v1/sales/${params?.id}`)
+      const response = await fetch(`https://api.alnubras.co/api/v1/sales/${params?.id}`)
       const json = await response.json()
       if (!response.ok) {
         toast.error(json.message ?? "Failed to load sales order")
@@ -157,43 +210,13 @@ export default function SalesOrderEditPage() {
   })
 
   const { mutate: updateSale, isPending } = useMutation({
-    mutationFn: async (data: Partial<SalesOrder>) => {
-      // Format the data to match the DTO structure
-      const updateData = {
-        status: data.status,
-        customerId: data.customerId,
-        customerName: data.customerName,
-        salesPersonId: data.salesPersonId,
-        salesPersonName: data.salesPersonName,
-        subtotal: data.subtotal,
-        taxAmount: data.taxAmount,
-        discountAmount: data.discountAmount,
-        totalAmount: data.totalAmount,
-        paymentMethod: data.paymentMethod,
-        paymentStatus: data.paymentStatus,
-        notes: data.notes,
-        priority: data.priority,
-        paymentTerms: data.paymentTerms,
-        dueDate: data.dueDate,
-        deliveryDate: data.deliveryDate,
-        completedDate: data.completedDate,
-        items: data.items?.map((item) => ({
-          id: item.id,
-          description: item.description,
-          catelogId: item.catelogId,
-          sku: item.sku,
-          qty: item.qty,
-          price: item.price,
-          total: item.total,
-        })),
-      }
-
-      const response = await fetch(`http://localhost:5005/api/v1/sales/${params?.id}`, {
+    mutationFn: async (data: UpdateSalesOrderDto) => {
+      const response = await fetch(`https://api.alnubras.co/api/v1/sales/${params?.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(updateData),
+        body: JSON.stringify(data),
       })
       const json = await response.json()
       if (!response.ok) {
@@ -218,13 +241,17 @@ export default function SalesOrderEditPage() {
         priority: saleOrder.priority || "medium",
         paymentTerms: saleOrder.paymentTerms || "net 30",
         notes: saleOrder.notes || "",
+        partialAmount: saleOrder.partialAmount || "0.00",
         items:
           Array.isArray(saleOrder.items) && saleOrder.items.length > 0
             ? saleOrder.items.map((item) => ({
                 ...item,
+                type: item.type || "ready-made",
                 catelogId: item.catelogId || 1,
                 sku: item.sku || "",
-                isNew: false, // Mark existing items as not new
+                modelPrice: item.modelPrice || undefined,
+                modelName: item.modelName || undefined,
+                isNew: false,
               }))
             : [],
       }
@@ -258,7 +285,43 @@ export default function SalesOrderEditPage() {
 
   const handleSave = () => {
     if (!sale) return
-    updateSale(sale)
+
+    // Format data to match UpdateSalesOrderDto exactly
+    const updateData: UpdateSalesOrderDto = {
+      status: sale.status,
+      customerId: sale.customerId,
+      customerName: sale.customerName,
+      salesPersonId: sale.salesPersonId,
+      salesPersonName: sale.salesPersonName,
+      subtotal: sale.subtotal,
+      taxAmount: sale.taxAmount,
+      discountAmount: sale.discountAmount,
+      totalAmount: sale.totalAmount,
+      paymentMethod: sale.paymentMethod,
+      paymentStatus: sale.paymentStatus as "no-payment" | "partial" | "paid",
+      notes: sale.notes,
+      priority: sale.priority as "low" | "medium" | "high",
+      paymentTerms: sale.paymentTerms,
+      dueDate: new Date(sale.dueDate),
+      deliveryDate: sale.deliveryDate ? new Date(sale.deliveryDate) : undefined,
+      completedDate: sale.completedDate ? new Date(sale.completedDate) : undefined,
+      partialAmount: sale.partialAmount,
+      items: sale.items.map((item) => ({
+        id: item.id,
+        type: item.type,
+        description: item.description,
+        catelogId: item.catelogId,
+        sku: item.sku,
+        qty: item.qty,
+        price: item.price,
+        modelPrice: item.modelPrice,
+        total: item.total,
+        modelName: item.modelName,
+        measurement: item.measurement,
+      })),
+    }
+
+    updateSale(updateData)
   }
 
   const handleProductSelect = (product: Product, isSelected: boolean) => {
@@ -274,13 +337,14 @@ export default function SalesOrderEditPage() {
 
     const newItems: SalesOrderItem[] = selectedProducts.map((product) => ({
       id: undefined, // Temporary ID for new items
+      type: "ready-made",
       description: product.name,
       catelogId: product.id,
       sku: product.sku,
       qty: 1,
       price: product.price,
       total: product.price,
-      isNew: true, // Mark as new item
+      isNew: true,
     }))
 
     setSale({
@@ -323,6 +387,60 @@ export default function SalesOrderEditPage() {
     setIsCalculating(true)
   }
 
+  const updateItemType = (type: "ready-made" | "custom", id?: number) => {
+    if (!sale || !sale.items) return
+
+    const updatedItems = sale.items.map((item) => {
+      if (item.id === id) {
+        return { ...item, type, measurement: type === "ready-made" ? undefined : item.measurement }
+      }
+      return item
+    })
+
+    setSale({
+      ...sale,
+      items: updatedItems,
+    })
+  }
+
+  const openMeasurementDialog = (item: SalesOrderItem) => {
+    setCurrentItemForMeasurement(item)
+    setMeasurementData(
+      item.measurement || {
+        frontLength: "",
+        backLength: "",
+        shoulder: "",
+        sleeves: "",
+        neck: "",
+        waist: "",
+        chest: "",
+        widthEnd: "",
+        notes: "",
+      },
+    )
+    setIsMeasurementDialogOpen(true)
+  }
+
+  const saveMeasurement = () => {
+    if (!sale || !currentItemForMeasurement) return
+
+    const updatedItems = sale.items.map((item) => {
+      if (item.id === currentItemForMeasurement.id) {
+        return { ...item, measurement: measurementData }
+      }
+      return item
+    })
+
+    setSale({
+      ...sale,
+      items: updatedItems,
+    })
+
+    setIsMeasurementDialogOpen(false)
+    setCurrentItemForMeasurement(null)
+    toast.success("Measurement saved successfully")
+  }
+
   const formatDateForInput = (dateString?: string) => {
     if (!dateString) return ""
     return new Date(dateString).toISOString().slice(0, 16)
@@ -336,24 +454,23 @@ export default function SalesOrderEditPage() {
     })
   }
 
-  
-// get a fast lookup of IDs already in the order
-const existingIds = new Set(sale?.items.map(i => i.catelogId) || []);
+  // Get a fast lookup of IDs already in the order
+  const existingIds = new Set(sale?.items.map((i) => i.catelogId) || [])
 
-// now filter out both existing items AND apply your search term
-const filteredCategories = productCategories
-  ?.map(category => ({
-    ...category,
-    items: category.items.filter(product =>
-      // 1) not already in order
-      !existingIds.has(product.id) &&
-      // 2) matches search
-      (product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-    ),
-  }))
-  .filter(category => category.items.length > 0);
-
+  // Filter out both existing items AND apply search term
+  const filteredCategories = productCategories
+    ?.map((category) => ({
+      ...category,
+      items: category.items.filter(
+        (product) =>
+          // 1) not already in order
+          !existingIds.has(product.id) &&
+          // 2) matches search
+          (product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.sku.toLowerCase().includes(searchTerm.toLowerCase())),
+      ),
+    }))
+    .filter((category) => category.items.length > 0)
 
   if (isLoading || !sale) {
     return (
@@ -504,6 +621,112 @@ const filteredCategories = productCategories
         </DialogContent>
       </Dialog>
 
+      {/* Measurement Dialog */}
+      <Dialog open={isMeasurementDialogOpen} onOpenChange={setIsMeasurementDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Custom Measurements</DialogTitle>
+            <DialogDescription>Enter measurements for {currentItemForMeasurement?.description}</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="frontLength">Front Length *</Label>
+              <Input
+                id="frontLength"
+                value={measurementData.frontLength}
+                onChange={(e) => setMeasurementData({ ...measurementData, frontLength: e.target.value })}
+                placeholder="e.g., 42"
+              />
+            </div>
+            <div>
+              <Label htmlFor="backLength">Back Length *</Label>
+              <Input
+                id="backLength"
+                value={measurementData.backLength}
+                onChange={(e) => setMeasurementData({ ...measurementData, backLength: e.target.value })}
+                placeholder="e.g., 44"
+              />
+            </div>
+            <div>
+              <Label htmlFor="shoulder">Shoulder *</Label>
+              <Input
+                id="shoulder"
+                value={measurementData.shoulder}
+                onChange={(e) => setMeasurementData({ ...measurementData, shoulder: e.target.value })}
+                placeholder="e.g., 18"
+              />
+            </div>
+            <div>
+              <Label htmlFor="sleeves">Sleeves *</Label>
+              <Input
+                id="sleeves"
+                value={measurementData.sleeves}
+                onChange={(e) => setMeasurementData({ ...measurementData, sleeves: e.target.value })}
+                placeholder="e.g., 24"
+              />
+            </div>
+            <div>
+              <Label htmlFor="neck">Neck *</Label>
+              <Input
+                id="neck"
+                value={measurementData.neck}
+                onChange={(e) => setMeasurementData({ ...measurementData, neck: e.target.value })}
+                placeholder="e.g., 16"
+              />
+            </div>
+            <div>
+              <Label htmlFor="waist">Waist *</Label>
+              <Input
+                id="waist"
+                value={measurementData.waist}
+                onChange={(e) => setMeasurementData({ ...measurementData, waist: e.target.value })}
+                placeholder="e.g., 32"
+              />
+            </div>
+            <div>
+              <Label htmlFor="chest">Chest *</Label>
+              <Input
+                id="chest"
+                value={measurementData.chest}
+                onChange={(e) => setMeasurementData({ ...measurementData, chest: e.target.value })}
+                placeholder="e.g., 40"
+              />
+            </div>
+            <div>
+              <Label htmlFor="widthEnd">Width End *</Label>
+              <Input
+                id="widthEnd"
+                value={measurementData.widthEnd}
+                onChange={(e) => setMeasurementData({ ...measurementData, widthEnd: e.target.value })}
+                placeholder="e.g., 22"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="measurementNotes">Notes</Label>
+            <Textarea
+              id="measurementNotes"
+              value={measurementData.notes || ""}
+              onChange={(e) => setMeasurementData({ ...measurementData, notes: e.target.value })}
+              placeholder="Additional measurement notes..."
+              rows={3}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMeasurementDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveMeasurement}>
+              <Ruler className="mr-2 h-4 w-4" />
+              Save Measurements
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Invoice Content */}
       <Card className="p-6">
         {/* Invoice Header */}
@@ -642,12 +865,14 @@ const filteredCategories = productCategories
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>SKU</TableHead>
+                <TableHead>Model</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
                 <TableHead className="text-right">Price</TableHead>
                 <TableHead className="text-right">Total</TableHead>
-                <TableHead className="w-10"></TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -655,10 +880,56 @@ const filteredCategories = productCategories
                 sale.items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
+                      <Select
+                        value={item.type}
+                        onValueChange={(value: "ready-made" | "custom") => updateItemType(value, item.id)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ready-made">Ready Made</SelectItem>
+                          <SelectItem value="custom">Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
                       <div className="font-medium">{item.description}</div>
                       <div className="text-xs text-muted-foreground">Catalog ID: {item.catelogId}</div>
+                      {item.type === "custom" && item.measurement && (
+                        <Badge variant="outline" className="mt-1">
+                          <Ruler className="w-3 h-3 mr-1" />
+                          Measured
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>{item.sku}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <Input
+                          placeholder="Model name"
+                          value={item.modelName || ""}
+                          onChange={(e) => {
+                            const updatedItems = sale.items.map((i) =>
+                              i.id === item.id ? { ...i, modelName: e.target.value } : i,
+                            )
+                            setSale({ ...sale, items: updatedItems })
+                          }}
+                          className="text-xs"
+                        />
+                        <Input
+                          placeholder="Model price"
+                          value={item.modelPrice || ""}
+                          onChange={(e) => {
+                            const updatedItems = sale.items.map((i) =>
+                              i.id === item.id ? { ...i, modelPrice: e.target.value } : i,
+                            )
+                            setSale({ ...sale, items: updatedItems })
+                          }}
+                          className="text-xs"
+                        />
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Input
                         type="number"
@@ -672,20 +943,32 @@ const filteredCategories = productCategories
                     <TableCell className="text-right">AED {item.price}</TableCell>
                     <TableCell className="text-right font-medium">AED {item.total}</TableCell>
                     <TableCell>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => removeItem(item.id)}
-                        className="h-8 w-8 text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1 justify-center">
+                        {item.type === "custom" && (
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => openMeasurementDialog(item)}
+                            className="h-8 w-8"
+                          >
+                            <Ruler className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeItem(item.id)}
+                          className="h-8 w-8 text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <div className="text-muted-foreground">
                       <p>No items in this order.</p>
                       <Button variant="outline" size="sm" className="mt-2" onClick={() => setIsProductDialogOpen(true)}>
@@ -719,11 +1002,17 @@ const filteredCategories = productCategories
               <span>Total Amount:</span>
               <span>AED {sale.totalAmount}</span>
             </div>
+            {sale.paymentStatus === "partial" && (
+              <div className="flex justify-between text-sm text-blue-600 font-medium">
+                <span>Partial Amount Paid:</span>
+                <span>AED {sale.partialAmount}</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Payment & Additional Information */}
-        <div className="grid grid-cols-2 gap-6 pt-6 border-t mb-6">
+        <div className="grid grid-cols-3 gap-6 pt-6 border-t mb-6">
           <div>
             <Label htmlFor="paymentMethod">Payment Method *</Label>
             <Select value={sale.paymentMethod} onValueChange={(value) => setSale({ ...sale, paymentMethod: value })}>
@@ -731,11 +1020,11 @@ const filteredCategories = productCategories
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Cash">Cash</SelectItem>
-                <SelectItem value="Card">Card</SelectItem>
-                <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                <SelectItem value="Apple Pay">Apple Pay</SelectItem>
-                <SelectItem value="Check">Check</SelectItem>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="card">Card</SelectItem>
+                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                <SelectItem value="apple_pay">Apple Pay</SelectItem>
+                <SelectItem value="check">Check</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -746,6 +1035,17 @@ const filteredCategories = productCategories
               value={sale.paymentTerms}
               onChange={(e) => setSale({ ...sale, paymentTerms: e.target.value })}
               placeholder="net 30"
+            />
+          </div>
+          <div>
+            <Label htmlFor="partialAmount">Partial Amount</Label>
+            <Input
+              id="partialAmount"
+              type="number"
+              step="0.01"
+              value={sale.partialAmount}
+              onChange={(e) => setSale({ ...sale, partialAmount: e.target.value })}
+              placeholder="0.00"
             />
           </div>
         </div>

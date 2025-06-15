@@ -151,7 +151,7 @@ export default function UpdateQuotationPage() {
   } = useQuery<ExistingQuotation>({
     queryKey: ["quotation", quotationId],
     queryFn: async () => {
-      const response = await fetch(`http://localhost:5005/api/v1/quotations/${quotationId}`)
+      const response = await fetch(`https://api.alnubras.co/api/v1/quotations/${quotationId}`)
       if (!response.ok) {
         throw new Error("Failed to fetch quotation")
       }
@@ -350,7 +350,7 @@ export default function UpdateQuotationPage() {
 
       console.log("Updating quotation:", updateQuotationDto)
 
-      const response = await fetch(`http://localhost:5005/api/v1/quotations/${quotationId}`, {
+      const response = await fetch(`https://api.alnubras.co/api/v1/quotations/${quotationId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

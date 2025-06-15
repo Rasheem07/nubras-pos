@@ -316,7 +316,7 @@ export default function DailySalesReport() {
   const { data, isLoading, isError, refetch } = useQuery<DailyReport>({
     queryKey: ["dailyReport", today],
     queryFn: async () => {
-      const resp = await fetch("http://localhost:5005/api/v1/reports/daily");
+      const resp = await fetch("https://api.alnubras.co/api/v1/reports/daily");
       const json = await resp.json();
       if (!resp.ok) toast.error("Failed to load Daily report!");
       return json as DailyReport;

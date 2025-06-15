@@ -169,7 +169,7 @@ export default function TailoringProjectDetail() {
     queryKey: ["tailoring-project", id],
     queryFn: async () => {
       const response = await fetch(
-        `http://localhost:5005/api/v1/tailoring/${id}`
+        `https://api.alnubras.co/api/v1/tailoring/${id}`
       );
       const json = await response.json();
       if (!response.ok) {
@@ -207,7 +207,7 @@ export default function TailoringProjectDetail() {
 
     try {
       const response = await fetch(
-        `http://localhost:5005/api/v1/tailoring/workflow/${stepToComplete}`,
+        `https://api.alnubras.co/api/v1/tailoring/workflow/${stepToComplete}`,
         {
           method: "PATCH",
           headers: {
@@ -242,7 +242,7 @@ export default function TailoringProjectDetail() {
     try {
       // Use the new API endpoint for notes
       const response = await fetch(
-        `http://localhost:5005/api/v1/tailoring/notes/${stepId}`,
+        `https://api.alnubras.co/api/v1/tailoring/notes/${stepId}`,
         {
           method: "PATCH",
           headers: {

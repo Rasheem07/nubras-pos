@@ -27,7 +27,7 @@ import { toast } from "sonner"
 // API functions
 const productsApi = {
   create: async (data: FormData) => {
-    const response = await fetch("http://localhost:5005/api/v1/products", {
+    const response = await fetch("https://api.alnubras.co/api/v1/products", {
       method: "POST",
       body: data,
     })
@@ -43,7 +43,7 @@ const productsApi = {
 
 const inventoryApi = {
   getAll: async () => {
-    const response = await fetch("http://localhost:5005/api/v1/inventory")
+    const response = await fetch("https://api.alnubras.co/api/v1/inventory")
     if (!response.ok) {
       throw new Error("Failed to fetch inventory items")
     }
@@ -53,14 +53,14 @@ const inventoryApi = {
 
 const categoriesApi = {
   getAll: async () => {
-    const response = await fetch("http://localhost:5005/api/v1/products/list/categories")
+    const response = await fetch("https://api.alnubras.co/api/v1/products/list/categories")
     if (!response.ok) {
       throw new Error("Failed to fetch categories")
     }
     return response.json()
   },
   create: async (name: string) => {
-    const response = await fetch("http://localhost:5005/api/v1/products/categories", {
+    const response = await fetch("https://api.alnubras.co/api/v1/products/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),

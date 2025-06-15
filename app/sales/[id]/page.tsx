@@ -146,7 +146,7 @@ export default function SalesOrderViewPage() {
   } = useQuery<SalesOrder>({
     queryKey: [`sales-${params?.id}`],
     queryFn: async () => {
-      const response = await fetch(`http://localhost:5005/api/v1/sales/${params?.id}`)
+      const response = await fetch(`https://api.alnubras.co/api/v1/sales/${params?.id}`)
       const json = await response.json()
       if (!response.ok) {
         toast.error(json.message ?? "Failed to load sales order")
@@ -630,7 +630,7 @@ export default function SalesOrderViewPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

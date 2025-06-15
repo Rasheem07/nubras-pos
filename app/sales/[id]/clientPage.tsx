@@ -524,7 +524,7 @@ export default function SalesOrderPage() {
     queryKey: [params.id],
     queryFn: async () => {
       const response = await fetch(
-        `http://localhost:5005/api/v1/sales/${params.id}`
+        `https://api.alnubras.co/api/v1/sales/${params.id}`
       );
       const json = await response.json();
       if (!response.ok) {

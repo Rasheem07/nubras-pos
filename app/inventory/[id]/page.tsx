@@ -43,7 +43,7 @@ import QRCodeGenerator from "qrcode";
 const inventoryApi = {
   getById: async (id: string) => {
     const response = await fetch(
-      `http://localhost:5005/api/v1/inventory/${id}`
+      `https://api.alnubras.co/api/v1/inventory/${id}`
     );
     if (!response.ok) {
       throw new Error("Failed to fetch item details");
@@ -53,7 +53,7 @@ const inventoryApi = {
 
   deleteById: async (id: string) => {
     const response = await fetch(
-      `http://localhost:5005/api/v1/inventory/${id}`,
+      `https://api.alnubras.co/api/v1/inventory/${id}`,
       {
         method: "DELETE",
       }
@@ -68,7 +68,7 @@ const inventoryApi = {
 const supplierApi = {
   getById: async (id: number) => {
     const response = await fetch(
-      `http://localhost:5005/api/v1/suppliers/${id}`
+      `https://api.alnubras.co/api/v1/suppliers/${id}`
     );
     if (!response.ok) {
       throw new Error("Failed to fetch supplier details");
@@ -256,7 +256,7 @@ export default function InventoryItemDetailPage() {
       console.log(key);
 
       // 2) Build your proxy URL
-      const downloadUrl = `http://localhost:5005/api/v1/inventory/barcodes/${encodeURIComponent(key)}`;
+      const downloadUrl = `https://api.alnubras.co/api/v1/inventory/barcodes/${encodeURIComponent(key)}`;
 
       // 3) Trigger the download
       const link = document.createElement("a");

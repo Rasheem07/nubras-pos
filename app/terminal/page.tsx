@@ -501,11 +501,10 @@ function CategoryCard({
 }) {
   return (
     <Card
-      className={`cursor-pointer transition-all duration-200 touch-manipulation h-16 ${
-        isSelected
+      className={`cursor-pointer transition-all duration-200 touch-manipulation h-16 ${isSelected
           ? "border-primary bg-primary/10 shadow-md"
           : "hover:shadow-md hover:border-primary/40 bg-white border border-gray-200"
-      }`}
+        }`}
       onClick={onClick}
     >
       <CardContent className="p-3 h-full flex flex-col justify-center items-center text-center">
@@ -541,11 +540,10 @@ function ProductCard({
 }) {
   return (
     <Card
-      className={`cursor-pointer transition-all duration-200 hover:border-primary/40 group touch-manipulation h-20 ${
-        disabled
+      className={`cursor-pointer transition-all duration-200 hover:border-primary/40 group touch-manipulation h-20 ${disabled
           ? "opacity-60 cursor-not-allowed"
           : "hover:shadow-lg bg-white border border-gray-200 hover:border-primary/50"
-      }`}
+        }`}
       onClick={
         disabled ? () => toast.error("Please select a customer first") : onAdd
       }
@@ -569,11 +567,10 @@ function ProductCard({
         <Button
           size="sm"
           variant="outline"
-          className={`w-7 h-7 p-0 rounded-full ${
-            disabled
+          className={`w-7 h-7 p-0 rounded-full ${disabled
               ? "opacity-0"
               : "opacity-0 group-hover:opacity-100 transition-opacity"
-          }`}
+            }`}
           onClick={(e) => {
             e.stopPropagation();
             if (!disabled) onAdd();
@@ -699,7 +696,6 @@ export default function ProfessionalPOSTerminal() {
   const [navOpen, setNavOpen] = useState(true);
 
   useHotkeys("alt+1", () => setNavOpen((o) => !o), {
-    enableOnTags: ["INPUT", "TEXTAREA"],
     preventDefault: true,
   });
 
@@ -707,7 +703,11 @@ export default function ProfessionalPOSTerminal() {
   useHotkeys("alt+2", () => setTab("categories"));
   useHotkeys("alt+3", () => setTab("ready-made"));
   useHotkeys("alt+4", () => setTab("custom"));
-  useHotkeys("alt+a", () => amountInputRef.current.focus());
+  useHotkeys("alt+a", () => {
+    if (amountInputRef.current) {
+      amountInputRef.current.focus();
+    }
+  });
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(OrderFormSchema),
@@ -728,7 +728,7 @@ export default function ProfessionalPOSTerminal() {
     queryKey: ["customers"],
     queryFn: async () => {
       const response = await fetch(
-        "http://localhost:5005/api/v1/list/customer"
+        "https://api.alnubras.co/api/v1/list/customer"
       );
       if (!response.ok) throw new Error("Failed to fetch customers");
       return response.json();
@@ -739,7 +739,7 @@ export default function ProfessionalPOSTerminal() {
     queryKey: ["productsCatalog"],
     queryFn: async () => {
       const response = await fetch(
-        "http://localhost:5005/api/v1/products/list/catalog"
+        "https://api.alnubras.co/api/v1/products/list/catalog"
       );
       if (!response.ok) throw new Error("Failed to fetch products");
       return response.json();
@@ -879,7 +879,7 @@ export default function ProfessionalPOSTerminal() {
       price: Number(product.price).toFixed(2),
       total: (Number(product.price) + (Number(model?.charge) || 0)).toFixed(2),
       modelName: model?.name || undefined,
-      modelPrice: String(model?.charge) || undefined,
+      modelPrice: model?.charge !== undefined ? String(model.charge) : undefined,
       measurement: undefined, // Ready-made don't have measurements
       type: "ready-made", // Add type identifier
     };
@@ -1132,7 +1132,7 @@ export default function ProfessionalPOSTerminal() {
     };
 
     try {
-      const response = await fetch("http://localhost:5005/api/v1/sales", {
+      const response = await fetch("https://api.alnubras.co/api/v1/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderData),
@@ -1174,7 +1174,7 @@ export default function ProfessionalPOSTerminal() {
                 <div className="flex items-center gap-1.5 justify-center">
                   <kbd className="inline-flex items-center rounded border bg-muted/50 px-1 py-0.5 text-[9px] text-gray-900 font-mono text-muted-foreground">
                     {typeof window !== "undefined" &&
-                    navigator?.platform?.includes("Mac")
+                      navigator?.platform?.includes("Mac")
                       ? "⌘"
                       : "Ctrl"}{" "}
                     + `
@@ -1292,7 +1292,11 @@ export default function ProfessionalPOSTerminal() {
                   </SelectContent>
                 </Select>
                 <div className="text-sm text-gray-500 mt-1">
-                  Due: {getDueDate().toLocaleDateString()}
+                  Due: {getDueDate().toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
                 </div>
               </div>
 
@@ -1307,7 +1311,7 @@ export default function ProfessionalPOSTerminal() {
                         key={option.label}
                         variant={
                           deliveryDate?.toDateString() ===
-                          option.date.toDateString()
+                            option.date.toDateString()
                             ? "default"
                             : "outline"
                         }

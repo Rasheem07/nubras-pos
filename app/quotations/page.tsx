@@ -89,13 +89,29 @@ interface Quotation {
   status: QuotationStatus;
   createdAt: Date;
   convertedToSale?: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  items: Array<{
+    name: string;
+    description: string;
+    quantity: number;
+    price: number;
+    total: number;
+  }>;
+  customer: {
+    name: string;
+    email: string;
+    phone: string;
+  };
 }
 
 export default function QuotationsPage() {
   const { data: quotations = [], isLoading } = useQuery<Quotation[]>({
     queryKey: ["quotations"],
     queryFn: async () => {
-      const response = await fetch("http://localhost:5005/api/v1/quotations");
+      const response = await fetch("https://api.alnubras.co/api/v1/quotations");
       const json = await response.json();
       if (!response.ok) {
         toast.error("Failed to load sales quotations!");
@@ -164,105 +180,105 @@ export default function QuotationsPage() {
     toast.success(`Exporting quotation ${quotation.id} as PDF`);
   };
 
-  // const printQuotation = (quotation: Quotation) => {
-  //   const printWindow = window.open("", "_blank")
-  //   if (!printWindow) return
+  const printQuotation = (quotation: Quotation) => {
+    const printWindow = window.open("", "_blank")
+    if (!printWindow) return
 
-  //   printWindow.document.write(`
-  //     <!DOCTYPE html>
-  //     <html>
-  //       <head>
-  //         <title>Quotation ${quotation.id}</title>
-  //         <style>
-  //           body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-  //           .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-  //           .company { font-size: 24px; font-weight: bold; }
-  //           .quotation-info { text-align: right; }
-  //           .customer-info { background: #f5f5f5; padding: 20px; margin: 20px 0; }
-  //           table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-  //           th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-  //           th { background-color: #f5f5f5; }
-  //           .totals { text-align: right; margin-top: 20px; }
-  //           .terms { margin-top: 30px; padding: 20px; background: #f9f9f9; }
-  //         </style>
-  //       </head>
-  //       <body>
-  //         <div class="header">
-  //           <div>
-  //             <div class="company">Nubras Tailoring</div>
-  //             <div>123 Al Wasl Road, Dubai, UAE</div>
-  //             <div>+971 50 123 4567</div>
-  //             <div>info@nubras.com</div>
-  //           </div>
-  //           <div class="quotation-info">
-  //             <h2>QUOTATION</h2>
-  //             <div><strong>Number:</strong> ${quotation.id}</div>
-  //             <div><strong>Date:</strong> ${quotation.createdAt.toLocaleDateString()}</div>
-  //             <div><strong>Valid Until:</strong> ${quotation.validUntil.toLocaleDateString()}</div>
-  //           </div>
-  //         </div>
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Quotation ${quotation.id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+            .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
+            .company { font-size: 24px; font-weight: bold; }
+            .quotation-info { text-align: right; }
+            .customer-info { background: #f5f5f5; padding: 20px; margin: 20px 0; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            th { background-color: #f5f5f5; }
+            .totals { text-align: right; margin-top: 20px; }
+            .terms { margin-top: 30px; padding: 20px; background: #f9f9f9; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="company">Nubras Tailoring</div>
+              <div>123 Al Wasl Road, Dubai, UAE</div>
+              <div>+971 50 123 4567</div>
+              <div>info@nubras.com</div>
+            </div>
+            <div class="quotation-info">
+              <h2>QUOTATION</h2>
+              <div><strong>Number:</strong> ${quotation.id}</div>
+              <div><strong>Date:</strong> ${quotation.createdAt.toLocaleDateString()}</div>
+              <div><strong>Valid Until:</strong> ${quotation.validUntil.toLocaleDateString()}</div>
+            </div>
+          </div>
 
-  //         <div class="customer-info">
-  //           <h3>Quote For:</h3>
-  //           <div><strong>${quotation.customer.name}</strong></div>
-  //           <div>${quotation.customer.email}</div>
-  //           <div>${quotation.customer.phone}</div>
-  //         </div>
+          <div class="customer-info">
+            <h3>Quote For:</h3>
+            <div><strong>${quotation.customer.name}</strong></div>
+            <div>${quotation.customer.email}</div>
+            <div>${quotation.customer.phone}</div>
+          </div>
 
-  //         <table>
-  //           <thead>
-  //             <tr>
-  //               <th>Item</th>
-  //               <th>Description</th>
-  //               <th>Qty</th>
-  //               <th>Unit Price</th>
-  //               <th>Discount</th>
-  //               <th>Total</th>
-  //             </tr>
-  //           </thead>
-  //           <tbody>
-  //             ${quotation.items
-  //               .map(
-  //                 (item) => `
-  //               <tr>
-  //                 <td>${item.name}</td>
-  //                 <td>${item.description}</td>
-  //                 <td>${item.quantity}</td>
-  //                 <td>AED ${item.price.toFixed(2)}</td>
-  //                 <td>AED ${item.total.toFixed(2)}</td>
-  //               </tr>
-  //             `,
-  //               )
-  //               .join("")}
-  //           </tbody>
-  //         </table>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Discount</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${quotation.items
+                .map(
+                  (item) => `
+                <tr>
+                  <td>${item.name}</td>
+                  <td>${item.description}</td>
+                  <td>${item.quantity}</td>
+                  <td>AED ${item.price.toFixed(2)}</td>
+                  <td>AED ${item.total.toFixed(2)}</td>
+                </tr>
+              `,
+                )
+                .join("")}
+            </tbody>
+          </table>
 
-  //         <div class="totals">
-  //           <div>Subtotal: AED ${quotation.subtotal.toFixed(2)}</div>
-  //           <div>Discount: AED ${quotation.discount.toFixed(2)}</div>
-  //           <div>Tax (5%): AED ${quotation.tax.toFixed(2)}</div>
-  //           <div style="font-size: 18px; font-weight: bold; margin-top: 10px;">
-  //             Total: AED ${quotation.total.toFixed(2)}
-  //           </div>
-  //         </div>
+          <div class="totals">
+            <div>Subtotal: AED ${quotation.subtotal.toFixed(2)}</div>
+            <div>Discount: AED ${quotation.discount.toFixed(2)}</div>
+            <div>Tax (5%): AED ${quotation.tax.toFixed(2)}</div>
+            <div style="font-size: 18px; font-weight: bold; margin-top: 10px;">
+              Total: AED ${quotation.total.toFixed(2)}
+            </div>
+          </div>
 
-  //         <div class="terms">
-  //           <h3>Terms & Conditions</h3>
-  //           <p>${quotation.terms}</p>
-  //           ${quotation.notes ? `<p><strong>Notes:</strong> ${quotation.notes}</p>` : ""}
-  //         </div>
+          <div class="terms">
+            <h3>Terms & Conditions</h3>
+            <p>${quotation.terms}</p>
+            ${quotation.notes ? `<p><strong>Notes:</strong> ${quotation.notes}</p>` : ""}
+          </div>
 
-  //         <div style="text-align: center; margin-top: 40px; color: #666;">
-  //           <p>Thank you for considering Nubras Tailoring for your needs.</p>
-  //           <p>This quotation is valid until ${quotation.validUntil.toLocaleDateString()}</p>
-  //         </div>
-  //       </body>
-  //     </html>
-  //   `)
+          <div style="text-align: center; margin-top: 40px; color: #666;">
+            <p>Thank you for considering Nubras Tailoring for your needs.</p>
+            <p>This quotation is valid until ${quotation.validUntil.toLocaleDateString()}</p>
+          </div>
+        </body>
+      </html>
+    `)
 
-  //   printWindow.document.close()
-  //   printWindow.print()
-  // }
+    printWindow.document.close()
+    printWindow.print()
+  }
 
   const updateQuotationStatus = (
     id: number,
@@ -275,7 +291,7 @@ export default function QuotationsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">

@@ -119,7 +119,7 @@ export default function ReturnsManagementPage() {
     useQuery<ReturnTransaction[]>({
       queryKey: ["returns"],
       queryFn: async () => {
-        const response = await fetch("http://localhost:5005/api/v1/returns");
+        const response = await fetch("https://api.alnubras.co/api/v1/returns");
         const json = await response.json();
         if (!response.ok) {
           toast.error("Failed to load return transactions");

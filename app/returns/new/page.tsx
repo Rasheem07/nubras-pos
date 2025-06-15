@@ -91,7 +91,7 @@ export default function NewReturnPage() {
   const {data: orders = [], isLoading: orderLoading} = useQuery<Order[]>({
     queryKey: ['orders'],
     queryFn: async () => {
-      const response = await fetch("http://localhost:5005/api/v1/sales/list/orders");
+      const response = await fetch("https://api.alnubras.co/api/v1/sales/list/orders");
       const json = await response.json();
       if(!response.ok) {
         toast.error("Failed to load orders")
@@ -247,7 +247,7 @@ export default function NewReturnPage() {
         })),
       }
 
-      const response = await fetch("http://localhost:5005/api/v1/returns", {
+      const response = await fetch("https://api.alnubras.co/api/v1/returns", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
