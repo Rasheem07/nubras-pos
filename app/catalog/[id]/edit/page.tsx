@@ -31,7 +31,7 @@ import {
 import { productsApi } from "@/lib/api/products";
 import { toast } from "sonner";
 import { categoriesApi } from "@/lib/api/categories";
-import { AddCategoryDialog } from "../../add/_components/add-category-dialog";
+import AddCategoryDialog from "@/components/add-category-dialog";
 
 const categories = [
   "Kandura",
