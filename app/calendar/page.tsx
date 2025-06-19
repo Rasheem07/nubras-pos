@@ -6,128 +6,47 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, Clock, MapPin, Plus, User } from "lucide-react"
-import { format, addMonths, subMonths, isSameDay, startOfWeek, endOfWeek, eachDayOfInterval, addDays } from "date-fns"
+import { format, addMonths, subMonths, isSameDay, startOfWeek, endOfWeek, eachDayOfInterval, addDays, isAfter, parseISO } from "date-fns"
 import Link from "next/link"
+import { useQuery } from "@tanstack/react-query"
+import { fetchEvents } from "./api"
+
+export type EventType = "appointment" | "meeting" | "task" | string
+
+export interface CalendarEvent {
+  id: number
+  title: string
+  description?: string
+  startAt: string      // ISO
+  endAt?: string       // ISO
+  type: EventType
+  staff?: string
+  customer?: string
+  location?: string
+  reminderMins?: number
+  createdAt: string
+  updatedAt: string
+}
 
 export default function CalendarPage() {
   const [date, setDate] = useState<Date>(new Date())
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
   const [view, setView] = useState<"month" | "week" | "day">("month")
 
-  // Sample events data
-  const events = [
-    {
-      id: 1,
-      title: "Customer Fitting - Ahmed Al Mansouri",
-      date: new Date(2024, 4, 15, 10, 0),
-      type: "appointment",
-      staff: "Mohammed Al Hashimi",
-      location: "Main Store",
-      customer: "Ahmed Al Mansouri",
-      description: "Final fitting for wedding kandura",
-    },
-    {
-      id: 2,
-      title: "Staff Meeting",
-      date: new Date(2024, 4, 17, 9, 0),
-      type: "meeting",
-      staff: "All Staff",
-      location: "Conference Room",
-      customer: "",
-      description: "Monthly staff meeting to discuss sales targets and new collection",
-    },
-    {
-      id: 3,
-      title: "Inventory Restock",
-      date: new Date(2024, 4, 20, 14, 0),
-      type: "task",
-      staff: "Sara Al Marzooqi",
-      location: "Warehouse",
-      customer: "",
-      description: "Receive and process new fabric shipment",
-    },
-    {
-      id: 4,
-      title: "Customer Pickup - Fatima Al Zaabi",
-      date: new Date(2024, 4, 22, 16, 30),
-      type: "appointment",
-      staff: "Ahmed Al Mansouri",
-      location: "Main Store",
-      customer: "Fatima Al Zaabi",
-      description: "Pickup completed abaya order #A-2345",
-    },
-    {
-      id: 5,
-      title: "New Collection Planning",
-      date: new Date(2024, 4, 25, 11, 0),
-      type: "meeting",
-      staff: "Management Team",
-      location: "Design Studio",
-      customer: "",
-      description: "Plan summer collection designs and materials",
-    },
-    {
-      id: 6,
-      title: "VIP Customer Consultation",
-      date: new Date(2024, 4, 18, 15, 0),
-      type: "appointment",
-      staff: "Fatima Al Zaabi",
-      location: "VIP Lounge",
-      customer: "Sheikh Abdullah",
-      description: "Custom kandura design consultation",
-    },
-    {
-      id: 7,
-      title: "Supplier Meeting",
-      date: new Date(2024, 4, 19, 10, 30),
-      type: "meeting",
-      staff: "Mohammed Al Hashimi",
-      location: "Conference Room",
-      customer: "",
-      description: "Meeting with fabric supplier to discuss new materials",
-    },
-    {
-      id: 8,
-      title: "Staff Training",
-      date: new Date(2024, 4, 21, 9, 0),
-      type: "task",
-      staff: "All Staff",
-      location: "Training Room",
-      customer: "",
-      description: "Training on new POS system features",
-    },
-    {
-      id: 9,
-      title: "Customer Measurement - Mariam Al Suwaidi",
-      date: new Date(2024, 4, 23, 11, 0),
-      type: "appointment",
-      staff: "Sara Al Marzooqi",
-      location: "Main Store",
-      customer: "Mariam Al Suwaidi",
-      description: "Initial measurements for wedding party order",
-    },
-    {
-      id: 10,
-      title: "Marketing Campaign Review",
-      date: new Date(2024, 4, 24, 14, 0),
-      type: "meeting",
-      staff: "Marketing Team",
-      location: "Conference Room",
-      customer: "",
-      description: "Review Eid promotion campaign results",
-    },
-  ]
+  const { data: eventsRaw = [] } = useQuery<CalendarEvent[]>({
+    queryKey: ['events'],
+    queryFn: fetchEvents
+  })
 
-  const handlePreviousMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1))
-  }
-
-  const handleNextMonth = () => {
-    setCurrentMonth(addMonths(currentMonth, 1))
-  }
+  // Parse ISO dates to Date objects for easier manipulation
+  const events = eventsRaw.map(event => ({
+    ...event,
+    start: parseISO(event.startAt),
+    end: event.endAt ? parseISO(event.endAt) : undefined,
+  }))
 
   // Filter events for the selected date
-  const selectedDateEvents = events.filter((event) => isSameDay(event.date, date))
+  const selectedDateEvents = events.filter((event) => isSameDay(event.start, date))
 
   // Get event badge color based on type
   const getEventBadgeColor = (type: string) => {
@@ -153,36 +72,22 @@ export default function CalendarPage() {
   const dayHours = Array.from({ length: 12 }, (_, i) => i + 8) // 8 AM to 7 PM
 
   // Get upcoming events
+  const now = new Date()
   const upcomingEvents = events
-    .filter((event) => event.date > new Date())
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .filter((event) => isAfter(event.start, now))
+    .sort((a, b) => a.start.getTime() - b.start.getTime())
     .slice(0, 5)
 
   // Custom month view rendering
   const renderMonthView = () => {
     const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
-    const lastDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
-
-    // Get the first day of the first week (might be in previous month)
     const startDate = startOfWeek(firstDayOfMonth, { weekStartsOn: 1 })
-
-    // Calculate how many weeks to display (always 6 to keep consistent height)
     const totalDays = 42 // 6 weeks * 7 days
-
-    // Generate all days to display
-    const daysToDisplay = Array.from({ length: totalDays }, (_, i) => {
-      return addDays(startDate, i)
-    })
-
-    // Group days into weeks
-    const weeks = []
-    for (let i = 0; i < daysToDisplay.length; i += 7) {
-      weeks.push(daysToDisplay.slice(i, i + 7))
-    }
+    const daysToDisplay = Array.from({ length: totalDays }, (_, i) => addDays(startDate, i))
 
     return (
-      <div className="w-full">
+      <div className="w-full p-4 md:p-6">
         {/* Days of week header */}
         <div className="grid grid-cols-7 gap-1 mb-1">
           {daysOfWeek.map((day) => (
@@ -191,14 +96,13 @@ export default function CalendarPage() {
             </div>
           ))}
         </div>
-
         {/* Calendar grid */}
         <div className="grid grid-cols-7 gap-1">
           {daysToDisplay.map((day, i) => {
             const isCurrentMonth = day.getMonth() === currentMonth.getMonth()
             const isToday = isSameDay(day, new Date())
             const isSelected = isSameDay(day, date)
-            const dayEvents = events.filter((event) => isSameDay(event.date, day))
+            const dayEvents = events.filter((event) => isSameDay(event.start, day))
 
             return (
               <div
@@ -227,7 +131,7 @@ export default function CalendarPage() {
                         }
                       `}
                     >
-                      {format(event.date, "HH:mm")}{" "}
+                      {format(event.start, "HH:mm")}{" "}
                       {event.title.length > 15 ? event.title.substring(0, 15) + "..." : event.title}
                     </div>
                   ))}
@@ -268,8 +172,8 @@ export default function CalendarPage() {
               </div>
               <div className="space-y-2">
                 {events
-                  .filter((event) => isSameDay(event.date, day))
-                  .sort((a, b) => a.date.getTime() - b.date.getTime())
+                  .filter((event) => isSameDay(event.start, day))
+                  .sort((a, b) => a.start.getTime() - b.start.getTime())
                   .map((event) => (
                     <div
                       key={event.id}
@@ -285,7 +189,7 @@ export default function CalendarPage() {
                       `}
                     >
                       <div className="font-medium">{event.title}</div>
-                      <div>{format(event.date, "h:mm a")}</div>
+                      <div>{format(event.start, "h:mm a")}</div>
                       <div className="mt-1 text-xs opacity-80">{event.location}</div>
                     </div>
                   ))}
@@ -306,9 +210,9 @@ export default function CalendarPage() {
           {dayHours.map((hour) => {
             const hourEvents = events.filter(
               (event) =>
-                isSameDay(event.date, date) &&
-                (event.date.getHours() === hour ||
-                  (event.date.getHours() === hour - 1 && event.date.getMinutes() >= 30)),
+                isSameDay(event.start, date) &&
+                (event.start.getHours() === hour ||
+                  (event.start.getHours() === hour - 1 && event.start.getMinutes() >= 30)),
             )
             return (
               <div key={hour} className="grid grid-cols-[80px_1fr] gap-4">
@@ -330,12 +234,12 @@ export default function CalendarPage() {
                         }
                       `}
                       style={{
-                        top: `${((event.date.getMinutes() % 30) / 30) * 100}%`,
+                        top: `${((event.start.getMinutes() % 30) / 30) * 100}%`,
                       }}
                     >
                       <div className="font-medium">{event.title}</div>
                       <div className="text-xs">
-                        {format(event.date, "h:mm a")} - {event.location}
+                        {format(event.start, "h:mm a")} - {event.location}
                       </div>
                     </div>
                   ))}
@@ -346,6 +250,14 @@ export default function CalendarPage() {
         </div>
       </div>
     )
+  }
+
+  const handlePreviousMonth = () => {
+    setCurrentMonth(subMonths(currentMonth, 1))
+  }
+
+  const handleNextMonth = () => {
+    setCurrentMonth(addMonths(currentMonth, 1))
   }
 
   return (
@@ -453,7 +365,7 @@ export default function CalendarPage() {
                         <p className="text-muted-foreground">{event.description}</p>
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <Clock className="h-3 w-3" />
-                          <span>{format(event.date, "h:mm a")}</span>
+                          <span>{format(event.start, "h:mm a")}</span>
                         </div>
                         {event.location && (
                           <div className="flex items-center gap-1 text-muted-foreground">
@@ -484,11 +396,11 @@ export default function CalendarPage() {
                 {upcomingEvents.map((event) => (
                   <div key={event.id} className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                      <span className="text-xs font-medium">{format(event.date, "d MMM")}</span>
+                      <span className="text-xs font-medium">{format(event.start, "d MMM")}</span>
                     </div>
                     <div>
                       <p className="font-medium text-sm">{event.title}</p>
-                      <p className="text-xs text-muted-foreground">{format(event.date, "EEE, h:mm a")}</p>
+                      <p className="text-xs text-muted-foreground">{format(event.start, "EEE, h:mm a")}</p>
                     </div>
                   </div>
                 ))}

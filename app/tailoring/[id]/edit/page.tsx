@@ -101,6 +101,7 @@ export default function EditTailoringProject() {
   const router = useRouter()
   const id = params.id as string
 
+   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState("details")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -135,7 +136,7 @@ export default function EditTailoringProject() {
   } = useQuery<ProjectDetails>({
     queryKey: ["tailoring-project", id],
     queryFn: async () => {
-      const response = await fetch(`https://api.alnubras.co/api/v1/tailoring/${id}`)
+      const response = await fetch(`https://api.alnubras.co/api/v1/tailoring/${id}`, { credentials: "include"})
       const json = await response.json()
       if (!response.ok) {
         throw new Error(json.message || `Failed to load project #${id}`)
@@ -149,7 +150,7 @@ export default function EditTailoringProject() {
   const { data: workflowConfigs = [] } = useQuery<WorkflowConfig[]>({
     queryKey: ["workflow-configs"],
     queryFn: async () => {
-      const response = await fetch("https://api.alnubras.co/api/v1/tailoring/workflow/templates")
+      const response = await fetch("https://api.alnubras.co/api/v1/tailoring/workflow/templates", {  credentials: "include" })
       const json = await response.json()
       if (!response.ok) {
         toast.error("Failed to load workflow templates!")
@@ -243,6 +244,7 @@ export default function EditTailoringProject() {
 
       const response = await fetch(`https://api.alnubras.co/api/v1/tailoring/${id}`, {
         method: "PATCH",
+         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -324,7 +326,7 @@ export default function EditTailoringProject() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center gap-6">
         <Link href={`/tailoring/${id}`}>

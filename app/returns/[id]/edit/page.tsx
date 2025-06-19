@@ -163,7 +163,7 @@ export default function EditReturnPage() {
   useEffect(() => {
     const loadReturnData = async () => {
       try {
-        const response = await fetch(`https://api.alnubras.co/api/v1/returns/${returnId}`)
+        const response = await fetch(`https://api.alnubras.co/api/v1/returns/${returnId}`, { credentials: "include"})
         if (!response.ok) {
           throw new Error("Failed to load return data")
         }
@@ -213,7 +213,7 @@ export default function EditReturnPage() {
 
     setLoadingOrderItems(true)
     try {
-      const response = await fetch(`https://api.alnubras.co/api/v1/sales/${returnData.orderId}/items`)
+      const response = await fetch(`https://api.alnubras.co/api/v1/sales/${returnData.orderId}/items`, { credentials: "include",})
       if (!response.ok) {
         throw new Error("Failed to load order items")
       }
@@ -307,6 +307,7 @@ export default function EditReturnPage() {
       }
 
       const response = await fetch(`https://api.alnubras.co/api/v1/returns/${returnId}`, {
+         credentials: "include",
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

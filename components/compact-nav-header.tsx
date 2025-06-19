@@ -41,6 +41,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "@/components/mode-toggle";
 import CommandPalette from "./command-palette";
+import LanguageSelect from "./lang-select";
 
 const navigationGroups = {
   sales: {
@@ -155,11 +156,7 @@ export default function CompactNavHeader() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [isNavVisible, setIsNavVisible] = useState(true);
 
-  useEffect(() => {
-    if(pathname.includes("terminal")) {
-        setIsNavVisible(false)
-    }
-  }, [])
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Hide navigation: ESC key
@@ -228,7 +225,7 @@ export default function CompactNavHeader() {
           </div>
 
           {/* Right side - Operations & Notifications */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-x-4">
             {/* Search */}
             <div className="hidden sm:block">
               <CommandPalette />
@@ -251,6 +248,8 @@ export default function CompactNavHeader() {
                 <span className="sr-only">Notifications</span>
               </Button>
             </Link>
+
+            <LanguageSelect />
 
             {/* User Menu */}
             <DropdownMenu>

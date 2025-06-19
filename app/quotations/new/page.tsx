@@ -155,7 +155,7 @@ export default function NewQuotationPage() {
     queryKey: ["productsCatalog"],
     queryFn: async () => {
       try {
-        return await listAllProducts();
+        return await listAllProducts("ready-made");
       } catch (err: any) {
         toast.error(err.message);
         return [];
@@ -364,17 +364,18 @@ export default function NewQuotationPage() {
 
       const response = await fetch("https://api.alnubras.co/api/v1/quotations", {
         method: "POST",
+         credentials: "include",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(createQuotationDto)
-      })
-      const json = await response.json()
+        body: JSON.stringify(createQuotationDto),
+      });
+      const json = await response.json();
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      if(!response.ok) {
-        throw new Error(json.message)
+      if (!response.ok) {
+        throw new Error(json.message);
       }
 
       if (status === "sent") {
@@ -409,8 +410,8 @@ export default function NewQuotationPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 px-4 py-2 md:px-6 md:py-4">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-0 items-center justify-between sticky top-0 border-b bg-white z-10 backdrop-blur-md py-2">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" asChild>
             <Link href="/quotations">
@@ -425,18 +426,24 @@ export default function NewQuotationPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowTemplateDialog(true)}>
-            <FileText className="mr-2 h-4 w-4" />
-            Use Template
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => createQuotation("draft")}
-            disabled={isSubmitting}
-          >
-            <Save className="mr-2 h-4 w-4" />
-            Save Draft
-          </Button>
+          <div className="flex relative group">
+            <Button
+              className="disabled:opacity-50 border-gray-300 relative overflow-hidden"
+              variant="outline"
+              disabled
+              onClick={() => setShowTemplateDialog(true)}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Use Template
+              {/* Diagonal stripe overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/20 to-transparent pointer-events-none"></div>
+            </Button>
+
+            {/* Tooltip on hover */}
+            <div className="absolute -bottom-8 left-1/2  -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+              Under development
+            </div>
+          </div>
           <Button
             onClick={() => createQuotation("sent")}
             disabled={isSubmitting}
@@ -555,11 +562,30 @@ export default function NewQuotationPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                Quotation Items
-                <Button onClick={() => setShowProductDialog(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Item
-                </Button>
+                Quotation Items{" "}
+                <p className="text-gray-600">(Only ready made items)</p>
+                <div className="flex gap-x-4">
+                  <div className="flex relative group">
+                    <Button
+                      disabled
+                      variant="outline"
+                      className=" relative border-gray-300"
+                      onClick={() => setShowTemplateDialog(true)}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Load Template
+                    </Button>
+
+                    {/* Tooltip on hover */}
+                    <div className="absolute -bottom-8 left-1/2  -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+                      Under development
+                    </div>
+                  </div>
+                  <Button onClick={() => setShowProductDialog(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Item
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -587,10 +613,10 @@ export default function NewQuotationPage() {
                                   description: e.target.value,
                                 })
                               }
-                              className="font-medium mb-1"
+                              className="font-medium"
                               placeholder="Item description"
                             />
-                            <div className="flex items-center gap-2 mt-2">
+                            {/* <div className="flex items-center gap-2 mt-2">
                               {item.catalogId && (
                                 <Badge variant="outline" className="text-xs">
                                   ID: {item.catalogId}
@@ -607,7 +633,7 @@ export default function NewQuotationPage() {
                                 <Settings className="h-3 w-3 mr-1" />
                                 Customize
                               </Button>
-                            </div>
+                            </div> */}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -782,31 +808,6 @@ export default function NewQuotationPage() {
                   <span>AED {total.toFixed(2)}</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => setShowTemplateDialog(true)}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Load Template
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Copy className="mr-2 h-4 w-4" />
-                Copy from Previous
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Calculator className="mr-2 h-4 w-4" />
-                Price Calculator
-              </Button>
             </CardContent>
           </Card>
 

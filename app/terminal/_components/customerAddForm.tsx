@@ -110,6 +110,7 @@ export default function QuickCustomerCreationForm({
     console.log(data);
     const response = await fetch("https://api.alnubras.co/api/v1/customers", {
       method: "POST",
+       credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },

@@ -48,6 +48,7 @@
     "file-saver": "^2.0.5",
     "html2canvas": "^1.4.1",
     "input-otp": "1.4.1",
+    "js-cookie": "^3.0.5",
     "jspdf": "^3.0.1",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
@@ -71,7 +72,9 @@
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.7",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^22",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/xlsx": "^0.0.36",

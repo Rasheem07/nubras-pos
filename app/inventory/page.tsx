@@ -98,7 +98,7 @@ export default function InventoryPage() {
     const fetchInventory = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch("https://api.alnubras.co/api/v1/inventory")
+        const response = await fetch("https://api.alnubras.co/api/v1/inventory", {  credentials: "include" })
         if (!response.ok) {
           throw new Error("Failed to fetch inventory")
         }
@@ -129,6 +129,7 @@ export default function InventoryPage() {
     try {
       const response = await fetch(`https://api.alnubras.co/api/v1/inventory/${deleteItemId}`, {
         method: "DELETE",
+         credentials: "include",
       })
 
       if (!response.ok) {

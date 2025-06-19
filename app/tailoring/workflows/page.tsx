@@ -157,7 +157,7 @@ export default function WorkflowTemplatesPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 md:p-6 p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

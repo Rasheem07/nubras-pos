@@ -73,6 +73,7 @@ interface ReturnItem {
   selected: boolean
   originalPrice: number
   maxQty: number
+  orderItemId: number
 }
 
 export default function NewReturnPage() {
@@ -91,7 +92,7 @@ export default function NewReturnPage() {
   const {data: orders = [], isLoading: orderLoading} = useQuery<Order[]>({
     queryKey: ['orders'],
     queryFn: async () => {
-      const response = await fetch("https://api.alnubras.co/api/v1/sales/list/orders");
+      const response = await fetch("https://api.alnubras.co/api/v1/sales/list/orders?type=ready-made", { credentials: "include" });
       const json = await response.json();
       if(!response.ok) {
         toast.error("Failed to load orders")
@@ -249,6 +250,7 @@ export default function NewReturnPage() {
 
       const response = await fetch("https://api.alnubras.co/api/v1/returns", {
         method: "POST",
+         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },

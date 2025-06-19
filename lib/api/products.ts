@@ -96,14 +96,14 @@ export interface GroupedProduct {
 export const productsApi = {
   // Get all products
   getAll: async (): Promise<ProductListItem[]> => {
-    const response = await fetch(`${BASE_URL}/products`);
+    const response = await fetch(`${BASE_URL}/products`, { credentials: "include",});
     if (!response.ok) throw new Error("Failed to fetch products");
     return response.json();
   },
 
   // Get product by ID
   getById: async (id: number): Promise<ProductDetail> => {
-    const response = await fetch(`${BASE_URL}/products/${id}`);
+    const response = await fetch(`${BASE_URL}/products/${id}`, {  credentials: "include" });
     if (!response.ok) throw new Error("Failed to fetch product");
     return response.json();
   },
@@ -125,6 +125,7 @@ export const productsApi = {
 
     const response = await fetch(`${BASE_URL}/products`, {
       method: "POST",
+       credentials: "include",
       body: formData,
     });
 
@@ -143,6 +144,7 @@ export const productsApi = {
   ): Promise<{ message: string }> => {
     const response = await fetch(`${BASE_URL}/products/${id}`, {
       method: "PATCH",
+       credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -161,6 +163,7 @@ export const productsApi = {
   disable: async (id: number): Promise<{ message: string }> => {
     const response = await fetch(`${BASE_URL}/products/${id}/disable`, {
       method: "PATCH",
+       credentials: "include",
     });
 
     if (!response.ok) {
@@ -174,6 +177,7 @@ export const productsApi = {
   enabled: async (id: number): Promise<{ message: string }> => {
     const response = await fetch(`${BASE_URL}/products/${id}/enable`, {
       method: "PATCH",
+       credentials: "include",
     });
 
     if (!response.ok) {
@@ -186,7 +190,7 @@ export const productsApi = {
 
   // Get active products grouped by category
   getActiveGrouped: async (): Promise<GroupedProduct[]> => {
-    const response = await fetch(`${BASE_URL}/products/list/catalog`);
+    const response = await fetch(`${BASE_URL}/products/list/catalog`, { credentials: "include",});
     if (!response.ok) throw new Error("Failed to fetch grouped products");
     return response.json();
   },
@@ -202,7 +206,7 @@ export const productsApi = {
       sku: string;
     }>
   > => {
-    const response = await fetch(`${BASE_URL}/products/list/products`);
+    const response = await fetch(`${BASE_URL}/products/list/products`, { credentials: "include",});
     if (!response.ok) throw new Error("Failed to fetch active products");
     return response.json();
   },

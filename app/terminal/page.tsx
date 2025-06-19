@@ -173,7 +173,7 @@ function NumericKeypad({
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-2 p-3 bg-gray-100 rounded-lg">
+    <div className="grid grid-cols-3 gap-2 p-3 bg-gray-100 dark:bg-secondary rounded-lg">
       {numbers.map((row, rowIndex) =>
         row.map((num) => (
           <Button
@@ -253,13 +253,13 @@ function CustomerSelectionScreen({
         Add New Customer
       </Button>
 
-      <ScrollArea className="flex-1 border rounded-lg bg-gray-50 p-3">
+      <ScrollArea className="flex-1 border rounded-lg bg-gray-50 dark:bg-secondary p-3">
         <div className="grid grid-cols-2 gap-3">
           {filteredCustomers.map((customer) => (
             <Button
               key={customer.id}
               variant="outline"
-              className="w-full justify-between h-auto p-4 hover:border-primary hover:bg-primary/5 bg-white"
+              className="w-full justify-between h-auto p-4 hover:border-primary hover:bg-primary/5 bg-white dark:bg-card"
               onClick={() => onSelectCustomer(customer)}
             >
               <div className="text-left">
@@ -501,15 +501,18 @@ function CategoryCard({
 }) {
   return (
     <Card
-      className={`cursor-pointer transition-all duration-200 touch-manipulation h-16 ${isSelected
+      className={`cursor-pointer transition-all duration-200 touch-manipulation h-16 ${
+        isSelected
           ? "border-primary bg-primary/10 shadow-md"
           : "hover:shadow-md hover:border-primary/40 bg-white border border-gray-200"
-        }`}
+      }`}
       onClick={onClick}
     >
       <CardContent className="p-3 h-full flex flex-col justify-center items-center text-center">
         <h3
-          className={`font-semibold text-xs ${isSelected ? "text-primary" : "text-gray-900"}`}
+          className={`font-semibold text-xs ${
+            isSelected ? "text-primary" : "text-gray-900"
+          }`}
         >
           {category}
         </h3>
@@ -540,10 +543,11 @@ function ProductCard({
 }) {
   return (
     <Card
-      className={`cursor-pointer transition-all duration-200 hover:border-primary/40 group touch-manipulation h-20 ${disabled
+      className={`cursor-pointer transition-all duration-200 hover:border-primary/40 group touch-manipulation h-20 ${
+        disabled
           ? "opacity-60 cursor-not-allowed"
           : "hover:shadow-lg bg-white border border-gray-200 hover:border-primary/50"
-        }`}
+      }`}
       onClick={
         disabled ? () => toast.error("Please select a customer first") : onAdd
       }
@@ -567,10 +571,11 @@ function ProductCard({
         <Button
           size="sm"
           variant="outline"
-          className={`w-7 h-7 p-0 rounded-full ${disabled
+          className={`w-7 h-7 p-0 rounded-full ${
+            disabled
               ? "opacity-0"
               : "opacity-0 group-hover:opacity-100 transition-opacity"
-            }`}
+          }`}
           onClick={(e) => {
             e.stopPropagation();
             if (!disabled) onAdd();
@@ -595,10 +600,10 @@ function CartItem({
   onRemove: () => void;
 }) {
   return (
-    <div className="p-3 border border-gray-200 rounded-lg bg-white min-h-[90px] w-full">
+    <div className="p-3 border border-gray-200 rounded-lg bg-white dark:bg-card min-h-[90px] w-full">
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0 pr-2">
-          <h3 className="font-medium text-sm text-gray-900 line-clamp-2 leading-tight">
+          <h3 className="font-medium text-sm text-gray-900 dark:text-white line-clamp-2 leading-tight">
             {item.description}
           </h3>
           {item.sku && (
@@ -646,7 +651,9 @@ function CartItem({
           </div>
         )}
         <div
-          className={`text-right ${item.type == "custom" && "flex flex-col gap-1 justify-end w-full"}`}
+          className={`text-right ${
+            item.type == "custom" && "flex flex-col gap-1 justify-end w-full"
+          }`}
         >
           <p className="text-sm font-bold">
             AED {Number.parseFloat(item.total).toFixed(2)}
@@ -669,6 +676,7 @@ export default function ProfessionalPOSTerminal() {
   const [selectedCategory, setSelectedCategory] = useState("kandora");
   const [applyTax, setApplyTax] = useState(true);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [promoCode, setPromoCode] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<
     "cash" | "card" | "mobile"
   >("cash");
@@ -728,7 +736,8 @@ export default function ProfessionalPOSTerminal() {
     queryKey: ["customers"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/list/customer"
+        "https://api.alnubras.co/api/v1/list/customer",
+        { credentials: "include" }
       );
       if (!response.ok) throw new Error("Failed to fetch customers");
       return response.json();
@@ -739,7 +748,8 @@ export default function ProfessionalPOSTerminal() {
     queryKey: ["productsCatalog"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/products/list/catalog"
+        "https://api.alnubras.co/api/v1/products/list/catalog",
+        { credentials: "include" }
       );
       if (!response.ok) throw new Error("Failed to fetch products");
       return response.json();
@@ -879,7 +889,8 @@ export default function ProfessionalPOSTerminal() {
       price: Number(product.price).toFixed(2),
       total: (Number(product.price) + (Number(model?.charge) || 0)).toFixed(2),
       modelName: model?.name || undefined,
-      modelPrice: model?.charge !== undefined ? String(model.charge) : undefined,
+      modelPrice:
+        model?.charge !== undefined ? String(model.charge) : undefined,
       measurement: undefined, // Ready-made don't have measurements
       type: "ready-made", // Add type identifier
     };
@@ -1010,7 +1021,9 @@ export default function ProfessionalPOSTerminal() {
 
     if (enteredAmount > totalAmount) {
       toast.success(
-        `Amount entered: AED ${enteredAmount.toFixed(2)} (Change: AED ${(enteredAmount - totalAmount).toFixed(2)})`
+        `Amount entered: AED ${enteredAmount.toFixed(2)} (Change: AED ${(
+          enteredAmount - totalAmount
+        ).toFixed(2)})`
       );
     } else if (enteredAmount === totalAmount) {
       toast.success(`Exact amount entered: AED ${enteredAmount.toFixed(2)}`);
@@ -1134,6 +1147,7 @@ export default function ProfessionalPOSTerminal() {
     try {
       const response = await fetch("https://api.alnubras.co/api/v1/sales", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderData),
       });
@@ -1157,12 +1171,36 @@ export default function ProfessionalPOSTerminal() {
     }
   };
 
+  const applyPromotion = async () => {
+    try {
+      const res = await fetch("https://api.alnubras.co/api/v1/promotions/apply", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: promoCode, totalAmount }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      // 2️⃣ Add the returned discount to any existing manual discount
+      setDiscountAmount((prev) => prev + data.discountAmount);
+
+      toast.success(
+        `Applied '${data.promotion.code}': AED ${data.discountAmount.toFixed(
+          2
+        )} off`
+      );
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
       {/* Left Panel - Cart/Bill - Medium Compact, Fully Scrollable */}
       {navOpen && (
-        <div className="w-80 bg-white border-r flex flex-col shadow-md">
-          <div className="p-4 border-b  bg-gray-50 flex justify-between w-full">
+        <div className="w-80 bg-white dark:bg-background border-r flex flex-col shadow-md">
+          <div className="p-4 border-b  bg-gray-50 dark:bg-secondary flex justify-between w-full">
             <div>
               <h2 className="text-lg font-bold mb-2">Bill</h2>
               <Badge variant="secondary" className="text-sm">
@@ -1174,7 +1212,7 @@ export default function ProfessionalPOSTerminal() {
                 <div className="flex items-center gap-1.5 justify-center">
                   <kbd className="inline-flex items-center rounded border bg-muted/50 px-1 py-0.5 text-[9px] text-gray-900 font-mono text-muted-foreground">
                     {typeof window !== "undefined" &&
-                      navigator?.platform?.includes("Mac")
+                    navigator?.platform?.includes("Mac")
                       ? "⌘"
                       : "Ctrl"}{" "}
                     + `
@@ -1209,16 +1247,43 @@ export default function ProfessionalPOSTerminal() {
 
               {/* All controls and totals in the scrollable area */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Discount</Label>
-                  <Input
-                    type="number"
-                    value={discountAmount}
-                    onChange={(e) =>
-                      setDiscountAmount(Number.parseFloat(e.target.value) || 0)
-                    }
-                    className="w-20 h-8 text-sm"
-                  />
+                <div className="space-y-4 p-4 bg-gray-50 rounded-md border">
+                  {/* Promo Code Input */}
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      placeholder="Enter promo code"
+                      value={promoCode}
+                      onChange={(e) =>
+                        setPromoCode(e.target.value.toUpperCase())
+                      }
+                      className="flex-1"
+                    />
+                    <Button onClick={applyPromotion}>Apply</Button>
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Discount</Label>
+                    <Input
+                      type="number"
+                      value={discountAmount}
+                      onChange={(e) =>
+                        setDiscountAmount(
+                          Number.parseFloat(e.target.value) || 0
+                        )
+                      }
+                      className="w-20 h-8 text-sm"
+                    />
+                  </div>
+
+                  {/* Discount Display */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Total Discount</span>
+                    <span className="font-semibold">
+                      AED {discountAmount.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1227,7 +1292,7 @@ export default function ProfessionalPOSTerminal() {
                 </div>
               </div>
 
-              <div className="space-y-2 p-3 bg-gray-50 rounded border mb-3 text-sm mt-4">
+              <div className="space-y-2 p-3 bg-gray-50 dark:bg-secondary rounded border mb-3 text-sm mt-4">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
                   <span>AED {subtotal.toFixed(2)}</span>
@@ -1292,7 +1357,8 @@ export default function ProfessionalPOSTerminal() {
                   </SelectContent>
                 </Select>
                 <div className="text-sm text-gray-500 mt-1">
-                  Due: {getDueDate().toLocaleDateString("en-GB", {
+                  Due:{" "}
+                  {getDueDate().toLocaleDateString("en-GB", {
                     day: "2-digit",
                     month: "2-digit",
                     year: "numeric",
@@ -1311,7 +1377,7 @@ export default function ProfessionalPOSTerminal() {
                         key={option.label}
                         variant={
                           deliveryDate?.toDateString() ===
-                            option.date.toDateString()
+                          option.date.toDateString()
                             ? "default"
                             : "outline"
                         }
@@ -1358,7 +1424,7 @@ export default function ProfessionalPOSTerminal() {
               </div>
 
               {/* Amount Display */}
-              <div className="mb-2 p-3 bg-gray-50 rounded border">
+              <div className="mb-2 p-3 bg-gray-50 dark:bg-secondary rounded border">
                 <div className="text-sm text-gray-600">Amount Entered</div>
                 <div className="text-base font-bold">
                   AED {enteredAmount.toFixed(2)}
@@ -1405,7 +1471,7 @@ export default function ProfessionalPOSTerminal() {
       {/* Right Panel - Products and Controls */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Customer Selection Header - Fixed */}
-        <div className="p-3 bg-white border-b flex-shrink-0 shadow-sm">
+        <div className="p-3 bg-white dark:bg-background border-b flex-shrink-0 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="w-56">
               {selectedCustomer ? (
@@ -1452,7 +1518,7 @@ export default function ProfessionalPOSTerminal() {
 
         <div className="flex-1 flex overflow-hidden">
           {/* Products Area - Independent Scroll */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
+          <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-black/90">
             {!selectedCustomer ? (
               // Customer Selection Screen
               <CustomerSelectionScreen
@@ -1622,7 +1688,7 @@ export default function ProfessionalPOSTerminal() {
           </div>
 
           {/* Fixed Numeric Keypad - Independent Scroll */}
-          <div className="w-64 p-3 bg-white border-l flex-shrink-0 flex flex-col shadow-md">
+          <div className="w-64 p-3 bg-white dark:bg-background border-l flex-shrink-0 flex flex-col shadow-md">
             <div className="mb-3 flex-shrink-0">
               <h3 className="font-semibold mb-2 flex items-center text-sm">
                 <Calculator className="w-4 h-4 mr-2" />
@@ -1640,7 +1706,7 @@ export default function ProfessionalPOSTerminal() {
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
                   placeholder="0.00"
-                  className="text-right text-base font-mono h-7"
+                  className="text-right text-4xl font-mono "
                 />
               </div>
             </div>

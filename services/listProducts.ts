@@ -1,7 +1,10 @@
-export const listAllProducts = async () => {
+export const listAllProducts = async (type?: "ready-made" | "custom") => {
   const response = await fetch(
-    "https://api.alnubras.co/api/v1/products/list/products",
+    `https://api.alnubras.co/api/v1/products/list/products${
+      type && `?type=${type}`
+    }`,
     {
+       credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },

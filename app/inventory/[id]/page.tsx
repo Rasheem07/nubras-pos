@@ -43,7 +43,7 @@ import QRCodeGenerator from "qrcode";
 const inventoryApi = {
   getById: async (id: string) => {
     const response = await fetch(
-      `https://api.alnubras.co/api/v1/inventory/${id}`
+      `https://api.alnubras.co/api/v1/inventory/${id}`, { credentials: "include" }
     );
     if (!response.ok) {
       throw new Error("Failed to fetch item details");
@@ -56,6 +56,7 @@ const inventoryApi = {
       `https://api.alnubras.co/api/v1/inventory/${id}`,
       {
         method: "DELETE",
+         credentials: "include",
       }
     );
     if (!response.ok) {
@@ -68,7 +69,8 @@ const inventoryApi = {
 const supplierApi = {
   getById: async (id: number) => {
     const response = await fetch(
-      `https://api.alnubras.co/api/v1/suppliers/${id}`
+      `https://api.alnubras.co/api/v1/suppliers/${id}`,
+      { credentials: "include"}
     );
     if (!response.ok) {
       throw new Error("Failed to fetch supplier details");
@@ -733,7 +735,7 @@ export default function InventoryItemDetailPage() {
                         Custom Models
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {item.models.map((model) => (
+                        {item.models.map((model: CustomModel) => (
                           <div
                             key={model.id}
                             className="flex items-center justify-between p-3 border rounded-md"
@@ -775,7 +777,7 @@ export default function InventoryItemDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {item.restocks.map((restock) => (
+                    {item.restocks.map((restock: Restock) => (
                       <TableRow key={restock.id}>
                         <TableCell>
                           {new Date(restock.restockDate).toLocaleDateString()}

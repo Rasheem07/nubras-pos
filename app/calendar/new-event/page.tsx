@@ -1,127 +1,132 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { format } from "date-fns"
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { format } from 'date-fns';
+
+import { createEvent, CreateEventDto, EventType } from '../api';
+
+import {
+  Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { ArrowLeft } from 'lucide-react';
 
 export default function NewEventPage() {
-  const router = useRouter()
-  const [newEvent, setNewEvent] = useState({
-    title: "",
-    description: "",
-    date: format(new Date(), "yyyy-MM-dd"),
-    time: "10:00",
-    type: "appointment",
-    staff: "",
-    location: "",
-    customer: "",
-  })
+  const router = useRouter();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const nowTime = format(new Date(), 'HH:mm');
 
-  // Staff list
-  const staffList = [
-    "Ahmed Al Mansouri",
-    "Fatima Al Zaabi",
-    "Mohammed Al Hashimi",
-    "Sara Al Marzooqi",
-    "All Staff",
-    "Management Team",
-    "Marketing Team",
-  ]
+  const [data, setData] = useState({
+    title: '',
+    description: '',
+    date: today,
+    time: nowTime,
+    endDate: today,
+    endTime: nowTime,
+    type: 'appointment' as EventType,
+    staff: '',
+    customer: '',
+    location: '',
+    reminder: 15,
+  });
 
-  // Customer list
-  const customerList = [
-    "Ahmed Al Mansouri",
-    "Fatima Al Zaabi",
-    "Sheikh Abdullah",
-    "Mariam Al Suwaidi",
-    "Khalid Al Blooshi",
-    "Noura Al Kaabi",
-  ]
+  const handleSave = async () => {
+    const dto: CreateEventDto = {
+      title: data.title,
+      description: data.description || undefined,
+      startAt: new Date(`${data.date}T${data.time}`).toISOString(),
+      endAt: data.endDate && data.endTime
+        ? new Date(`${data.endDate}T${data.endTime}`).toISOString()
+        : undefined,
+      type: data.type,
+      staff: data.staff || undefined,
+      customer: data.customer || undefined,
+      location: data.location || undefined,
+      reminderMins: data.reminder,
+    };
+    try {
+      await createEvent(dto);
+      router.push('/calendar');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to create event');
+    }
+  };
 
-  // Location list
-  const locationList = ["Main Store", "VIP Lounge", "Conference Room", "Warehouse", "Design Studio", "Training Room"]
-
-  const handleAddEvent = () => {
-    // In a real app, this would add the event to the database
-    console.log("Adding event:", newEvent)
-
-    // Navigate back to calendar
-    router.push("/calendar")
-  }
+  // example lists
+  const staffList = ['Ahmed','Fatima','Mohammed','Sara','All Staff','Mgmt','Marketing'];
+  const customerList = ['Ahmed','Fatima','Sheikh Abdullah','Mariam'];
 
   return (
-    <div className="container max-w-2xl py-6">
-      <div className="mb-6 flex items-center">
-        <Link href="/calendar" className="mr-4">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+    <div className="container max-w-2xl py-6 mx-auto">
+      <div className="flex items-center mb-6">
+        <Link href="/calendar">
+          <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4"/></Button>
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight">Add New Event</h1>
+        <h1 className="text-2xl font-bold ml-4">Add New Event</h1>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Event Details</CardTitle>
-          <CardDescription>Create a new event or appointment in the calendar.</CardDescription>
+          <CardDescription>Schedule your event & reminder</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-2">
+          {/* Title */}
+          <div className="grid gap-1">
             <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={newEvent.title}
-              onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-              placeholder="Event title"
+            <Input id="title" value={data.title} onChange={e => setData({...data,title:e.target.value})}/>
+          </div>
+
+          {/* Description */}
+          <div className="grid gap-1">
+            <Label htmlFor="desc">Description</Label>
+            <Textarea id="desc" rows={3}
+              value={data.description}
+              onChange={e => setData({...data,description:e.target.value})}
             />
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={newEvent.description}
-              onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-              placeholder="Event description"
-            />
-          </div>
-
+          {/* Start */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={newEvent.date}
-                onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-              />
+            <div className="grid gap-1">
+              <Label htmlFor="date">Start Date</Label>
+              <Input id="date" type="date" value={data.date}
+                onChange={e=>setData({...data,date:e.target.value})}/>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="time">Time</Label>
-              <Input
-                id="time"
-                type="time"
-                value={newEvent.time}
-                onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
-              />
+            <div className="grid gap-1">
+              <Label htmlFor="time">Start Time</Label>
+              <Input id="time" type="time" value={data.time}
+                onChange={e=>setData({...data,time:e.target.value})}/>
             </div>
           </div>
 
+          {/* End */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="type">Event Type</Label>
-              <Select value={newEvent.type} onValueChange={(value) => setNewEvent({ ...newEvent, type: value })}>
-                <SelectTrigger id="type">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
+            <div className="grid gap-1">
+              <Label htmlFor="endDate">End Date</Label>
+              <Input id="endDate" type="date" value={data.endDate}
+                onChange={e=>setData({...data,endDate:e.target.value})}/>
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="endTime">End Time</Label>
+              <Input id="endTime" type="time" value={data.endTime}
+                onChange={e=>setData({...data,endTime:e.target.value})}/>
+            </div>
+          </div>
+
+          {/* Type & Reminder */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-1">
+              <Label htmlFor="type">Type</Label>
+              <Select value={data.type} onValueChange={v=>setData({...data,type:v as EventType})}>
+                <SelectTrigger id="type"><SelectValue/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="appointment">Appointment</SelectItem>
                   <SelectItem value="meeting">Meeting</SelectItem>
@@ -129,70 +134,48 @@ export default function NewEventPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="staff">Assigned Staff</Label>
-              <Select value={newEvent.staff} onValueChange={(value) => setNewEvent({ ...newEvent, staff: value })}>
-                <SelectTrigger id="staff">
-                  <SelectValue placeholder="Select staff" />
-                </SelectTrigger>
+            <div className="grid gap-1">
+              <Label htmlFor="reminder">Reminder (mins)</Label>
+              <Input id="reminder" type="number" min={0} value={data.reminder}
+                onChange={e=>setData({...data,reminder:+e.target.value})}/>
+            </div>
+          </div>
+
+          {/* Staff & Customer */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-1">
+              <Label htmlFor="staff">Staff</Label>
+              <Select value={data.staff} onValueChange={v=>setData({...data,staff:v})}>
+                <SelectTrigger id="staff"><SelectValue placeholder="—"/></SelectTrigger>
                 <SelectContent>
-                  {staffList.map((staff) => (
-                    <SelectItem key={staff} value={staff}>
-                      {staff}
-                    </SelectItem>
-                  ))}
+                  {staffList.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="customer">Customer</Label>
+              <Select value={data.customer} onValueChange={v=>setData({...data,customer:v})}>
+                <SelectTrigger id="customer"><SelectValue placeholder="—"/></SelectTrigger>
+                <SelectContent>
+                  {customerList.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="location">Location</Label>
-              <Select
-                value={newEvent.location}
-                onValueChange={(value) => setNewEvent({ ...newEvent, location: value })}
-              >
-                <SelectTrigger id="location">
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locationList.map((location) => (
-                    <SelectItem key={location} value={location}>
-                      {location}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="customer">Customer (if applicable)</Label>
-              <Select
-                value={newEvent.customer}
-                onValueChange={(value) => setNewEvent({ ...newEvent, customer: value })}
-              >
-                <SelectTrigger id="customer">
-                  <SelectValue placeholder="Select customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {customerList.map((customer) => (
-                    <SelectItem key={customer} value={customer}>
-                      {customer}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Location */}
+          <div className="grid gap-1">
+            <Label htmlFor="loc">Location</Label>
+            <Input id="loc" value={data.location}
+              onChange={e=>setData({...data,location:e.target.value})}/>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Link href="/calendar">
-            <Button variant="outline">Cancel</Button>
-          </Link>
-          <Button onClick={handleAddEvent}>Save Event</Button>
+
+        <CardFooter className="flex justify-end space-x-2">
+          <Link href="/calendar"><Button variant="outline">Cancel</Button></Link>
+          <Button onClick={handleSave}>Save Event</Button>
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }

@@ -77,7 +77,7 @@ export default function EditInventoryItemPage() {
       setIsLoading(true)
       try {
         // Fetch item details
-        const itemResponse = await fetch(`https://api.alnubras.co/api/v1/inventory/${itemId}`)
+        const itemResponse = await fetch(`https://api.alnubras.co/api/v1/inventory/${itemId}`, { credentials: "include",})
         if (!itemResponse.ok) {
           throw new Error("Failed to fetch item details")
         }
@@ -101,7 +101,7 @@ export default function EditInventoryItemPage() {
         })
 
         // Fetch suppliers
-        const suppliersResponse = await fetch("https://api.alnubras.co/api/v1/suppliers")
+        const suppliersResponse = await fetch("https://api.alnubras.co/api/v1/suppliers", { credentials: "include",})
         if (!suppliersResponse.ok) {
           throw new Error("Failed to fetch suppliers")
         }
@@ -137,6 +137,7 @@ export default function EditInventoryItemPage() {
     setIsSubmitting(true)
     try {
       const response = await fetch(`https://api.alnubras.co/api/v1/inventory/${itemId}`, {
+        credentials: "include",
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
-import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,16 +47,44 @@ type FormValues = {
   enabled: boolean;
 };
 
-export default function AddPromotionPage() {
+export default function EditPromotionPage() {
   const router = useRouter();
+  const { id } = useParams<{ id: string }>();
+  const promoId = Number(id);
   const qc = useQueryClient();
 
+  // fetch existing promotion
+  const { data: promo, isLoading: loadingPromo } = useQuery<FormValues>({
+    queryKey: ["promotion", promoId],
+    queryFn: async () => {
+      const res = await fetch(`https://api.alnubras.co/api/v1/promotions/${promoId}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to load promotion");
+      const data = await res.json();
+      return {
+        name: data.name,
+        code: data.code,
+        type: data.type,
+        value: data.value,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        minPurchaseAmt: data.minPurchaseAmt,
+        maxPurchaseAmt: data.maxPurchaseAmt,
+        description: data.description || "",
+        enabled: data.enabled,
+      };
+    },
+  });
+
+  // form setup
   const {
     register,
     control,
     watch,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
       name: "",
@@ -72,84 +100,57 @@ export default function AddPromotionPage() {
     },
   });
 
-  interface PromotionRequest {
-    name: string;
-    code: string;
-    type: "percentage" | "fixed-amount";
-    value: number;
-    startDate: Date;
-    endDate: Date;
-    minPurchaseAmt: number;
-    maxPurchaseAmt: number;
-    description: string;
-    enabled: boolean;
-  }
+  // populate form when data arrives
+  useEffect(() => {
+    if (promo) reset(promo);
+  }, [promo, reset]);
 
-  interface PromotionResponse {
-    id: string;
-    name: string;
-    code: string;
-    type: "percentage" | "fixed-amount";
-    value: number;
-    startDate: string;
-    endDate: string;
-    minPurchaseAmt: number;
-    maxPurchaseAmt: number;
-    description: string;
-    enabled: boolean;
-    createdAt: string;
-    updatedAt: string;
-    // Add other fields as needed
-  }
-
-  interface ApiError {
-    message: string;
-    [key: string]: any;
-  }
-
-  const createPromotion = useMutation<
-    PromotionResponse,
-    Error,
-    PromotionRequest
-  >({
-    mutationFn: async (data: PromotionRequest): Promise<PromotionResponse> => {
-      const resp: Response = await fetch(
-        "https://api.alnubras.co/api/v1/promotions",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: data.name,
-            code: data.code,
-            type: data.type,
-            value: data.value,
-            startDate: data.startDate.toISOString(),
-            endDate: data.endDate.toISOString(),
-            minPurchaseAmt: data.minPurchaseAmt,
-            maxPurchaseAmt: data.maxPurchaseAmt,
-            description: data.description,
-            enabled: data.enabled,
-          }),
-        }
-      );
-      if (!resp.ok) {
-        const err: ApiError | null = await resp.json().catch(() => null);
-        throw new Error(err?.message || "Failed to create promotion");
+  // update mutation
+  const updatePromo = useMutation({
+    mutationFn: async (data: FormValues) => {
+      const res = await fetch(`https://api.alnubras.co/api/v1/promotions/${promoId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          startDate: data.startDate.toISOString(),
+          endDate: data.endDate.toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.message || "Update failed");
       }
-      return resp.json() as Promise<PromotionResponse>;
+      return res.json();
     },
     onSuccess: () => {
-      toast.success("Promotion created");
+      toast.success("Promotion updated");
       qc.invalidateQueries({ queryKey: ["promotions"] });
+      qc.invalidateQueries({ queryKey: ["promotion", promoId] });
       router.push("/promotions");
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: any) => toast.error(err.message),
   });
 
   const onSubmit = (data: FormValues) => {
-    createPromotion.mutate(data);
+    updatePromo.mutate(data);
   };
+
+  if (loadingPromo) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-8 bg-gray-200 rounded w-1/3" />
+        <Card>
+          <CardContent>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-6 bg-gray-200 rounded mb-4" />
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -159,7 +160,7 @@ export default function AddPromotionPage() {
           <Button variant="outline" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-3xl font-bold">Create New Promotion</h1>
+          <h1 className="text-3xl font-bold">Edit Promotion</h1>
         </div>
       </div>
 
@@ -167,20 +168,19 @@ export default function AddPromotionPage() {
         <CardHeader>
           <CardTitle>Promotion Details</CardTitle>
           <CardDescription>
-            Create a new promotion or discount code for your customers.
+            Update your promotion settings below.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid gap-6">
-              {/* Name + Code */}
+              {/* Name & Code */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Promotion Name</Label>
                   <Input
                     id="name"
-                    {...register("name", { required: "Name is required" })}
-                    placeholder="Summer Sale"
+                    {...register("name", { required: "Name required" })}
                   />
                   {errors.name && (
                     <p className="text-xs text-red-500">
@@ -193,10 +193,9 @@ export default function AddPromotionPage() {
                   <Input
                     id="code"
                     {...register("code", {
-                      required: "Code is required",
+                      required: "Code required",
                       setValueAs: (v) => v.toUpperCase(),
                     })}
-                    placeholder="SUMMER25"
                   />
                   {errors.code && (
                     <p className="text-xs text-red-500">
@@ -206,7 +205,7 @@ export default function AddPromotionPage() {
                 </div>
               </div>
 
-              {/* Type + Value */}
+              {/* Type & Value */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="type">Discount Type</Label>
@@ -245,13 +244,10 @@ export default function AddPromotionPage() {
                       id="value"
                       type="number"
                       {...register("value", {
-                        required: "Value is required",
+                        required: "Value required",
                         valueAsNumber: true,
-                        min: { value: 1, message: "Must be at least 1" },
+                        min: { value: 1, message: "Min 1" },
                       })}
-                      placeholder={
-                        watch("type") === "percentage" ? "25" : "100"
-                      }
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground">
                       {watch("type") === "percentage" ? "%" : "AED"}
@@ -267,48 +263,45 @@ export default function AddPromotionPage() {
 
               {/* Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {["startDate", "endDate"].map((field) => (
-                  <div key={field} className="space-y-2">
-                    <Label htmlFor={field}>
-                      {field === "startDate" ? "Start Date" : "End Date"}
+                {(["startDate", "endDate"] as const).map((fld) => (
+                  <div key={fld} className="space-y-2">
+                    <Label htmlFor={fld}>
+                      {fld === "startDate" ? "Start Date" : "End Date"}
                     </Label>
                     <Controller
                       control={control}
-                      name={field as "startDate" | "endDate"}
-                      rules={{ required: "Date is required" }}
-                      render={({ field: f }) => (
+                      name={fld}
+                      rules={{ required: "Date required" }}
+                      render={({ field }) => (
                         <Popover>
                           <PopoverTrigger asChild>
                             <Button
-                              id={field}
                               variant="outline"
                               className={cn(
                                 "w-full justify-start text-left font-normal",
-                                !f.value && "text-muted-foreground"
+                                !field.value && "text-muted-foreground"
                               )}
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {f.value ? (
-                                format(f.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
+                              {field.value
+                                ? format(field.value, "PPP")
+                                : "Pick a date"}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0">
                             <Calendar
                               mode="single"
-                              selected={f.value}
-                              onSelect={f.onChange}
+                              selected={field.value}
+                              onSelect={field.onChange}
                               initialFocus
                             />
                           </PopoverContent>
                         </Popover>
                       )}
                     />
-                    {errors[field as keyof FormValues] && (
+                    {errors[fld] && (
                       <p className="text-xs text-red-500">
-                        {errors[field as keyof FormValues]?.message as string}
+                        {errors[fld]?.message}
                       </p>
                     )}
                   </div>
@@ -324,9 +317,8 @@ export default function AddPromotionPage() {
                     type="number"
                     {...register("minPurchaseAmt", {
                       valueAsNumber: true,
-                      min: { value: 0, message: "Must be ≥ 0" },
+                      min: { value: 0, message: "≥ 0" },
                     })}
-                    placeholder="200"
                   />
                   {errors.minPurchaseAmt && (
                     <p className="text-xs text-red-500">
@@ -341,9 +333,8 @@ export default function AddPromotionPage() {
                     type="number"
                     {...register("maxPurchaseAmt", {
                       valueAsNumber: true,
-                      min: { value: 0, message: "Must be ≥ 0" },
+                      min: { value: 0, message: "≥ 0" },
                     })}
-                    placeholder="500"
                   />
                   {errors.maxPurchaseAmt && (
                     <p className="text-xs text-red-500">
@@ -359,7 +350,6 @@ export default function AddPromotionPage() {
                 <Textarea
                   id="description"
                   {...register("description")}
-                  placeholder="Promotion details and conditions"
                   rows={4}
                 />
               </div>
@@ -381,18 +371,18 @@ export default function AddPromotionPage() {
               </div>
             </div>
 
-            {/* Buttons */}
+            {/* Actions */}
             <div className="flex justify-end gap-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
-                disabled={isSubmitting}
+                disabled={updatePromo.isPending}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving…" : "Create Promotion"}
+              <Button type="submit" disabled={updatePromo.isPending}>
+                {updatePromo.isPending ? "Updating…" : "Update Promotion"}
               </Button>
             </div>
           </form>

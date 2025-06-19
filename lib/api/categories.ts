@@ -8,7 +8,7 @@ export interface Category {
 export const categoriesApi = {
   // Get all categories
   getAll: async (): Promise<Category[]> => {
-    const response = await fetch(`${BASE_URL}/products/list/categories`)
+    const response = await fetch(`${BASE_URL}/products/list/categories`, { credentials: "include",})
     if (!response.ok) throw new Error("Failed to fetch categories")
     return response.json()
   },
@@ -17,6 +17,7 @@ export const categoriesApi = {
   create: async (name: string): Promise<{ message: string }> => {
     const response = await fetch(`${BASE_URL}/products/categories`, {
       method: "POST",
+       credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },

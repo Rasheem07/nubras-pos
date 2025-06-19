@@ -5,6 +5,7 @@ const API_BASE_URL = "https://api.alnubras.co/api/v1"
 // Helper function for fetch requests
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+     credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,

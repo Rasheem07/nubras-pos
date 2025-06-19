@@ -169,7 +169,8 @@ export default function TailoringProjectDetail() {
     queryKey: ["tailoring-project", id],
     queryFn: async () => {
       const response = await fetch(
-        `https://api.alnubras.co/api/v1/tailoring/${id}`
+        `https://api.alnubras.co/api/v1/tailoring/${id}`,
+        {  credentials: "include", }
       );
       const json = await response.json();
       if (!response.ok) {
@@ -210,6 +211,7 @@ export default function TailoringProjectDetail() {
         `https://api.alnubras.co/api/v1/tailoring/workflow/${stepToComplete}`,
         {
           method: "PATCH",
+           credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
@@ -245,6 +247,7 @@ export default function TailoringProjectDetail() {
         `https://api.alnubras.co/api/v1/tailoring/notes/${stepId}`,
         {
           method: "PATCH",
+           credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
@@ -334,7 +337,7 @@ export default function TailoringProjectDetail() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 p-4 md:p-6">
         <div className="text-red-600 text-lg font-medium">
           Failed to load project
         </div>

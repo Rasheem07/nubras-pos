@@ -33,14 +33,19 @@ type TailoringProject = {
 };
 
 interface TailoringTableProps {
-  filter?: ProjectStatus
+  filterStatus?: string;
+  search?: string;
+  rushOnly?: boolean;
+  tailorFilter?: string;
+  beforeDate?: string;
 }
 
-export function TailoringTable({ filter }: TailoringTableProps) {
+
+export function TailoringTable({ filterStatus, search = '', rushOnly = false, tailorFilter = '', beforeDate = ''  }: TailoringTableProps) {
   const {data: projects = [], isLoading} = useQuery<TailoringProject[]>({
     queryKey: ['project'],
     queryFn: async () => {
-      const response = await fetch("https://api.alnubras.co/api/v1/tailoring");
+      const response = await fetch("https://api.alnubras.co/api/v1/tailoring", { credentials: "include" });
       const json = await response.json();
       if(!response.ok) { 
         toast.error("Failed to load projects!")
@@ -48,7 +53,6 @@ export function TailoringTable({ filter }: TailoringTableProps) {
       return json;
     }
   })
-  const filteredProjects = filter ? projects.filter((project) => project.status === filter) : projects
 
   const handleUpdateProgress = (projectId: number) => {
     // Implementation for updating progress
@@ -80,6 +84,28 @@ export function TailoringTable({ filter }: TailoringTableProps) {
     }
   }
 
+  const filtered = projects.filter(p => {
+    // status
+    if (filterStatus && filterStatus !== 'all' && p.status !== filterStatus) return false;
+    // search by ID, customer, tailor
+    const term = search.trim().toLowerCase();
+    if (term) {
+      const match = p.id.toString().includes(term)
+        || p.customer.toLowerCase().includes(term)
+        || p.tailor.toLowerCase().includes(term);
+      if (!match) return false;
+    }
+    // rush only
+    if (rushOnly && !p.rush) return false;
+    // tailor filter
+    if (tailorFilter && !p.tailor.toLowerCase().includes(tailorFilter.toLowerCase())) return false;
+    // before date
+    if (beforeDate && new Date(p.deadline) > new Date(beforeDate)) return false;
+    return true;
+  });
+
+  const handleAction = (msg: string) => toast.success(msg);
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -96,7 +122,7 @@ export function TailoringTable({ filter }: TailoringTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredProjects.map((project: TailoringProject) => (
+          {filtered.map((project: TailoringProject) => (
             <TableRow key={project.id}>
               <TableCell className="font-medium">
                 {project.id}

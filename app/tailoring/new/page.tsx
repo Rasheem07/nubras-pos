@@ -159,7 +159,8 @@ export default function NewTailoringProject() {
     queryKey: ["orders"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/sales/list/tailoring"
+        "https://api.alnubras.co/api/v1/sales/list/tailoring",
+        { credentials: "include"}
       );
       const json = await response.json();
       if (!response.ok) {
@@ -173,7 +174,8 @@ export default function NewTailoringProject() {
     queryKey: ["tailors"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/staff/list/tailors"
+        "https://api.alnubras.co/api/v1/staff/list/tailors",
+        { credentials: "include" }
       );
       const json = await response.json();
       if (!response.ok) {
@@ -187,7 +189,8 @@ export default function NewTailoringProject() {
     queryKey: ["workflow-configs"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/tailoring/workflow/templates"
+        "https://api.alnubras.co/api/v1/tailoring/workflow/templates",
+        { credentials: "include"}
       );
       const json = await response.json();
       if (!response.ok) {
@@ -392,6 +395,7 @@ export default function NewTailoringProject() {
 
       const response = await fetch("https://api.alnubras.co/api/v1/tailoring", {
         method: "POST",
+         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -426,7 +430,7 @@ export default function NewTailoringProject() {
   const canProceed = selectedOrder && selectedTailor && watchedValues.deadline;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 p-4 md:p-6">
       {/* Professional Header */}
       <div className="flex items-center gap-6">
         <Link href="/tailoring">

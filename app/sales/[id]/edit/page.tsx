@@ -181,7 +181,7 @@ export default function SalesOrderEditPage() {
   const { data: productCategories, isLoading: isLoadingProducts } = useQuery<ProductCategory[]>({
     queryKey: ["active-products"],
     queryFn: async () => {
-      const response = await fetch("https://api.alnubras.co/api/v1/products/list/catalog")
+      const response = await fetch("https://api.alnubras.co/api/v1/products/list/catalog", {  credentials: "include" })
       const json = await response.json()
       if (!response.ok) {
         throw new Error("Failed to load products")
@@ -199,7 +199,7 @@ export default function SalesOrderEditPage() {
   } = useQuery<SalesOrder>({
     queryKey: [`sales-edit-${params?.id}`],
     queryFn: async () => {
-      const response = await fetch(`https://api.alnubras.co/api/v1/sales/${params?.id}`)
+      const response = await fetch(`https://api.alnubras.co/api/v1/sales/${params?.id}`, {  credentials: "include"})
       const json = await response.json()
       if (!response.ok) {
         toast.error(json.message ?? "Failed to load sales order")
@@ -213,6 +213,7 @@ export default function SalesOrderEditPage() {
     mutationFn: async (data: UpdateSalesOrderDto) => {
       const response = await fetch(`https://api.alnubras.co/api/v1/sales/${params?.id}`, {
         method: "PATCH",
+         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },

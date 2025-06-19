@@ -36,7 +36,7 @@ import { Separator } from "@/components/ui/separator"
 // API functions
 const productsApi = {
   getById: async (id: number) => {
-    const response = await fetch(`https://api.alnubras.co/api/v1/products/${id}`)
+    const response = await fetch(`https://api.alnubras.co/api/v1/products/${id}`, {credentials: "include"})
     if (!response.ok) {
       throw new Error("Failed to fetch product details")
     }
@@ -277,10 +277,10 @@ export default function ProductViewPage() {
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground mb-2">Custom Models</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {product.models.map((model) => (
+                        {product.models.map((model: CustomModel) => (
                           <div key={model.id} className="flex items-center justify-between p-3 border rounded-md">
-                            <span className="font-medium">{model.name}</span>
-                            <Badge variant="outline">+{formatCurrency(model.model_charge)}</Badge>
+                          <span className="font-medium">{model.name}</span>
+                          <Badge variant="outline">+{formatCurrency(model.model_charge)}</Badge>
                           </div>
                         ))}
                       </div>
@@ -373,27 +373,27 @@ export default function ProductViewPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {product.recentOrders.map((order) => (
+                        {product.recentOrders.map((order: RecentOrder) => (
                         <TableRow key={order.orderId}>
                           <TableCell>
-                            <Link
-                              href={`/sales/${order.orderId}`}
-                              className="font-medium text-blue-600 hover:underline"
-                            >
-                              #{order.orderId}
-                            </Link>
+                          <Link
+                            href={`/sales/${order.orderId}`}
+                            className="font-medium text-blue-600 hover:underline"
+                          >
+                            #{order.orderId}
+                          </Link>
                           </TableCell>
                           <TableCell>
-                            <Link href={`/customers/${order.customerId}`} className="hover:underline">
-                              {order.customerName}
-                            </Link>
+                          <Link href={`/customers/${order.customerId}`} className="hover:underline">
+                            {order.customerName}
+                          </Link>
                           </TableCell>
                           <TableCell>{formatDate(order.orderedAt)}</TableCell>
                           <TableCell>{order.qty}</TableCell>
                           <TableCell>{formatCurrency(order.unitPrice)}</TableCell>
                           <TableCell>{formatCurrency(order.itemTotal)}</TableCell>
                         </TableRow>
-                      ))}
+                        ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -429,28 +429,28 @@ export default function ProductViewPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {product.topCustomers.map((customer, index) => (
+                        {product.topCustomers.map((customer: TopCustomer, index: number) => (
                         <TableRow key={customer.customerId}>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                                {index + 1}
-                              </div>
-                              <Link href={`/customers/${customer.customerId}`} className="hover:underline">
-                                {customer.customerName}
-                              </Link>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
+                            {index + 1}
                             </div>
+                            <Link href={`/customers/${customer.customerId}`} className="hover:underline">
+                            {customer.customerName}
+                            </Link>
+                          </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <TrendingUp className="h-4 w-4 text-green-600" />
-                              {customer.totalQty}
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-green-600" />
+                            {customer.totalQty}
+                          </div>
                           </TableCell>
                           <TableCell>{customer.orderCount}</TableCell>
                           <TableCell>{(customer.totalQty / customer.orderCount).toFixed(1)}</TableCell>
                         </TableRow>
-                      ))}
+                        ))}
                     </TableBody>
                   </Table>
                 </div>

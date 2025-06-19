@@ -107,7 +107,9 @@ export default function RestockInventoryItemPage() {
       setIsLoading(true)
       try {
         // Fetch item details
-        const itemResponse = await fetch(`https://api.alnubras.co/api/v1/inventory/${itemId}`)
+        const itemResponse = await fetch(`https://api.alnubras.co/api/v1/inventory/${itemId}`, {
+          credentials: "include"
+        })
         if (!itemResponse.ok) {
           throw new Error("Failed to fetch item details")
         }
@@ -116,7 +118,9 @@ export default function RestockInventoryItemPage() {
         setValue("cost", itemData.cost)
 
         // Fetch suppliers
-        const suppliersResponse = await fetch("https://api.alnubras.co/api/v1/suppliers")
+        const suppliersResponse = await fetch("https://api.alnubras.co/api/v1/suppliers", {
+          credentials: "include"
+        })
         if (!suppliersResponse.ok) {
           throw new Error("Failed to fetch suppliers")
         }
@@ -143,6 +147,7 @@ export default function RestockInventoryItemPage() {
     try {
       const response = await fetch("https://api.alnubras.co/api/v1/inventory/restock", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },

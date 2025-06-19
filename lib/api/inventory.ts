@@ -22,14 +22,14 @@ export interface InventoryItem {
 export const inventoryApi = {
   // Get all inventory items
   getAll: async (): Promise<InventoryItem[]> => {
-    const response = await fetch(`${BASE_URL}/inventory`)
+    const response = await fetch(`${BASE_URL}/inventory`, { credentials: "include",})
     if (!response.ok) throw new Error("Failed to fetch inventory items")
     return response.json()
   },
 
   // Get inventory item by ID
   getById: async (id: number): Promise<InventoryItem> => {
-    const response = await fetch(`${BASE_URL}/inventory/${id}`)
+    const response = await fetch(`${BASE_URL}/inventory/${id}`, { credentials: "include" })
     if (!response.ok) throw new Error("Failed to fetch inventory item")
     return response.json()
   },

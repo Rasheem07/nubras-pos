@@ -24,7 +24,7 @@ export function SalesOverview() {
   } = useQuery<OverviewMetrics>({
     queryKey: ["salesOverview"],
     queryFn: async () => {
-      const response = await fetch("https://api.alnubras.co/api/v1/sales/overview")
+      const response = await fetch("https://api.alnubras.co/api/v1/sales/overview", { credentials: "include",})
       const json = await response.json()
       if (!response.ok) {
         toast.error("Failed to fetch sales overview")

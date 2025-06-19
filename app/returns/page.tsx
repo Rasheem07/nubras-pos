@@ -65,6 +65,8 @@ import {
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { queryClient } from "@/components/providers";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ReturnTransaction {
   id: number;
@@ -119,7 +121,9 @@ export default function ReturnsManagementPage() {
     useQuery<ReturnTransaction[]>({
       queryKey: ["returns"],
       queryFn: async () => {
-        const response = await fetch("https://api.alnubras.co/api/v1/returns");
+        const response = await fetch("https://api.alnubras.co/api/v1/returns", {
+          credentials: "include",
+        });
         const json = await response.json();
         if (!response.ok) {
           toast.error("Failed to load return transactions");
@@ -175,40 +179,50 @@ export default function ReturnsManagementPage() {
     },
   ];
 
-  const analytics: ReturnAnalytics = {
-    totalReturns: 45,
-    totalRefundAmount: 12450.0,
-    returnRate: 3.2,
-    avgProcessingTime: 2.5,
-    topReasons: [
-      { reason: "Size/Fit Issue", count: 18, percentage: 40 },
-      { reason: "Quality/Defect", count: 12, percentage: 27 },
-      { reason: "Customer Changed Mind", count: 8, percentage: 18 },
-      { reason: "Wrong Item", count: 4, percentage: 9 },
-      { reason: "Other", count: 3, percentage: 6 },
-    ],
-    monthlyTrend: [
-      { month: "Jan", returns: 12, refunds: 3200 },
-      { month: "Feb", returns: 8, refunds: 2100 },
-      { month: "Mar", returns: 15, refunds: 4200 },
-      { month: "Apr", returns: 10, refunds: 2950 },
-      { month: "May", returns: 18, refunds: 5100 },
-    ],
-    categoryBreakdown: [
-      { category: "Ready-made", returns: 25, percentage: 56 },
-      { category: "Custom", returns: 12, percentage: 27 },
-      { category: "Accessories", returns: 8, percentage: 17 },
-    ],
+  const { data: analytics, isLoading: analyticsLoading } =
+    useQuery<ReturnAnalytics>({
+      queryKey: ["returns-analytics"],
+      queryFn: async () => {
+        const res = await fetch(
+          "https://api.alnubras.co/api/v1/returns/analytics",
+          { credentials: "include" }
+        );
+        if (!res.ok) {
+          toast.error("Failed to load analytics");
+          return null;
+        }
+        return res.json();
+      },
+    });
+
+  const exportReturnsData = () => {
+    fetch("https://api.alnubras.co/api/v1/returns/export", {
+      credentials: "include",
+    })
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "returns_export.csv";
+        a.click();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(() => toast.error("Export failed"));
   };
 
   // Filter functions
   const filteredTransactions = returnTransactions.filter((transaction) => {
     const matchesSearch =
-      String(transaction.id).toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(transaction.id)
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
       transaction.customerName
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
-      transaction.orderId.toLowerCase().includes(searchQuery.toLowerCase());
+      String(transaction.orderId)
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || transaction.status === statusFilter;
@@ -231,12 +245,64 @@ export default function ReturnsManagementPage() {
     }
   };
 
-  const exportReturnsData = () => {
-    alert("Returns data exported successfully!");
+  const updateStatus = async (id: number, status: string) => {
+    const approveUrl = `https://api.alnubras.co/api/v1/returns/status/${id}`;
+    fetch(approveUrl, {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status,
+      }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to approve return");
+        }
+        return res.json();
+      })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["returns"] });
+        queryClient.invalidateQueries({ queryKey: ["returns-analytics"] });
+        toast.success("Return approved successfully");
+        // Optionally, refetch data here
+      })
+      .catch((error) => {
+        toast.error(error.message);
+      });
   };
 
+  const statsData = [
+    {
+      title: "Total Returns",
+      icon: Package,
+      value: analytics?.totalReturns?.toLocaleString(),
+      gradient: "from-purple-600/80 via-purple-700/80 to-pink-600/80",
+    },
+    {
+      title: "Total Refunds",
+      icon: DollarSign,
+      value: analytics?.totalRefundAmount && `AED ${analytics.totalRefundAmount.toLocaleString()}`,
+      gradient: "from-green-500/80 via-emerald-600/80 to-teal-600/80",
+    },
+    {
+      title: "Return Rate",
+      icon: BarChart3,
+      value: analytics?.returnRate && `${analytics.returnRate}%`,
+      gradient: "from-blue-500/80 via-cyan-600/80 to-indigo-600/80",
+    },
+    {
+      title: "Avg Processing Time",
+      icon: Clock,
+      value: analytics?.avgProcessingTime && `${analytics.avgProcessingTime} days`,
+      gradient: "from-orange-500/80 via-red-500/80 to-pink-600/80",
+    },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -262,77 +328,20 @@ export default function ReturnsManagementPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Returns</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analytics.totalReturns}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600 flex items-center">
-                <TrendingDown className="h-3 w-3 mr-1" />
-                12% from last month
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Refunds</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              AED {analytics.totalRefundAmount.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-red-600 flex items-center">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                8% from last month
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Return Rate</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analytics.returnRate}%</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600 flex items-center">
-                <TrendingDown className="h-3 w-3 mr-1" />
-                0.5% from last month
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Avg Processing Time
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {analytics.avgProcessingTime} days
-            </div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600 flex items-center">
-                <TrendingDown className="h-3 w-3 mr-1" />
-                0.3 days faster
-              </span>
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 max-w-7xl mx-auto">
+        {statsData.map((stat, idx) => (
+          <StatCard
+            key={idx}
+            title={stat.title}
+            icon={stat.icon}
+            value={stat.value}
+            isLoading={analyticsLoading}
+          />
+        ))}
       </div>
+
+      {/* Floating background elements */}
+     
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="returns" className="space-y-4">
@@ -443,11 +452,24 @@ export default function ReturnsManagementPage() {
                             {returnTx.status.charAt(0).toUpperCase() +
                               returnTx.status.slice(1)}
                           </Badge>
-                          {true && (
+                          {returnTx.status === "pending" && (
                             <Badge variant="outline" className="text-xs">
                               <AlertCircle className="mr-1 h-3 w-3" />
                               Approval Required
                             </Badge>
+                          )}
+                          {returnTx.status === "approved" && (
+                            <Button
+                              size={"sm"}
+                              variant="outline"
+                              className="bg-green-100 text-green-600 text-xs h-8"
+                              onClick={() =>
+                                updateStatus(returnTx.id, "completed")
+                              }
+                            >
+                              <CheckCircle className="mr-1 h-3 w-3" />
+                              Mark as Completed
+                            </Button>
                           )}
                         </div>
                       </TableCell>
@@ -466,7 +488,12 @@ export default function ReturnsManagementPage() {
                                 View Details
                               </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const receiptUrl = `https://api.alnubras.co/api/v1/returns/receipt/${returnTx.id}`;
+                                window.open(receiptUrl, "_blank");
+                              }}
+                            >
                               <Printer className="mr-2 h-4 w-4" />
                               Print Receipt
                             </DropdownMenuItem>
@@ -477,11 +504,19 @@ export default function ReturnsManagementPage() {
                             <DropdownMenuSeparator />
                             {returnTx.status === "pending" && (
                               <>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    updateStatus(returnTx.id, "approved")
+                                  }
+                                >
                                   <CheckCircle className="mr-2 h-4 w-4" />
                                   Approve Return
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    updateStatus(returnTx.id, "rejected")
+                                  }
+                                >
                                   <AlertCircle className="mr-2 h-4 w-4" />
                                   Reject Return
                                 </DropdownMenuItem>
@@ -511,34 +546,43 @@ export default function ReturnsManagementPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analytics.topReasons.map((reason, index) => (
-                    <div
-                      key={reason.reason}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-3 h-3 rounded-full bg-primary`}
-                          style={{ opacity: 1 - index * 0.2 }}
-                        />
-                        <span className="text-sm">{reason.reason}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 bg-muted rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full"
-                            style={{ width: `${reason.percentage}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-sm font-medium w-12 text-right">
-                          {reason.percentage}%
-                        </span>
-                        <span className="text-xs text-muted-foreground w-8 text-right">
-                          ({reason.count})
-                        </span>
-                      </div>
+                  {analyticsLoading ? (
+                    <div>
+                      <div className="h-6 bg-gray-200 rounded animate-pulse w-full mb-2" />
+                      <div className="h-6 bg-gray-200 rounded animate-pulse w-full mb-2" />
+                      <div className="h-6 bg-gray-200 rounded animate-pulse w-full" />
                     </div>
-                  ))}
+                  ) : (
+                    analytics &&
+                    analytics.topReasons.map((reason, index) => (
+                      <div
+                        key={reason.reason}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-3 h-3 rounded-full bg-primary`}
+                            style={{ opacity: 1 - index * 0.2 }}
+                          />
+                          <span className="text-sm">{reason.reason}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 bg-muted rounded-full h-2">
+                            <div
+                              className="bg-primary h-2 rounded-full"
+                              style={{ width: `${reason.percentage}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium w-12 text-right">
+                            {reason.percentage}%
+                          </span>
+                          <span className="text-xs text-muted-foreground w-8 text-right">
+                            ({reason.count})
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -553,34 +597,35 @@ export default function ReturnsManagementPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analytics.categoryBreakdown.map((category, index) => (
-                    <div
-                      key={category.category}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-3 h-3 rounded-full bg-blue-500`}
-                          style={{ opacity: 1 - index * 0.3 }}
-                        />
-                        <span className="text-sm">{category.category}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 bg-muted rounded-full h-2">
+                  {analytics &&
+                    analytics.categoryBreakdown.map((category, index) => (
+                      <div
+                        key={category.category}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2">
                           <div
-                            className="bg-blue-500 h-2 rounded-full"
-                            style={{ width: `${category.percentage}%` }}
-                          ></div>
+                            className={`w-3 h-3 rounded-full bg-blue-500`}
+                            style={{ opacity: 1 - index * 0.3 }}
+                          />
+                          <span className="text-sm">{category.category}</span>
                         </div>
-                        <span className="text-sm font-medium w-12 text-right">
-                          {category.percentage}%
-                        </span>
-                        <span className="text-xs text-muted-foreground w-8 text-right">
-                          ({category.returns})
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 bg-muted rounded-full h-2">
+                            <div
+                              className="bg-blue-500 h-2 rounded-full"
+                              style={{ width: `${category.percentage}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium w-12 text-right">
+                            {category.percentage}%
+                          </span>
+                          <span className="text-xs text-muted-foreground w-8 text-right">
+                            ({category.returns})
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </CardContent>
             </Card>
@@ -596,27 +641,28 @@ export default function ReturnsManagementPage() {
               <CardContent>
                 <div className="space-y-4">
                   <div className="grid grid-cols-5 gap-4">
-                    {analytics.monthlyTrend.map((month) => (
-                      <div key={month.month} className="text-center">
-                        <div className="text-sm text-muted-foreground mb-2">
-                          {month.month}
+                    {analytics &&
+                      analytics.monthlyTrend.map((month) => (
+                        <div key={month.month} className="text-center">
+                          <div className="text-sm text-muted-foreground mb-2">
+                            {month.month}
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-lg font-bold">
+                              {month.returns}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Returns
+                            </div>
+                            <div className="text-sm font-medium text-green-600">
+                              AED {month.refunds.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Refunds
+                            </div>
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <div className="text-lg font-bold">
-                            {month.returns}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Returns
-                          </div>
-                          <div className="text-sm font-medium text-green-600">
-                            AED {month.refunds.toLocaleString()}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Refunds
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </div>
               </CardContent>
@@ -735,7 +781,7 @@ export default function ReturnsManagementPage() {
                       </div>
                     </div>
                   </div>
-                </CardContent>
+                </CardContent> 
               </Card>
             ))}
           </div>
@@ -744,3 +790,38 @@ export default function ReturnsManagementPage() {
     </div>
   );
 }
+
+type StatCardProps = {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  value: React.ReactNode;
+  isLoading: boolean;
+};
+
+
+export const StatCard = ({ title, icon: Icon, value, isLoading }: StatCardProps) => {
+  return (
+    <Card className="h-full">
+      <CardHeader className="flex items-center justify-between pb-2">
+        <div className="flex items-center gap-2">
+          <Icon className="h-5 w-5 text-primary" />
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {title}
+          </CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        ) : (
+          <div className="text-2xl font-bold text-center">
+            {value ?? "-"}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};

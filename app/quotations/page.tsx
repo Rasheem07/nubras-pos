@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -63,10 +63,28 @@ import {
   ArrowRight,
   X,
   ExternalLink,
+  RefreshCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/components/providers";
+import { DialogTrigger } from "@radix-ui/react-dialog";
+
+const termOptions = [
+  { label: "Due on Receipt", days: 0 },
+  { label: "Net 15", days: 15 },
+  { label: "Net 30", days: 30 },
+  { label: "Net 60", days: 60 },
+];
+
+const deliveryOptions = [
+  { label: "Tomorrow", days: 1 },
+  { label: "+7 Days", days: 7 },
+  { label: "Custom", days: null },
+];
+
+const priorityOptions = ["low", "medium", "high"] as const;
 
 type QuotationStatus =
   | "draft"
@@ -107,11 +125,48 @@ interface Quotation {
   };
 }
 
+type convertPayloadType = {
+  dueDate: string; // YYYY-MM-DD
+  deliveryDate?: string; // YYYY-MM-DD
+  paymentTerms: string; // e.g. "Net 30"
+  priority: "low" | "medium" | "high";
+  notes: string;
+  partialAmount: string; // e.g. "0.00"
+  paymentMethod: "cash" | "visa" | "bank_transfer";
+};
+
 export default function QuotationsPage() {
+  const [convertTarget, setConvertTarget] = useState<Quotation | null>(null);
+  const [convertPayload, setConvertPayload] = useState<convertPayloadType>({
+    dueDate: "", // YYYY-MM-DD
+    deliveryDate: undefined,
+    paymentTerms: termOptions[2].label,
+    priority: "medium" as "low" | "medium" | "high",
+    notes: "",
+    partialAmount: "0.00",
+    paymentMethod: "cash" as "cash" | "visa" | "bank_transfer",
+  });
+
+  useEffect(() => {
+    const term = termOptions.find(
+      (t) => t.label === convertPayload.paymentTerms
+    );
+    if (term) {
+      const d = new Date();
+      d.setDate(d.getDate() + term.days);
+      setConvertPayload((p) => ({
+        ...p,
+        dueDate: d.toISOString().slice(0, 10),
+      }));
+    }
+  }, [convertPayload.paymentTerms]);
+
   const { data: quotations = [], isLoading } = useQuery<Quotation[]>({
     queryKey: ["quotations"],
     queryFn: async () => {
-      const response = await fetch("https://api.alnubras.co/api/v1/quotations");
+      const response = await fetch("https://api.alnubras.co/api/v1/quotations", {
+        credentials: "include",
+      });
       const json = await response.json();
       if (!response.ok) {
         toast.error("Failed to load sales quotations!");
@@ -157,21 +212,51 @@ export default function QuotationsPage() {
         })
       : [];
 
-  const convertToSale = (quotation: Quotation) => {
-    const saleNumber = `INV-2024-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
+  const sendQuotation = async (quotation: Quotation) => {
+    const response = await fetch(
+      `https://api.alnubras.co/api/v1/quotations/send/${quotation.id}`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    const json = await response.json();
+    if (!response.ok) {
+      toast.error(json.message ?? "Failed to send quotation!");
+      return;
+    }
 
-    toast.success(`Quotation converted to sale ${saleNumber}`);
-  };
+    queryClient.invalidateQueries({ queryKey: ["quotations"] });
 
-  const sendQuotation = (quotation: Quotation) => {
     toast.success(
       `Quotation ${quotation.id} sent to ${quotation.customerPhone}`
     );
   };
 
-  const deleteQuotation = (id: number) => {
+  const deleteQuotation = async (id: number) => {
     if (confirm("Are you sure you want to delete this quotation?")) {
-      toast.message("deleted successfully!");
+      const response = await fetch(
+        `https://api.alnubras.co/api/v1/quotations/${id}`,
+        {
+          credentials: "include",
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const json = await response.json();
+      if (!response.ok) {
+        toast.error(json.message ?? "Failed to delete quotation!");
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["quotations"] });
+      toast.success(json.message ?? "deleted successfully!");
     }
   };
 
@@ -181,8 +266,8 @@ export default function QuotationsPage() {
   };
 
   const printQuotation = (quotation: Quotation) => {
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) return
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -247,7 +332,7 @@ export default function QuotationsPage() {
                   <td>AED ${item.price.toFixed(2)}</td>
                   <td>AED ${item.total.toFixed(2)}</td>
                 </tr>
-              `,
+              `
                 )
                 .join("")}
             </tbody>
@@ -265,7 +350,11 @@ export default function QuotationsPage() {
           <div class="terms">
             <h3>Terms & Conditions</h3>
             <p>${quotation.terms}</p>
-            ${quotation.notes ? `<p><strong>Notes:</strong> ${quotation.notes}</p>` : ""}
+            ${
+              quotation.notes
+                ? `<p><strong>Notes:</strong> ${quotation.notes}</p>`
+                : ""
+            }
           </div>
 
           <div style="text-align: center; margin-top: 40px; color: #666;">
@@ -274,20 +363,35 @@ export default function QuotationsPage() {
           </div>
         </body>
       </html>
-    `)
+    `);
 
-    printWindow.document.close()
-    printWindow.print()
-  }
+    printWindow.document.close();
+    printWindow.print();
+  };
 
-  const updateQuotationStatus = (
+  const updateQuotationStatus = async (
     id: number,
     newStatus: "accepted" | "rejected"
   ) => {
-    const quotation = quotations.find((q) => q.id === id);
-    if (quotation) {
-      toast.success(`Quotation ${quotation.id} ${newStatus}`);
+    const response = await fetch(
+      `https://api.alnubras.co/api/v1/quotations/${
+        newStatus === "accepted" ? "accept" : "reject"
+      }/${id}`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    const json = await response.json();
+    if (!response.ok) {
+      toast.error(json.message ?? `Failed to ${newStatus} quotation!`);
+      return;
     }
+    queryClient.invalidateQueries({ queryKey: ["quotations"] });
+    toast.success(`Quotation ${id} ${newStatus}`);
   };
 
   return (
@@ -302,12 +406,19 @@ export default function QuotationsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/quotations/templates">
-              <FileText className="mr-2 h-4 w-4" />
-              Templates
-            </Link>
-          </Button>
+          <div className="flex relative group">
+            <Button variant="outline" asChild>
+              <Link href="/quotations/templates">
+                <FileText className="mr-2 h-4 w-4" />
+                Templates
+              </Link>
+            </Button>
+
+            {/* Tooltip on hover */}
+            <div className="absolute -bottom-8 left-1/2  -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+              Under development
+            </div>
+          </div>
           <Button asChild>
             <Link href="/quotations/new">
               <Plus className="mr-2 h-4 w-4" />
@@ -316,37 +427,6 @@ export default function QuotationsPage() {
           </Button>
         </div>
       </div>
-
-      {/* Filters and Search */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search quotations, customers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="sent">Sent</SelectItem>
-                <SelectItem value="accepted">Accepted</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
-                <SelectItem value="converted">Converted</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -420,6 +500,37 @@ export default function QuotationsPage() {
         </Card>
       </div>
 
+      {/* Filters and Search */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by customers..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="sent">Sent</SelectItem>
+                <SelectItem value="accepted">Accepted</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+                <SelectItem value="converted">Converted</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Quotations Table */}
       <Card>
         <CardHeader>
@@ -489,32 +600,6 @@ export default function QuotationsPage() {
                       <Badge className={statusColors[quotation.status]}>
                         {quotation.status?.toUpperCase()}
                       </Badge>
-                      {quotation.status === "sent" && (
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              updateQuotationStatus(quotation.id, "accepted")
-                            }
-                            className="h-6 w-6 p-0 text-green-600 hover:bg-green-50"
-                            title="Accept"
-                          >
-                            <CheckCircle className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              updateQuotationStatus(quotation.id, "rejected")
-                            }
-                            className="h-6 w-6 p-0 text-red-600 hover:bg-red-50"
-                            title="Reject"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -547,6 +632,7 @@ export default function QuotationsPage() {
 
                       {quotation.status === "sent" && (
                         <div className="flex gap-1">
+                          
                           <Button
                             size="sm"
                             variant="outline"
@@ -574,14 +660,252 @@ export default function QuotationsPage() {
 
                       {quotation.status === "accepted" &&
                         !quotation.convertedToSale && (
-                          <Button
-                            size="sm"
-                            onClick={() => convertToSale(quotation)}
-                            className="h-8 bg-purple-600 hover:bg-purple-700"
+                          <Dialog
+                            open={!!convertTarget}
+                            onOpenChange={(open) =>
+                              !open && setConvertTarget(null)
+                            }
                           >
-                            <ArrowRight className="mr-1 h-3 w-3" />
-                            Convert to Sale
-                          </Button>
+                            <DialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setConvertTarget(quotation);
+                                }}
+                                className="h-8 bg-purple-600 hover:bg-purple-700"
+                              >
+                                <ArrowRight className="mr-1 h-3 w-3" />
+                                Convert to Sale
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="w-full max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle>
+                                  Convert Quotation #{convertTarget?.id} to Sale
+                                </DialogTitle>
+                              </DialogHeader>
+
+                              {/* PAYMENT TERMS → Select */}
+                              <div className=" grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block mb-1">
+                                    Payment Terms
+                                  </label>
+                                  <Select
+                                    value={convertPayload.paymentTerms}
+                                    onValueChange={(val) =>
+                                      setConvertPayload((p) => ({
+                                        ...p,
+                                        paymentTerms: val,
+                                      }))
+                                    }
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Select terms" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {termOptions.map((opt) => (
+                                        <SelectItem
+                                          key={opt.label}
+                                          value={opt.label}
+                                        >
+                                          {opt.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                {/* DUE DATE is auto-filled (read-only) */}
+                                <div>
+                                  <label className="block mb-1">Due Date</label>
+                                  <Input
+                                    type="date"
+                                    value={convertPayload.dueDate}
+                                    readOnly
+                                  />
+                                </div>
+
+                                {/* DELIVERY DATE: allow pick, but show as chip */}
+                                <div>
+                                  <label className="block mb-1">
+                                    Delivery Date
+                                  </label>
+                                  <Input
+                                    type="date"
+                                    value={convertPayload.deliveryDate}
+                                    onChange={(e) =>
+                                      setConvertPayload((p) => ({
+                                        ...p,
+                                        deliveryDate: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
+
+                                {/* PRIORITY → Select + chip */}
+                                <div>
+                                  <label className="block mb-1">Priority</label>
+                                  <Select
+                                    value={convertPayload.priority}
+                                    onValueChange={(val) =>
+                                      setConvertPayload((p) => ({
+                                        ...p,
+                                        priority: val as any,
+                                      }))
+                                    }
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Select priority" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="low">Low</SelectItem>
+                                      <SelectItem value="medium">
+                                        Medium
+                                      </SelectItem>
+                                      <SelectItem value="high">High</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="mb-4">
+                                  <p className="font-sans text-sm">
+                                    Total Amount to be paid:{" "}
+                                    <strong>{quotation.totalAmount}</strong>
+                                  </p>
+                                  <p className="mb-1 font-medium">
+                                    Amount Paid Now
+                                  </p>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    className="w-full p-2 border rounded"
+                                    value={convertPayload.partialAmount}
+                                    onChange={(e) =>
+                                      setConvertPayload((p) => ({
+                                        ...p,
+                                        partialAmount: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="0.00"
+                                  />
+                                </div>
+
+                                {/* PAYMENT METHOD */}
+                                <div className="mb-4">
+                                  <p className="mb-1 font-medium">
+                                    Payment Method
+                                  </p>
+                                  <div className="flex gap-2">
+                                    {["cash", "visa", "bank_transfer"].map(
+                                      (method) => (
+                                        <Badge
+                                          key={method}
+                                          variant={
+                                            convertPayload.paymentMethod ===
+                                            method
+                                              ? "secondary"
+                                              : "outline"
+                                          }
+                                          onClick={() =>
+                                            setConvertPayload((p) => ({
+                                              ...p,
+                                              paymentMethod: method as
+                                                | "cash"
+                                                | "visa"
+                                                | "bank_transfer",
+                                            }))
+                                          }
+                                          className={`cursor-pointer uppercase py-2 px-4 hover:bg-purple-600 hover:text-white ${
+                                            convertPayload.paymentMethod ===
+                                            method
+                                              ? "bg-purple-600 text-white"
+                                              : "bg-white text-purple-600 border border-purple-200"
+                                          }`}
+                                        >
+                                          {method.replace("_", " ")}
+                                        </Badge>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                                {/* NOTES */}
+                                <div>
+                                  <label className="block mb-1">Notes</label>
+                                  <Input
+                                    placeholder="Any special instructions?"
+                                    value={convertPayload.notes}
+                                    onChange={(e) =>
+                                      setConvertPayload((p) => ({
+                                        ...p,
+                                        notes: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              <DialogFooter className="mt-4">
+                                <Button
+                                  onClick={async () => {
+                                    if (!convertTarget) return;
+                                    const dto = {
+                                      quoteId: convertTarget.id,
+                                      salesPersonId: 2,
+                                      salesPersonName: "Test sales person",
+                                      ...convertPayload,
+                                    };
+                                    const resp = await fetch(
+                                      `https://api.alnubras.co/api/v1/quotations/convert/${convertTarget.id}`,
+                                      {
+                                        method: "POST",
+                                        credentials: "include",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify(dto),
+                                      }
+                                    );
+                                    const j = await resp.json();
+                                    if (!resp.ok) {
+                                      toast.error(
+                                        j.message || "Conversion failed"
+                                      );
+                                    } else {
+                                      setConvertPayload({
+                                        dueDate: "",
+                                        deliveryDate: undefined,
+                                        paymentTerms: termOptions[2].label,
+                                        priority: "medium",
+                                        notes: "",
+                                        partialAmount: "0.00",
+                                        paymentMethod: "cash",
+                                      });
+                                      toast.success(
+                                        `Converted to sale #${j.salesOrderId}`
+                                      );
+                                      queryClient.invalidateQueries({
+                                        queryKey: ["quotations"],
+                                      });
+                                      queryClient.invalidateQueries({
+                                        queryKey: ["sales"],
+                                      });
+                                      setConvertTarget(null);
+                                    }
+                                  }}
+                                >
+                                  Confirm & Convert
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => setConvertTarget(null)}
+                                >
+                                  Cancel
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         )}
 
                       {quotation.status === "converted" &&
@@ -592,7 +916,9 @@ export default function QuotationsPage() {
                             asChild
                             className="h-8"
                           >
-                            <Link href={`/sales/${quotation.convertedToSale}`}>
+                            <Link
+                              href={`/sales?search=${quotation.customerName}`}
+                            >
                               <ExternalLink className="mr-1 h-3 w-3" />
                               View Sale
                             </Link>
@@ -615,10 +941,40 @@ export default function QuotationsPage() {
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => exportQuotation(quotation)}
+                            onClick={async () => {
+                              const response = await fetch(
+                                `https://api.alnubras.co/api/v1/quotations/send/${quotation.id}`,
+                                {
+                                  method: "POST",
+                                  credentials: "include",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                }
+                              );
+                              const json = await response.json();
+                              if (!response.ok) {
+                                toast.error(
+                                  json.message ?? "Failed to send quotation!"
+                                );
+                                return;
+                              }
+                              queryClient.invalidateQueries({
+                                queryKey: ["quotations"],
+                              });
+                              toast.success(
+                                `Quotation ${quotation.id} sent to ${quotation.customerPhone}`
+                              );
+                            }}
                           >
-                            <Download className="mr-2 h-4 w-4" />
-                            Export PDF
+                            <RefreshCcw className="mr-1 h-3 w-3" />
+                            Resend
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => printQuotation(quotation)}
+                          >
+                            <Printer className="mr-2 h-4 w-4" />
+                            Print
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem

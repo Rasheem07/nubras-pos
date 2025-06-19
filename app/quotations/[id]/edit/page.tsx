@@ -1,19 +1,42 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +44,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Save,
@@ -40,109 +63,107 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
-} from "lucide-react"
-import Link from "next/link"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
-import { useQuery } from "@tanstack/react-query"
-import { listAllProducts } from "@/services/listProducts"
-import { listAllCustomers } from "@/services/listCustomers"
-import { toast } from "sonner"
-import { useParams, useRouter } from "next/navigation"
-import { queryClient } from "@/components/providers"
+} from "lucide-react";
+import Link from "next/link";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { listAllProducts } from "@/services/listProducts";
+import { listAllCustomers } from "@/services/listCustomers";
+import { toast } from "sonner";
+import { useParams, useRouter } from "next/navigation";
+import { queryClient } from "@/components/providers";
 
 interface Customer {
-  id: number
-  name: string
-  email: string
-  phone: string
-  status: string
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  status: string;
 }
 
 interface Product {
-  id: number
-  name: string
-  category: string
-  price: number
-  sku: string
-  image: string
+  id: number;
+  name: string;
+  category: string;
+  price: number;
+  sku: string;
+  image: string;
 }
 
 interface QuotationItem {
-  id: number // For updates, this will be the database ID
-  tempId?: string // For new items added during update
-  catalogId?: number
-  description: string
-  sku: string
-  qty: number
-  price: string
-  total: string
-  notes?: string
-  isNew?: boolean // Flag to identify new items
+  id: number; // For updates, this will be the database ID
+  tempId?: string; // For new items added during update
+  catalogId?: number;
+  description: string;
+  sku: string;
+  qty: number;
+  price: string;
+  total: string;
+  notes?: string;
+  isNew?: boolean; // Flag to identify new items
   customizations?: {
-    measurements?: Record<string, string>
-    fabric?: string
-    color?: string
-    embroidery?: string
-    rushOrder?: boolean
-  }
+    measurements?: Record<string, string>;
+    fabric?: string;
+    color?: string;
+    embroidery?: string;
+    rushOrder?: boolean;
+  };
 }
 
 interface ExistingQuotation {
-  id: number
-  quotationNumber: string
-  validUntil: string
-  customerId: number
-  customerName: string
-  notes?: string
-  terms?: string
-  subtotal: string
-  discountAmount: string
-  taxAmount: string
-  totalAmount: string
-  status: string
-  items: QuotationItem[]
-  customer: Customer
+  id: number;
+  quotationNumber: string;
+  validUntil: string;
+  customerId: number;
+  customerName: string;
+  notes?: string;
+  terms?: string;
+  subtotal: string;
+  discountAmount: string;
+  taxAmount: string;
+  totalAmount: string;
+  status: string;
+  items: QuotationItem[];
+  customer: Customer;
 }
 
 // DTO interfaces matching backend
 interface UpdateQuoteItemDto {
-  id: number
-  description?: string
-  catalogId?: number
-  sku?: string
-  qty?: number
-  price?: string
-  total?: string
+  id: number;
+  description?: string;
+  catalogId?: number;
+  sku?: string;
+  qty?: number;
+  price?: string;
+  total?: string;
 }
 
 interface CreateQuoteItemDto {
-  description: string
-  catalogId: number
-  sku: string
-  qty: number
-  price: string
-  total: string
+  description: string;
+  catalogId: number;
+  sku: string;
+  qty: number;
+  price: string;
+  total: string;
 }
 
 interface UpdateQuotationDto {
-  validUntil?: Date
-  customerId?: number
-  customerName?: string
-  notes?: string
-  terms?: string
-  subtotal?: string
-  discountAmount?: string
-  taxAmount?: string
-  totalAmount?: string
-  items?: (UpdateQuoteItemDto | CreateQuoteItemDto)[]
+  validUntil?: Date;
+  customerId?: number;
+  customerName?: string;
+  notes?: string;
+  terms?: string;
+  subtotal?: string;
+  discountAmount?: string;
+  taxAmount?: string;
+  totalAmount?: string;
+  items?: (UpdateQuoteItemDto | CreateQuoteItemDto)[];
 }
 
-
-
 export default function UpdateQuotationPage() {
-    const params = useParams();
-    const quotationId = params.id;
+  const params = useParams();
+  const quotationId = params.id;
   // Fetch existing quotation data
   const {
     data: quotation,
@@ -151,113 +172,133 @@ export default function UpdateQuotationPage() {
   } = useQuery<ExistingQuotation>({
     queryKey: ["quotation", quotationId],
     queryFn: async () => {
-      const response = await fetch(`https://api.alnubras.co/api/v1/quotations/${quotationId}`)
+      const response = await fetch(
+        `https://api.alnubras.co/api/v1/quotations/${quotationId}`,
+        {
+          credentials: "include",
+        }
+      );
       if (!response.ok) {
-        throw new Error("Failed to fetch quotation")
+        throw new Error("Failed to fetch quotation");
       }
-      return response.json()
+      return response.json();
     },
-  })
+  });
 
   const { data: customers = [], isLoading: customerLoading } = useQuery({
     queryKey: ["customers"],
     queryFn: async () => {
       try {
-        return await listAllCustomers()
+        return await listAllCustomers();
       } catch (err: any) {
-        toast.error(err.message)
-        return []
+        toast.error(err.message);
+        return [];
       }
     },
-  })
+  });
 
-  const { data: products = [], isLoading: productLoading } = useQuery<Product[]>({
+  const { data: products = [], isLoading: productLoading } = useQuery<
+    Product[]
+  >({
     queryKey: ["productsCatalog"],
     queryFn: async () => {
       try {
-        return await listAllProducts()
+        return await listAllProducts();
       } catch (err: any) {
-        toast.error(err.message)
-        return []
+        toast.error(err.message);
+        return [];
       }
     },
-  })
+  });
 
   //router
-  const router = useRouter()
+  const router = useRouter();
 
   // Form state
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [quotationNumber, setQuotationNumber] = useState(0)
-  const [items, setItems] = useState<QuotationItem[]>([])
-  const [notes, setNotes] = useState("")
-  const [terms, setTerms] = useState("")
-  const [validUntil, setValidUntil] = useState<Date>()
-  const [taxRate, setTaxRate] = useState(5)
-  const [globalDiscount, setGlobalDiscount] = useState(0)
-  const [globalDiscountType, setGlobalDiscountType] = useState<"amount" | "percentage">("percentage")
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null
+  );
+  const [quotationNumber, setQuotationNumber] = useState(0);
+  const [items, setItems] = useState<QuotationItem[]>([]);
+  const [notes, setNotes] = useState("");
+  const [terms, setTerms] = useState("");
+  const [validUntil, setValidUntil] = useState<Date>();
+  const [taxRate, setTaxRate] = useState(5);
+  const [globalDiscount, setGlobalDiscount] = useState(0);
+  const [globalDiscountType, setGlobalDiscountType] = useState<
+    "amount" | "percentage"
+  >("percentage");
 
   // Dialog states
-  const [showCustomerDialog, setShowCustomerDialog] = useState(false)
-  const [showProductDialog, setShowProductDialog] = useState(false)
-  const [showCustomizationDialog, setShowCustomizationDialog] = useState(false)
-  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null)
+  const [showCustomerDialog, setShowCustomerDialog] = useState(false);
+  const [showProductDialog, setShowProductDialog] = useState(false);
+  const [showCustomizationDialog, setShowCustomizationDialog] = useState(false);
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(
+    null
+  );
 
   // Search states
-  const [customerSearch, setCustomerSearch] = useState("")
-  const [productSearch, setProductSearch] = useState("")
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
 
   // Loading state
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Counter for new items
-  const [newItemCounter, setNewItemCounter] = useState(0)
+  const [newItemCounter, setNewItemCounter] = useState(0);
 
   // Load quotation data into form when available
   useEffect(() => {
     if (quotation) {
-      setQuotationNumber(quotation.id)
-      setSelectedCustomer(quotation.customer)
-      setValidUntil(new Date(quotation.validUntil))
-      setNotes(quotation.notes || "")
-      setTerms(quotation.terms || "")
+      setQuotationNumber(quotation.id);
+      setSelectedCustomer(quotation.customer);
+      setValidUntil(new Date(quotation.validUntil));
+      setNotes(quotation.notes || "");
+      setTerms(quotation.terms || "");
 
       // Load items
       setItems(
         quotation.items.map((item) => ({
           ...item,
           isNew: false,
-        })),
-      )
+        }))
+      );
 
       // Calculate discount and tax from existing data
-      const subtotal = Number.parseFloat(quotation.subtotal)
-      const discountAmount = Number.parseFloat(quotation.discountAmount)
-      const taxAmount = Number.parseFloat(quotation.taxAmount)
+      const subtotal = Number.parseFloat(quotation.subtotal);
+      const discountAmount = Number.parseFloat(quotation.discountAmount);
+      const taxAmount = Number.parseFloat(quotation.taxAmount);
 
-      setGlobalDiscount(discountAmount)
-      setGlobalDiscountType("amount")
+      setGlobalDiscount(discountAmount);
+      setGlobalDiscountType("amount");
 
       // Calculate tax rate from tax amount
-      const afterDiscount = subtotal - discountAmount
+      const afterDiscount = subtotal - discountAmount;
       if (afterDiscount > 0) {
-        setTaxRate((taxAmount / afterDiscount) * 100)
+        setTaxRate((taxAmount / afterDiscount) * 100);
       }
     }
-  }, [quotation])
+  }, [quotation]);
 
   // Calculations
-  const subtotal = items.reduce((sum, item) => sum + Number.parseFloat(item.total || "0"), 0)
-  const discountAmount = globalDiscountType === "percentage" ? (subtotal * globalDiscount) / 100 : globalDiscount
-  const afterDiscount = subtotal - discountAmount
-  const taxAmount = (afterDiscount * taxRate) / 100
-  const total = afterDiscount + taxAmount
+  const subtotal = items.reduce(
+    (sum, item) => sum + Number.parseFloat(item.total || "0"),
+    0
+  );
+  const discountAmount =
+    globalDiscountType === "percentage"
+      ? (subtotal * globalDiscount) / 100
+      : globalDiscount;
+  const afterDiscount = subtotal - discountAmount;
+  const taxAmount = (afterDiscount * taxRate) / 100;
+  const total = afterDiscount + taxAmount;
 
   const addItem = (product?: Product) => {
-    const rawPrice = product?.price ?? 0
-    const unitPrice = typeof rawPrice === "string" ? Number.parseFloat(rawPrice) : rawPrice
-    const quantity = 1
-    const itemTotal = (unitPrice * quantity).toFixed(2)
+    const rawPrice = product?.price ?? 0;
+    const unitPrice =
+      typeof rawPrice === "string" ? Number.parseFloat(rawPrice) : rawPrice;
+    const quantity = 1;
+    const itemTotal = (unitPrice * quantity).toFixed(2);
 
     const newItem: QuotationItem = {
       id: 0, // Will be handled as new item
@@ -270,59 +311,58 @@ export default function UpdateQuotationPage() {
       total: itemTotal,
       notes: "",
       isNew: true,
-    }
+    };
 
-    setItems([...items, newItem])
-    setNewItemCounter((prev) => prev + 1)
-    setShowProductDialog(false)
-  }
+    setItems([...items, newItem]);
+    setNewItemCounter((prev) => prev + 1);
+    setShowProductDialog(false);
+  };
 
   const updateItem = (index: number, updates: Partial<QuotationItem>) => {
-  const updated = [...items]
-  const it = { ...updated[index], ...updates }
+    const updated = [...items];
+    const it = { ...updated[index], ...updates };
 
-  // recalc when qty or unit_price changes
-  if (updates.qty !== undefined || updates.price !== undefined) {
-    const qty = updates.qty      !== undefined ? updates.qty
-              : it.qty
-    const price = updates.price !== undefined
-                ? parseFloat(updates.price)
-                : parseFloat(it.price)
-    it.price  = price.toFixed(2)
-    it.total  = (qty * price).toFixed(2)
-  }
+    // recalc when qty or unit_price changes
+    if (updates.qty !== undefined || updates.price !== undefined) {
+      const qty = updates.qty !== undefined ? updates.qty : it.qty;
+      const price =
+        updates.price !== undefined
+          ? parseFloat(updates.price)
+          : parseFloat(it.price);
+      it.price = price.toFixed(2);
+      it.total = (qty * price).toFixed(2);
+    }
 
-  updated[index] = it
-  setItems(updated)
-}
-
+    updated[index] = it;
+    setItems(updated);
+  };
 
   const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index))
-  }
+    setItems(items.filter((_, i) => i !== index));
+  };
 
   const updateQuotation = async (status?: "draft" | "sent") => {
     if (!selectedCustomer) {
-      toast.error("Please select a customer")
-      return
+      toast.error("Please select a customer");
+      return;
     }
 
     if (items.length === 0) {
-      toast.error("Please add at least one item")
-      return
+      toast.error("Please add at least one item");
+      return;
     }
 
     if (!validUntil) {
-      toast.error("Please set a validity date")
-      return
+      toast.error("Please set a validity date");
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
       // Transform items to match DTO structure
-      const quotationItems = items.map((item): UpdateQuoteItemDto | CreateQuoteItemDto => {
-     
+      const quotationItems = items.map(
+        (item): UpdateQuoteItemDto | CreateQuoteItemDto => {
           // New item - use CreateQuoteItemDto structure
           return {
             description: item.description,
@@ -331,8 +371,9 @@ export default function UpdateQuotationPage() {
             qty: item.qty,
             price: String(item.price),
             total: String(item.total),
-          }
-      })
+          };
+        }
+      );
 
       // Create DTO matching backend expectations
       const updateQuotationDto: UpdateQuotationDto = {
@@ -346,53 +387,57 @@ export default function UpdateQuotationPage() {
         discountAmount: discountAmount.toFixed(2),
         totalAmount: total.toFixed(2),
         items: quotationItems,
-      }
+      };
 
-      console.log("Updating quotation:", updateQuotationDto)
+      console.log("Updating quotation:", updateQuotationDto);
 
-      const response = await fetch(`https://api.alnubras.co/api/v1/quotations/${quotationId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updateQuotationDto),
-      })
+      const response = await fetch(
+        `https://api.alnubras.co/api/v1/quotations/${quotationId}`,
+        {
+          method: "PATCH",
+           credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateQuotationDto),
+        }
+      );
 
-      const json = await response.json()
+      const json = await response.json();
 
       if (!response.ok) {
-        throw new Error(json.message)
+        throw new Error(json.message);
       }
 
-      toast.success(`Quotation ${quotationNumber} updated successfully`)
+      toast.success(`Quotation ${quotationNumber} updated successfully`);
 
       router.push(`/quotations/${quotationId}`);
-      
+
       queryClient.invalidateQueries({
-        queryKey: ["quotation", quotationId, "quotations"]
-      })
+        queryKey: ["quotation", quotationId, "quotations"],
+      });
       // Refetch the quotation data to get updated information
-      refetch()
+      refetch();
     } catch (error: any) {
-      toast.error(error.message || "Failed to update quotation")
+      toast.error(error.message || "Failed to update quotation");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const filteredCustomers = customers.filter(
     (customer: Customer) =>
       customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
       customer.email.toLowerCase().includes(customerSearch.toLowerCase()) ||
-      customer.phone.includes(customerSearch),
-  )
+      customer.phone.includes(customerSearch)
+  );
 
   const filteredProducts = products.filter((product: Product) => {
-    const name = (product.name || "").toLowerCase()
-    const sku = (product.sku || "").toLowerCase()
-    const search = productSearch.toLowerCase()
-    return name.includes(search) || sku.includes(search)
-  })
+    const name = (product.name || "").toLowerCase();
+    const sku = (product.sku || "").toLowerCase();
+    const search = productSearch.toLowerCase();
+    return name.includes(search) || sku.includes(search);
+  });
 
   if (quotationLoading) {
     return (
@@ -402,7 +447,7 @@ export default function UpdateQuotationPage() {
           <p className="text-muted-foreground">Loading quotation...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!quotation) {
@@ -416,7 +461,7 @@ export default function UpdateQuotationPage() {
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -429,21 +474,40 @@ export default function UpdateQuotationPage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Update Quotation #{quotationNumber}</h1>
-            <p className="text-muted-foreground">Modify the quotation details and items</p>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Update Quotation #{quotationNumber}
+            </h1>
+            <p className="text-muted-foreground">
+              Modify the quotation details and items
+            </p>
           </div>
-          <Badge variant={quotation.status === "sent" ? "default" : "secondary"}>{quotation.status}</Badge>
+          <Badge
+            variant={quotation.status === "sent" ? "default" : "secondary"}
+          >
+            {quotation.status}
+          </Badge>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => refetch()} disabled={quotationLoading}>
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            disabled={quotationLoading}
+          >
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button variant="outline" onClick={() => updateQuotation("draft")} disabled={isSubmitting}>
+          <Button
+            variant="outline"
+            onClick={() => updateQuotation("draft")}
+            disabled={isSubmitting}
+          >
             <Save className="mr-2 h-4 w-4" />
             {isSubmitting ? "Saving..." : "Save Changes"}
           </Button>
-          <Button onClick={() => updateQuotation("sent")} disabled={isSubmitting}>
+          <Button
+            onClick={() => updateQuotation("sent")}
+            disabled={isSubmitting}
+          >
             <Send className="mr-2 h-4 w-4" />
             Update & Send
           </Button>
@@ -457,7 +521,9 @@ export default function UpdateQuotationPage() {
           <Card>
             <CardHeader>
               <CardTitle>Quotation Details</CardTitle>
-              <CardDescription>Basic information about this quotation</CardDescription>
+              <CardDescription>
+                Basic information about this quotation
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -479,7 +545,7 @@ export default function UpdateQuotationPage() {
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
-                          !validUntil && "text-muted-foreground",
+                          !validUntil && "text-muted-foreground"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -506,7 +572,11 @@ export default function UpdateQuotationPage() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 Customer Information
-                <Button variant="outline" size="sm" onClick={() => setShowCustomerDialog(true)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCustomerDialog(true)}
+                >
                   <User className="mr-2 h-4 w-4" />
                   Change Customer
                 </Button>
@@ -516,16 +586,25 @@ export default function UpdateQuotationPage() {
               {selectedCustomer ? (
                 <div className="flex items-center gap-4 p-4 border rounded-lg">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={"/placeholder.svg"} alt={selectedCustomer.name} />
-                    <AvatarFallback>{selectedCustomer.name.charAt(0)}</AvatarFallback>
+                    <AvatarImage
+                      src={"/placeholder.svg"}
+                      alt={selectedCustomer.name}
+                    />
+                    <AvatarFallback>
+                      {selectedCustomer.name.charAt(0)}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium">{selectedCustomer.name}</h3>
                       <Badge variant="outline">{selectedCustomer.status}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{selectedCustomer.email}</p>
-                    <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedCustomer.email}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedCustomer.phone}
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -591,8 +670,8 @@ export default function UpdateQuotationPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  setSelectedItemIndex(index)
-                                  setShowCustomizationDialog(true)
+                                  setSelectedItemIndex(index);
+                                  setShowCustomizationDialog(true);
                                 }}
                               >
                                 <Settings className="h-3 w-3 mr-1" />
@@ -604,7 +683,9 @@ export default function UpdateQuotationPage() {
                         <TableCell>
                           <Input
                             value={item.sku}
-                            onChange={(e) => updateItem(index, { sku: e.target.value })}
+                            onChange={(e) =>
+                              updateItem(index, { sku: e.target.value })
+                            }
                             placeholder="SKU"
                             className="w-24"
                           />
@@ -613,7 +694,9 @@ export default function UpdateQuotationPage() {
                           <Input
                             type="number"
                             value={item.qty}
-                            onChange={(e) => updateItem(index, { qty: Number(e.target.value) })}
+                            onChange={(e) =>
+                              updateItem(index, { qty: Number(e.target.value) })
+                            }
                             className="w-16 text-center"
                             min="1"
                           />
@@ -622,7 +705,9 @@ export default function UpdateQuotationPage() {
                           <Input
                             type="number"
                             value={item.price}
-                            onChange={(e) => updateItem(index, { price: e.target.value })}
+                            onChange={(e) =>
+                              updateItem(index, { price: e.target.value })
+                            }
                             className="w-24 text-right"
                             step="0.01"
                           />
@@ -648,7 +733,9 @@ export default function UpdateQuotationPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <Package className="mx-auto h-12 w-12 mb-4 opacity-50" />
                   <p>No items added</p>
-                  <p className="text-sm">Click "Add Item" to start building your quotation</p>
+                  <p className="text-sm">
+                    Click "Add Item" to start building your quotation
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -708,13 +795,17 @@ export default function UpdateQuotationPage() {
                     <Input
                       type="number"
                       value={globalDiscount}
-                      onChange={(e) => setGlobalDiscount(Number(e.target.value))}
+                      onChange={(e) =>
+                        setGlobalDiscount(Number(e.target.value))
+                      }
                       className="flex-1"
                       step="0.01"
                     />
                     <Select
                       value={globalDiscountType}
-                      onValueChange={(value) => setGlobalDiscountType(value as "amount" | "percentage")}
+                      onValueChange={(value) =>
+                        setGlobalDiscountType(value as "amount" | "percentage")
+                      }
                     >
                       <SelectTrigger className="w-20">
                         <SelectValue />
@@ -836,7 +927,9 @@ export default function UpdateQuotationPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Change Customer</DialogTitle>
-            <DialogDescription>Select a different customer for this quotation</DialogDescription>
+            <DialogDescription>
+              Select a different customer for this quotation
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative">
@@ -854,8 +947,8 @@ export default function UpdateQuotationPage() {
                   key={customer.id}
                   className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
                   onClick={() => {
-                    setSelectedCustomer(customer)
-                    setShowCustomerDialog(false)
+                    setSelectedCustomer(customer);
+                    setShowCustomerDialog(false);
                   }}
                 >
                   <Avatar>
@@ -867,15 +960,22 @@ export default function UpdateQuotationPage() {
                       <h3 className="font-medium">{customer.name}</h3>
                       <Badge variant="outline">{customer.status}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{customer.email}</p>
-                    <p className="text-sm text-muted-foreground">{customer.phone}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {customer.email}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {customer.phone}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCustomerDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowCustomerDialog(false)}
+            >
               Cancel
             </Button>
           </DialogFooter>
@@ -887,7 +987,9 @@ export default function UpdateQuotationPage() {
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Add Product/Service</DialogTitle>
-            <DialogDescription>Select a product or service to add to the quotation</DialogDescription>
+            <DialogDescription>
+              Select a product or service to add to the quotation
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative">
@@ -923,7 +1025,9 @@ export default function UpdateQuotationPage() {
                       <h3 className="font-medium">{product.name}</h3>
                       <Badge variant="outline">{product.category}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">SKU: {product.sku}</p>
+                    <p className="text-sm text-muted-foreground">
+                      SKU: {product.sku}
+                    </p>
                     <p className="text-sm font-medium">AED {product.price}</p>
                   </div>
                 </button>
@@ -931,7 +1035,10 @@ export default function UpdateQuotationPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowProductDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowProductDialog(false)}
+            >
               Cancel
             </Button>
             <Button onClick={() => addItem()}>
@@ -943,11 +1050,17 @@ export default function UpdateQuotationPage() {
       </Dialog>
 
       {/* Customization Dialog */}
-      <Dialog open={showCustomizationDialog} onOpenChange={setShowCustomizationDialog}>
+      <Dialog
+        open={showCustomizationDialog}
+        onOpenChange={setShowCustomizationDialog}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Item Customization</DialogTitle>
-            <DialogDescription>{selectedItemIndex !== null && items[selectedItemIndex]?.description}</DialogDescription>
+            <DialogDescription>
+              {selectedItemIndex !== null &&
+                items[selectedItemIndex]?.description}
+            </DialogDescription>
           </DialogHeader>
           {selectedItemIndex !== null && (
             <div className="space-y-4">
@@ -955,7 +1068,9 @@ export default function UpdateQuotationPage() {
                 <Label>Special Instructions</Label>
                 <Textarea
                   value={items[selectedItemIndex]?.notes || ""}
-                  onChange={(e) => updateItem(selectedItemIndex, { notes: e.target.value })}
+                  onChange={(e) =>
+                    updateItem(selectedItemIndex, { notes: e.target.value })
+                  }
                   placeholder="Special instructions for this item..."
                 />
               </div>
@@ -1000,13 +1115,18 @@ export default function UpdateQuotationPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCustomizationDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowCustomizationDialog(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={() => setShowCustomizationDialog(false)}>Save Customization</Button>
+            <Button onClick={() => setShowCustomizationDialog(false)}>
+              Save Customization
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
