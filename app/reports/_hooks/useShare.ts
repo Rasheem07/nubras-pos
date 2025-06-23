@@ -13,7 +13,7 @@ export function useReportSharer() {
     setError(null);
 
     try {
-      const res = await fetch(`http://localhost:5005/api/v1/reports/share`, {
+      const res = await fetch(`https://api.alnubras.co/api/v1/reports/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(filters),

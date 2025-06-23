@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:5005/api/v1"
+const BASE_URL = "https://api.alnubras.co/api/v1"
 
 export interface Category {
   id: number
