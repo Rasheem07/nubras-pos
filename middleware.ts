@@ -9,7 +9,7 @@ export async function middleware(req: NextRequest) {
   
   if (!refreshToken) {
     return NextResponse.redirect(
-      `https:/login.alnubras.co/auth/signin?redirectURL=${encodeURIComponent(req.url)}`
+      `http://localhost:3001/auth/signin?redirectURL=${encodeURIComponent(req.url)}`
     );
   }
 

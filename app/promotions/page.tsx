@@ -64,7 +64,7 @@ export default function PromotionsPage() {
     queryKey: ["promotions"],
     queryFn: async () => {
       const res = await fetch(
-        "https://api.alnubras.co/api/v1/promotions?limit=1000",
+        "http://localhost:5005/api/v1/promotions?limit=1000",
         {
           credentials: "include",
         }
@@ -77,7 +77,7 @@ export default function PromotionsPage() {
   // 2️⃣ Delete mutation
   const deletePromotion = useMutation({
     mutationFn: (id: number) =>
-      fetch(`https://api.alnubras.co/api/v1/promotions/${id}`, {
+      fetch(`http://localhost:5005/api/v1/promotions/${id}`, {
         method: "DELETE",
         credentials: "include",
       }),

@@ -164,7 +164,7 @@ export default function QuotationsPage() {
   const { data: quotations = [], isLoading } = useQuery<Quotation[]>({
     queryKey: ["quotations"],
     queryFn: async () => {
-      const response = await fetch("https://api.alnubras.co/api/v1/quotations", {
+      const response = await fetch("http://localhost:5005/api/v1/quotations", {
         credentials: "include",
       });
       const json = await response.json();
@@ -214,7 +214,7 @@ export default function QuotationsPage() {
 
   const sendQuotation = async (quotation: Quotation) => {
     const response = await fetch(
-      `https://api.alnubras.co/api/v1/quotations/send/${quotation.id}`,
+      `http://localhost:5005/api/v1/quotations/send/${quotation.id}`,
       {
         method: "POST",
         credentials: "include",
@@ -239,7 +239,7 @@ export default function QuotationsPage() {
   const deleteQuotation = async (id: number) => {
     if (confirm("Are you sure you want to delete this quotation?")) {
       const response = await fetch(
-        `https://api.alnubras.co/api/v1/quotations/${id}`,
+        `http://localhost:5005/api/v1/quotations/${id}`,
         {
           credentials: "include",
           method: "DELETE",
@@ -374,7 +374,7 @@ export default function QuotationsPage() {
     newStatus: "accepted" | "rejected"
   ) => {
     const response = await fetch(
-      `https://api.alnubras.co/api/v1/quotations/${
+      `http://localhost:5005/api/v1/quotations/${
         newStatus === "accepted" ? "accept" : "reject"
       }/${id}`,
       {
@@ -857,7 +857,7 @@ export default function QuotationsPage() {
                                       ...convertPayload,
                                     };
                                     const resp = await fetch(
-                                      `https://api.alnubras.co/api/v1/quotations/convert/${convertTarget.id}`,
+                                      `http://localhost:5005/api/v1/quotations/convert/${convertTarget.id}`,
                                       {
                                         method: "POST",
                                         credentials: "include",
@@ -943,7 +943,7 @@ export default function QuotationsPage() {
                           <DropdownMenuItem
                             onClick={async () => {
                               const response = await fetch(
-                                `https://api.alnubras.co/api/v1/quotations/send/${quotation.id}`,
+                                `http://localhost:5005/api/v1/quotations/send/${quotation.id}`,
                                 {
                                   method: "POST",
                                   credentials: "include",

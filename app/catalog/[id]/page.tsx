@@ -36,7 +36,7 @@ import { Separator } from "@/components/ui/separator"
 // API functions
 const productsApi = {
   getById: async (id: number) => {
-    const response = await fetch(`https://api.alnubras.co/api/v1/products/${id}`, {credentials: "include"})
+    const response = await fetch(`http://localhost:5005/api/v1/products/${id}`, {credentials: "include"})
     if (!response.ok) {
       throw new Error("Failed to fetch product details")
     }
