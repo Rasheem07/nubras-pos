@@ -1038,7 +1038,7 @@ export default function BusinessIntelligenceDashboard() {
                         />
                         <Tooltip
                           formatter={(value) => [formatCurrency(Number(value)), 'Revenue']}
-                          labelFormatter={(label) => formatDate(label)}
+                          labelFormatter={formatDateISO}
                         />
                         <Area
                           type="monotone"
@@ -1079,7 +1079,7 @@ export default function BusinessIntelligenceDashboard() {
                         <YAxis tick={{ fontSize: 12 }} />
                         <Tooltip
                           formatter={(value) => [value, 'Orders']}
-                          labelFormatter={(label) => formatDate(label)}
+                          labelFormatter={formatDateISO}
                         />
                         <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
                       </BarChart>
@@ -1200,7 +1200,7 @@ export default function BusinessIntelligenceDashboard() {
                         />
                         <Tooltip
                           formatter={(value) => [formatCurrency(Number(value)), 'Revenue']}
-                          labelFormatter={(label) => formatDate(label)}
+                          labelFormatter={formatDateISO}
                         />
                         <Line
                           type="monotone"
