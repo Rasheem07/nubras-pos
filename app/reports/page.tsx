@@ -202,7 +202,7 @@ export default function BusinessIntelligenceDashboard() {
 
   // Utility functions
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat('en-AE', {
       style: 'currency',
       currency: 'AED',
       minimumFractionDigits: 2,
@@ -481,6 +481,15 @@ export default function BusinessIntelligenceDashboard() {
   }
 
 
+  const formatDateISO = (iso: string): string => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';        // safety
+  return d.toLocaleDateString('en-GB', {
+    day:   '2-digit',
+    month: '2-digit',
+    year:  'numeric'
+  });
+};
 
 
   return (
@@ -1021,7 +1030,7 @@ export default function BusinessIntelligenceDashboard() {
                         <XAxis
                           dataKey="date"
                           tick={{ fontSize: 12 }}
-                          tickFormatter={(value) => formatDate(value)}
+                          tickFormatter={formatDateISO}
                         />
                         <YAxis
                           tick={{ fontSize: 12 }}
@@ -1065,7 +1074,7 @@ export default function BusinessIntelligenceDashboard() {
                         <XAxis
                           dataKey="date"
                           tick={{ fontSize: 12 }}
-                          tickFormatter={(value) => formatDate(value)}
+                          tickFormatter={formatDateISO}
                         />
                         <YAxis tick={{ fontSize: 12 }} />
                         <Tooltip
@@ -1183,7 +1192,7 @@ export default function BusinessIntelligenceDashboard() {
                         <XAxis
                           dataKey="date"
                           tick={{ fontSize: 12 }}
-                          tickFormatter={(value) => formatDate(value)}
+                          tickFormatter={formatDateISO}
                         />
                         <YAxis
                           tick={{ fontSize: 12 }}
