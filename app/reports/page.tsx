@@ -204,13 +204,16 @@ export default function BusinessIntelligenceDashboard() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'INR',
+      currency: 'AED',
       minimumFractionDigits: 2,
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString.split('/').reverse().join('-')).toLocaleDateString('en-IN', {
+  const formatDate = (dateString: string): string => {
+    const [day, month, year] = dateString.split('/');
+    const date = new Date(`${year}-${month}-${day}`);
+
+    return date.toLocaleDateString('en-GB', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
@@ -537,7 +540,7 @@ export default function BusinessIntelligenceDashboard() {
           <Alert variant={"default"} className='border bg-zinc-50'>
             <AlertDescription className="text-sm">
               This link will expire in 2 hours. Please generate a new link if needed.
-              </AlertDescription>
+            </AlertDescription>
           </Alert>
           <DialogFooter>
             <Button onClick={() => setDialogOpen(false)}>Close</Button>
@@ -1022,7 +1025,7 @@ export default function BusinessIntelligenceDashboard() {
                         />
                         <YAxis
                           tick={{ fontSize: 12 }}
-                          tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                          tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}K`}
                         />
                         <Tooltip
                           formatter={(value) => [formatCurrency(Number(value)), 'Revenue']}
@@ -1184,7 +1187,7 @@ export default function BusinessIntelligenceDashboard() {
                         />
                         <YAxis
                           tick={{ fontSize: 12 }}
-                          tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                          tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}K`}
                         />
                         <Tooltip
                           formatter={(value) => [formatCurrency(Number(value)), 'Revenue']}
@@ -1358,7 +1361,7 @@ export default function BusinessIntelligenceDashboard() {
                           />
                           <YAxis
                             tick={{ fontSize: 12 }}
-                            tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                            tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}K`}
                           />
                           <Tooltip
                             formatter={(value) => [formatCurrency(Number(value)), 'Total Spend']}
@@ -1476,7 +1479,7 @@ export default function BusinessIntelligenceDashboard() {
                         />
                         <YAxis
                           tick={{ fontSize: 12 }}
-                          tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                          tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}K`}
                         />
                         <Tooltip
                           formatter={(value, name) => [
