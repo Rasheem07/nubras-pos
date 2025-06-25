@@ -114,7 +114,7 @@ export default function AddPromotionPage() {
   >({
     mutationFn: async (data: PromotionRequest): Promise<PromotionResponse> => {
       const resp: Response = await fetch(
-        "http://localhost:5005/api/v1/promotions",
+        "https://api.alnubras.co/api/v1/promotions",
         {
           method: "POST",
           credentials: "include",

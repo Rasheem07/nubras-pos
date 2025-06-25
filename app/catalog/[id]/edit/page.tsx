@@ -25,7 +25,7 @@ export default function ProductUpdatePage() {
   const { data: product, isLoading } = useQuery({
     queryKey: ["product", productId],
     queryFn: async () => {
-      const res = await fetch(`http://localhost:5005/api/v1/products/${productId}`, {
+      const res = await fetch(`https://api.alnubras.co/api/v1/products/${productId}`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch product");
@@ -68,7 +68,7 @@ export default function ProductUpdatePage() {
         formData.append("image", imageFile);
       }
 
-      const res = await fetch(`http://localhost:5005/api/v1/products/${productId}`, {
+      const res = await fetch(`https://api.alnubras.co/api/v1/products/${productId}`, {
         method: "PATCH",
         body: formData,
         credentials: "include",

@@ -26,9 +26,9 @@ import {
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
 import { DialogDescription } from '@radix-ui/react-dialog';
-import { useSearchParams } from 'next/navigation';
+import { notFound, useSearchParams } from 'next/navigation';
 
-const BASE_API_URL = 'http://localhost:5005/api/v1';
+const BASE_API_URL = 'https://api.alnubras.co/api/v1';
 
 // --- Types ---
 type DatePresetKey =
@@ -340,6 +340,9 @@ export default function BusinessIntelligenceDashboard() {
       });
 
       if (!response.ok) {
+        if(response.status === 404) {
+          return notFound()
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -352,6 +355,20 @@ export default function BusinessIntelligenceDashboard() {
       setLoading(false);
     }
   };
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white p-6 rounded-lg shadow-md">
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription className="text-red-600">
+              <p className="text-sm">Error fetching report data: {error}</p>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    )
+  }
 
   // Effects
   useEffect(() => {

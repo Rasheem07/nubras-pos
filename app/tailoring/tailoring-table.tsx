@@ -45,7 +45,7 @@ export function TailoringTable({ filterStatus, search = '', rushOnly = false, ta
   const {data: projects = [], isLoading} = useQuery<TailoringProject[]>({
     queryKey: ['project'],
     queryFn: async () => {
-      const response = await fetch("http://localhost:5005/api/v1/tailoring", { credentials: "include" });
+      const response = await fetch("https://api.alnubras.co/api/v1/tailoring", { credentials: "include" });
       const json = await response.json();
       if(!response.ok) { 
         toast.error("Failed to load projects!")

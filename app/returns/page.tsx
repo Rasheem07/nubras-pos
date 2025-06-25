@@ -121,7 +121,7 @@ export default function ReturnsManagementPage() {
     useQuery<ReturnTransaction[]>({
       queryKey: ["returns"],
       queryFn: async () => {
-        const response = await fetch("http://localhost:5005/api/v1/returns", {
+        const response = await fetch("https://api.alnubras.co/api/v1/returns", {
           credentials: "include",
         });
         const json = await response.json();
@@ -184,7 +184,7 @@ export default function ReturnsManagementPage() {
       queryKey: ["returns-analytics"],
       queryFn: async () => {
         const res = await fetch(
-          "http://localhost:5005/api/v1/returns/analytics",
+          "https://api.alnubras.co/api/v1/returns/analytics",
           { credentials: "include" }
         );
         if (!res.ok) {
@@ -196,7 +196,7 @@ export default function ReturnsManagementPage() {
     });
 
   const exportReturnsData = () => {
-    fetch("http://localhost:5005/api/v1/returns/export", {
+    fetch("https://api.alnubras.co/api/v1/returns/export", {
       credentials: "include",
     })
       .then((res) => res.blob())
@@ -246,7 +246,7 @@ export default function ReturnsManagementPage() {
   };
 
   const updateStatus = async (id: number, status: string) => {
-    const approveUrl = `http://localhost:5005/api/v1/returns/status/${id}`;
+    const approveUrl = `https://api.alnubras.co/api/v1/returns/status/${id}`;
     fetch(approveUrl, {
       method: "PATCH",
       credentials: "include",
@@ -490,7 +490,7 @@ export default function ReturnsManagementPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
-                                const receiptUrl = `http://localhost:5005/api/v1/returns/receipt/${returnTx.id}`;
+                                const receiptUrl = `https://api.alnubras.co/api/v1/returns/receipt/${returnTx.id}`;
                                 window.open(receiptUrl, "_blank");
                               }}
                             >

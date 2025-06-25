@@ -63,7 +63,7 @@ export default function StaffPage() {
   const { data: staffMembers = [] } = useQuery<StaffMember[]>({
     queryKey: ["staffMembers"],
     queryFn: async () => {
-      const response = await fetch("http://localhost:5005/api/v1/staff");
+      const response = await fetch("https://api.alnubras.co/api/v1/staff");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || "Failed to fetch staff members");
