@@ -57,7 +57,7 @@ import { toast } from "sonner";
 // API functions
 const productsApi = {
   create: async (data: FormData) => {
-    const response = await fetch("https://api.alnubras.co/api/v1/products", {
+    const response = await fetch("http://localhost:5005/api/v1/products", {
       method: "POST",
       credentials: "include",
       body: data,
@@ -74,7 +74,7 @@ const productsApi = {
 
 const inventoryApi = {
   getAll: async () => {
-    const response = await fetch("https://api.alnubras.co/api/v1/inventory", {
+    const response = await fetch("http://localhost:5005/api/v1/inventory", {
       credentials: "include",
     });
     if (!response.ok) {
@@ -87,7 +87,7 @@ const inventoryApi = {
 const categoriesApi = {
   getAll: async () => {
     const response = await fetch(
-      "https://api.alnubras.co/api/v1/products/list/categories",
+      "http://localhost:5005/api/v1/products/list/categories",
       { credentials: "include" }
     );
     if (!response.ok) {
@@ -97,7 +97,7 @@ const categoriesApi = {
   },
   create: async (name: string) => {
     const response = await fetch(
-      "https://api.alnubras.co/api/v1/products/categories",
+      "http://localhost:5005/api/v1/products/categories",
       {
         method: "POST",
         credentials: "include",

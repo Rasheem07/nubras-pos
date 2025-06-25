@@ -29,13 +29,13 @@ export interface CreateEventDto {
 }
 
 export async function fetchEvents(): Promise<CalendarEvent[]> {
-  const res = await fetch('https://api.alnubras.co/api/v1/calendar', { credentials: 'include' });
+  const res = await fetch('http://localhost:5005/api/v1/calendar', { credentials: 'include' });
   if (!res.ok) throw new Error('Could not load events');
   return res.json();
 }
 
 export async function createEvent(dto: CreateEventDto): Promise<CalendarEvent> {
-  const res = await fetch('https://api.alnubras.co/api/v1/calendar', {
+  const res = await fetch('http://localhost:5005/api/v1/calendar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dto),

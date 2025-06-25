@@ -173,7 +173,7 @@ export default function UpdateQuotationPage() {
     queryKey: ["quotation", quotationId],
     queryFn: async () => {
       const response = await fetch(
-        `https://api.alnubras.co/api/v1/quotations/${quotationId}`,
+        `http://localhost:5005/api/v1/quotations/${quotationId}`,
         {
           credentials: "include",
         }
@@ -392,7 +392,7 @@ export default function UpdateQuotationPage() {
       console.log("Updating quotation:", updateQuotationDto);
 
       const response = await fetch(
-        `https://api.alnubras.co/api/v1/quotations/${quotationId}`,
+        `http://localhost:5005/api/v1/quotations/${quotationId}`,
         {
           method: "PATCH",
            credentials: "include",

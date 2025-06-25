@@ -51,7 +51,7 @@ import { categoriesApi } from "@/lib/api/categories";
 // API functions
 const inventoryApi = {
   create: async (formData: FormData) => {
-    const response = await fetch("https://api.alnubras.co/api/v1/inventory", {
+    const response = await fetch("http://localhost:5005/api/v1/inventory", {
       method: "POST",
       credentials: "include",
       body: formData,
@@ -68,7 +68,7 @@ const inventoryApi = {
 
 const suppliersApi = {
   getAll: async () => {
-    const response = await fetch("https://api.alnubras.co/api/v1/suppliers", {
+    const response = await fetch("http://localhost:5005/api/v1/suppliers", {
       method: "GET",
       credentials: "include",
     });

@@ -142,7 +142,7 @@ export function SalesTable() {
   const { data: salesResponse, isLoading } = useQuery<PaginatedSalesResponse>({
     queryKey: ["salesOrders", currentPage, filter, debouncedSearch],
     queryFn: async () => {
-      const url = new URL("https://api.alnubras.co/api/v1/sales");
+      const url = new URL("http://localhost:5005/api/v1/sales");
       url.searchParams.set("page", currentPage.toString());
       url.searchParams.set("filter", filter);
       if (debouncedSearch) {
@@ -305,7 +305,7 @@ export function SalesTable() {
       }
 
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/transactions",
+        "http://localhost:5005/api/v1/transactions",
         {
           method: "POST",
            credentials: "include",

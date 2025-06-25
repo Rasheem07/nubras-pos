@@ -501,18 +501,16 @@ function CategoryCard({
 }) {
   return (
     <Card
-      className={`cursor-pointer transition-all duration-200 touch-manipulation h-16 ${
-        isSelected
-          ? "border-primary bg-primary/10 shadow-md"
-          : "hover:shadow-md hover:border-primary/40 bg-white border border-gray-200"
-      }`}
+      className={`cursor-pointer transition-all duration-200 touch-manipulation h-16 ${isSelected
+        ? "border-primary bg-primary/10 shadow-md"
+        : "hover:shadow-md hover:border-primary/40 bg-white border border-gray-200"
+        }`}
       onClick={onClick}
     >
       <CardContent className="p-3 h-full flex flex-col justify-center items-center text-center">
         <h3
-          className={`font-semibold text-xs ${
-            isSelected ? "text-primary" : "text-gray-900"
-          }`}
+          className={`font-semibold text-xs ${isSelected ? "text-primary" : "text-gray-900"
+            }`}
         >
           {category}
         </h3>
@@ -543,11 +541,10 @@ function ProductCard({
 }) {
   return (
     <Card
-      className={`cursor-pointer transition-all duration-200 hover:border-primary/40 group touch-manipulation h-20 ${
-        disabled
-          ? "opacity-60 cursor-not-allowed"
-          : "hover:shadow-lg bg-white border border-gray-200 hover:border-primary/50"
-      }`}
+      className={`cursor-pointer transition-all duration-200 hover:border-primary/40 group touch-manipulation h-20 ${disabled
+        ? "opacity-60 cursor-not-allowed"
+        : "hover:shadow-lg bg-white border border-gray-200 hover:border-primary/50"
+        }`}
       onClick={
         disabled ? () => toast.error("Please select a customer first") : onAdd
       }
@@ -571,11 +568,10 @@ function ProductCard({
         <Button
           size="sm"
           variant="outline"
-          className={`w-7 h-7 p-0 rounded-full ${
-            disabled
-              ? "opacity-0"
-              : "opacity-0 group-hover:opacity-100 transition-opacity"
-          }`}
+          className={`w-7 h-7 p-0 rounded-full ${disabled
+            ? "opacity-0"
+            : "opacity-0 group-hover:opacity-100 transition-opacity"
+            }`}
           onClick={(e) => {
             e.stopPropagation();
             if (!disabled) onAdd();
@@ -651,9 +647,8 @@ function CartItem({
           </div>
         )}
         <div
-          className={`text-right ${
-            item.type == "custom" && "flex flex-col gap-1 justify-end w-full"
-          }`}
+          className={`text-right ${item.type == "custom" && "flex flex-col gap-1 justify-end w-full"
+            }`}
         >
           <p className="text-sm font-bold">
             AED {Number.parseFloat(item.total).toFixed(2)}
@@ -736,7 +731,7 @@ export default function ProfessionalPOSTerminal() {
     queryKey: ["customers"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/list/customer",
+        "http://localhost:5005/api/v1/list/customer",
         { credentials: "include" }
       );
       if (!response.ok) throw new Error("Failed to fetch customers");
@@ -748,7 +743,7 @@ export default function ProfessionalPOSTerminal() {
     queryKey: ["productsCatalog"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/products/list/catalog",
+        "http://localhost:5005/api/v1/products/list/catalog",
         { credentials: "include" }
       );
       if (!response.ok) throw new Error("Failed to fetch products");
@@ -1145,7 +1140,7 @@ export default function ProfessionalPOSTerminal() {
     };
 
     try {
-      const response = await fetch("https://api.alnubras.co/api/v1/sales", {
+      const response = await fetch("http://localhost:5005/api/v1/sales", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1173,7 +1168,7 @@ export default function ProfessionalPOSTerminal() {
 
   const applyPromotion = async () => {
     try {
-      const res = await fetch("https://api.alnubras.co/api/v1/promotions/apply", {
+      const res = await fetch("http://localhost:5005/api/v1/promotions/apply", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1212,7 +1207,7 @@ export default function ProfessionalPOSTerminal() {
                 <div className="flex items-center gap-1.5 justify-center">
                   <kbd className="inline-flex items-center rounded border bg-muted/50 px-1 py-0.5 text-[9px] text-gray-900 font-mono text-muted-foreground">
                     {typeof window !== "undefined" &&
-                    navigator?.platform?.includes("Mac")
+                      navigator?.platform?.includes("Mac")
                       ? "⌘"
                       : "Ctrl"}{" "}
                     + `
@@ -1377,7 +1372,7 @@ export default function ProfessionalPOSTerminal() {
                         key={option.label}
                         variant={
                           deliveryDate?.toDateString() ===
-                          option.date.toDateString()
+                            option.date.toDateString()
                             ? "default"
                             : "outline"
                         }
@@ -1530,7 +1525,7 @@ export default function ProfessionalPOSTerminal() {
               />
             ) : (
               // Products Display
-              <div className="p-3 flex-shrink-0">
+              <div className="p-3 h-full flex flex-col min-h-0">
                 <Tabs
                   value={tab}
                   onValueChange={onTabChange}
@@ -1553,9 +1548,9 @@ export default function ProfessionalPOSTerminal() {
 
                   <TabsContent
                     value="categories"
-                    className="flex-1 overflow-hidden"
+                    className="flex-1 min-h-0 overflow-hidden" 
                   >
-                    <div className="h-full flex flex-col">
+                    <div className="h-full flex flex-col min-h-0">
                       {/* Category Selection Grid - Fixed */}
                       <div className="mb-3 flex-shrink-0">
                         <h3 className="text-sm font-semibold mb-2">
@@ -1575,12 +1570,12 @@ export default function ProfessionalPOSTerminal() {
                       </div>
 
                       {/* Products Grid - Scrollable */}
-                      <div className="flex-1 overflow-hidden">
+                      <div className="flex-1 min-h-0">
                         <h3 className="text-sm font-semibold mb-2">
                           {selectedCategory} Products
                         </h3>
                         <ScrollArea className="h-full">
-                          <div className="grid grid-cols-4 gap-2 pr-4">
+                          <div className="grid grid-cols-4 gap-2 pr-4 pb-10 ">
                             {categoryItems
                               .filter(
                                 (item: any) =>
@@ -1607,10 +1602,10 @@ export default function ProfessionalPOSTerminal() {
 
                   <TabsContent
                     value="ready-made"
-                    className="flex-1 overflow-hidden"
+                    className="flex-1 min-h-0 overflow-hidden" 
                   >
                     <ScrollArea className="h-full">
-                      <div className="grid grid-cols-4 gap-2 pr-4">
+                      <div className="grid grid-cols-4 gap-2 pr-4 pb-10">
                         {products.flatMap((category: any) =>
                           category.items
                             .filter(
@@ -1646,10 +1641,10 @@ export default function ProfessionalPOSTerminal() {
 
                   <TabsContent
                     value="custom"
-                    className="flex-1 overflow-hidden"
+                    className="flex-1 min-h-0 overflow-hidden" 
                   >
                     <ScrollArea className="h-full">
-                      <div className="grid grid-cols-4 gap-2 pr-4">
+                      <div className="grid grid-cols-4 gap-2 pr-4 pb-10">
                         {products.flatMap((category: any) =>
                           category.items
                             .filter(

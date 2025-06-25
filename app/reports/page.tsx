@@ -28,7 +28,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import Link from 'next/link';
 import { DialogDescription } from '@radix-ui/react-dialog';
 
-const BASE_API_URL = 'https://api.alnubras.co/api/v1';
+const BASE_API_URL = 'http://localhost:5005/api/v1';
 
 // --- Types ---
 type DatePresetKey =
@@ -615,11 +615,12 @@ export default function BusinessIntelligenceDashboard() {
                   Clear All
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setFiltersOpen(!filtersOpen)}
                 >
                   <Settings className="w-4 h-4" />
+                  Advanced Filters
                 </Button>
               </div>
             </div>

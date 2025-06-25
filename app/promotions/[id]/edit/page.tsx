@@ -57,7 +57,7 @@ export default function EditPromotionPage() {
   const { data: promo, isLoading: loadingPromo } = useQuery<FormValues>({
     queryKey: ["promotion", promoId],
     queryFn: async () => {
-      const res = await fetch(`https://api.alnubras.co/api/v1/promotions/${promoId}`, {
+      const res = await fetch(`http://localhost:5005/api/v1/promotions/${promoId}`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to load promotion");
@@ -108,7 +108,7 @@ export default function EditPromotionPage() {
   // update mutation
   const updatePromo = useMutation({
     mutationFn: async (data: FormValues) => {
-      const res = await fetch(`https://api.alnubras.co/api/v1/promotions/${promoId}`, {
+      const res = await fetch(`http://localhost:5005/api/v1/promotions/${promoId}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

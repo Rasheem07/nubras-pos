@@ -120,7 +120,7 @@ export default function TransactionsPage() {
                       <TableCell className="font-medium">#{transaction.id}</TableCell>
                       <TableCell>#{transaction.orderId}</TableCell>
                       <TableCell>{getPaymentMethodBadge(transaction.paymentMethod)}</TableCell>
-                      <TableCell className="font-medium">${Number.parseFloat(transaction.amount).toFixed(2)}</TableCell>
+                      <TableCell className="font-medium">AED {Number.parseFloat(transaction.amount).toFixed(2)}</TableCell>
                       <TableCell>{new Date(transaction.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>
                         <Link href={`/sales/transactions/${transaction.id}/edit`}>

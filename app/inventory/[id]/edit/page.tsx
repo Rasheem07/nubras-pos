@@ -77,7 +77,7 @@ export default function EditInventoryItemPage() {
       setIsLoading(true)
       try {
         // Fetch item details
-        const itemResponse = await fetch(`https://api.alnubras.co/api/v1/inventory/${itemId}`, { credentials: "include",})
+        const itemResponse = await fetch(`http://localhost:5005/api/v1/inventory/${itemId}`, { credentials: "include",})
         if (!itemResponse.ok) {
           throw new Error("Failed to fetch item details")
         }
@@ -89,19 +89,19 @@ export default function EditInventoryItemPage() {
           sku: itemData.sku,
           category: itemData.category,
           uom: itemData.uom,
-          description: itemData.description,
+          description: itemData.description ?? undefined,
           cost: itemData.cost,
           stock: itemData.stock,
           minStock: itemData.minStock,
           reorderPoint: itemData.reorderPoint,
           supplierId: itemData.supplierId,
           barcode: itemData.barcode,
-          weight: itemData.weight,
-          notes: itemData.notes,
+          weight: itemData.weight ?? undefined,
+          notes: itemData.notes ?? undefined,
         })
 
         // Fetch suppliers
-        const suppliersResponse = await fetch("https://api.alnubras.co/api/v1/suppliers", { credentials: "include",})
+        const suppliersResponse = await fetch("http://localhost:5005/api/v1/suppliers", { credentials: "include",})
         if (!suppliersResponse.ok) {
           throw new Error("Failed to fetch suppliers")
         }
@@ -136,7 +136,7 @@ export default function EditInventoryItemPage() {
   const onSubmit = async (data: InventoryFormValues) => {
     setIsSubmitting(true)
     try {
-      const response = await fetch(`https://api.alnubras.co/api/v1/inventory/${itemId}`, {
+      const response = await fetch(`http://localhost:5005/api/v1/inventory/${itemId}`, {
         credentials: "include",
         method: "PATCH",
         headers: {
@@ -161,7 +161,7 @@ export default function EditInventoryItemPage() {
     }
   }
 
-  const categories = ["Fabrics", "Ready-made", "Accessories", "Packaging"]
+  const categories = ["fabrics", "ready-made", "Accessories", "Packaging"]
   const uoms = ["pc", "meter", "kg", "liter", "box", "roll", "pair"]
 
   if (isLoading) {

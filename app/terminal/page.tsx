@@ -673,7 +673,7 @@ export default function ProfessionalPOSTerminal() {
   );
   const [cart, setCart] = useState<SalesOrderItemDto[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("kandora");
+  const [selectedCategory, setSelectedCategory] = useState("NUBRAS GENTS KANDORA SECTION");
   const [applyTax, setApplyTax] = useState(true);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [promoCode, setPromoCode] = useState("");
@@ -736,7 +736,7 @@ export default function ProfessionalPOSTerminal() {
     queryKey: ["customers"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/list/customer",
+        "http://localhost:5005/api/v1/list/customer",
         { credentials: "include" }
       );
       if (!response.ok) throw new Error("Failed to fetch customers");
@@ -748,7 +748,7 @@ export default function ProfessionalPOSTerminal() {
     queryKey: ["productsCatalog"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/products/list/catalog",
+        "http://localhost:5005/api/v1/products/list/catalog",
         { credentials: "include" }
       );
       if (!response.ok) throw new Error("Failed to fetch products");
@@ -1145,7 +1145,7 @@ export default function ProfessionalPOSTerminal() {
     };
 
     try {
-      const response = await fetch("https://api.alnubras.co/api/v1/sales", {
+      const response = await fetch("http://localhost:5005/api/v1/sales", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1173,7 +1173,7 @@ export default function ProfessionalPOSTerminal() {
 
   const applyPromotion = async () => {
     try {
-      const res = await fetch("https://api.alnubras.co/api/v1/promotions/apply", {
+      const res = await fetch("http://localhost:5005/api/v1/promotions/apply", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

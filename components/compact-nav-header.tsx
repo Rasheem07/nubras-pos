@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, use } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -81,7 +81,7 @@ const navigationGroups = {
     icon: Users,
     items: [
       { label: 'Customers', href: '/customers', icon: Users },
-      { label: 'Staff', href: '/staff', icon: UserCircle },
+      { label: 'Sales persons', href: '/staff', icon: UserCircle },
     ],
   },
   reports: {
@@ -204,6 +204,12 @@ export default function CompactNavHeader() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isNavVisible]);
 
+  useEffect(() => {
+    if(pathname.startsWith('/reports/share')) {
+      setIsNavVisible(false);
+    }
+  }, [pathname]);
+            
   return (
     <>
       <header id='navbar' className={cn(
