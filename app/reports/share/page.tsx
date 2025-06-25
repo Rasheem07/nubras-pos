@@ -26,7 +26,7 @@ import {
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
 import { DialogDescription } from '@radix-ui/react-dialog';
-import { notFound, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 const BASE_API_URL = 'https://api.alnubras.co/api/v1';
 
@@ -341,7 +341,7 @@ export default function BusinessIntelligenceDashboard() {
 
       if (!response.ok) {
         if(response.status === 404) {
-          return notFound()
+          setError('404 Not Found: The requested report does not exist.');
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
