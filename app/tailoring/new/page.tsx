@@ -159,7 +159,7 @@ export default function NewTailoringProject() {
     queryKey: ["orders"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/sales/list/tailoring",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/sales/list/tailoring`,
         { credentials: "include"}
       );
       const json = await response.json();
@@ -174,7 +174,7 @@ export default function NewTailoringProject() {
     queryKey: ["tailors"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/staff/list/tailors",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/staff/list/tailors`,
         { credentials: "include" }
       );
       const json = await response.json();
@@ -189,7 +189,7 @@ export default function NewTailoringProject() {
     queryKey: ["workflow-configs"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/tailoring/workflow/templates",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/tailoring/workflow/templates`,
         { credentials: "include"}
       );
       const json = await response.json();
@@ -393,7 +393,7 @@ export default function NewTailoringProject() {
         }
       }
 
-      const response = await fetch("https://api.alnubras.co/api/v1/tailoring", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tailoring`, {
         method: "POST",
          credentials: "include",
         headers: {

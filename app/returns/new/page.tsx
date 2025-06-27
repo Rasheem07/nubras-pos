@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -38,6 +38,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface OrderItem {
   id: number
@@ -87,19 +88,8 @@ export default function NewReturnPage() {
   const [status, setStatus] = useState("pending")
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-
-  // Sample orders data
-  const {data: orders = [], isLoading: orderLoading} = useQuery<Order[]>({
-    queryKey: ['orders'],
-    queryFn: async () => {
-      const response = await fetch("https://api.alnubras.co/api/v1/sales/list/orders?type=ready-made", { credentials: "include" });
-      const json = await response.json();
-      if(!response.ok) {
-        toast.error("Failed to load orders")
-      }
-      return json;
-    }
-  })
+  const [orders, setorders] = useState<Order[]>([])
+  const [isOrderLoading, setIsOrderLoading] = useState(false)
 
   const returnReasons = [
     "Size/Fit Issue",
@@ -127,26 +117,27 @@ export default function NewReturnPage() {
   const statusOptions = ["pending", "approved", "rejected", "completed"]
 
   // Search for orders
-  const searchOrders = () => {
+  const searchOrders = async () => {
     if (!searchQuery.trim()) {
       toast.message("Please enter a search term")
       return
     }
 
-    const found = orders.find(
-      (order) =>
-        order.id.toString().includes(searchQuery) ||
-        order.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer.phone.includes(searchQuery),
-    )
-
-    if (found) {
-      setSelectedOrder(found)
-      initializeReturnItems(found)
-      setActiveTab("item-selection")
-    } else {
-      toast.error("Order not found. Please check the order number, customer name, or phone number.")
+    setIsOrderLoading(true)
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/sales/list/orders?type=ready-made&search=${searchQuery}`, { credentials: "include" });
+    const json = await response.json();
+    if (!response.ok) {
+      toast.error("Failed to load orders")
     }
+
+    setIsOrderLoading(false)
+    if (json.length === 0) {
+      setorders([])
+      toast.error("Order not found. Please check the order number, customer name, or phone number.")
+      return;
+    }
+
+    setorders(json)
   }
 
   // Initialize return items from order
@@ -172,11 +163,11 @@ export default function NewReturnPage() {
       returnItems.map((item, i) =>
         i === index
           ? {
-              ...item, 
-              selected,
-              reason: selected ? "Customer Changed Mind" : "",
-              type: selected ? "refund" : "refund",
-            }
+            ...item,
+            selected,
+            reason: selected ? "Customer Changed Mind" : "",
+            type: selected ? "refund" : "refund",
+          }
           : item,
       ),
     )
@@ -248,9 +239,9 @@ export default function NewReturnPage() {
         })),
       }
 
-      const response = await fetch("https://api.alnubras.co/api/v1/returns", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/returns`, {
         method: "POST",
-         credentials: "include",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -276,8 +267,13 @@ export default function NewReturnPage() {
     }
   }
 
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setorders([])
+    }
+  }, [searchQuery])
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -340,9 +336,22 @@ export default function NewReturnPage() {
 
               {/* Sample Orders */}
               <div className="border-t pt-6">
-                <h4 className="font-medium mb-4">Recent Orders (Click to Select):</h4>
+                <h4 className="font-medium mb-4">Search orders:</h4>
+                {isOrderLoading ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                      <Skeleton key={index} className="h-24 w-full border border-gray-300" />
+                    ))}
+                  </div>
+                ) : orders.length === 0 ? (
+                  <p className="text-muted-foreground">No orders found. Please search for an order.</p>
+                ) : orders.length > 0 && !isOrderLoading ? (
+                  <p className="text-muted-foreground">Found {orders.length} orders matching your search.</p>
+                ) : null
+                }
                 <div className="grid gap-4">
-                  {orders.map((order) => (
+
+                  {searchQuery != "" && orders.map((order) => (
                     <Card
                       key={order.id}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"

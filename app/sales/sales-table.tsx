@@ -123,7 +123,8 @@ export function SalesTable() {
     null
   );
   const [filter, setFilter] = useState<string>("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [inputValue, setInputValue] = useState("")   // what the user is typing
+  const [searchTerm, setSearchTerm] = useState("")   // what actually drives the query
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get("search");
   // debounce to avoid spamming the API
@@ -139,16 +140,16 @@ export function SalesTable() {
     setCurrentPage(1);
   }, [initialFilter]);
 
-  const { data: salesResponse, isLoading } = useQuery<PaginatedSalesResponse>({
+  const { data: salesResponse, isLoading, refetch } = useQuery<PaginatedSalesResponse>({
     queryKey: ["salesOrders", currentPage, filter, debouncedSearch],
     queryFn: async () => {
-      const url = new URL("https://api.alnubras.co/api/v1/sales");
+      const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/sales`);
       url.searchParams.set("page", currentPage.toString());
       url.searchParams.set("filter", filter);
       if (debouncedSearch) {
         url.searchParams.set("search", debouncedSearch);
       }
-      const res = await fetch(url.toString(), {credentials: "include"});
+      const res = await fetch(url.toString(), { credentials: "include" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "Fetch failed");
       return json;
@@ -305,10 +306,10 @@ export function SalesTable() {
       }
 
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/transactions",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/transactions`,
         {
           method: "POST",
-           credentials: "include",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         }
@@ -383,24 +384,38 @@ export function SalesTable() {
 
   return (
     <>
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <div className="flex items-center gap-5 w-full justify-between">
+        <div className="flex items-center gap-2 w-full">
           <Input
             type="search"
-            value={searchTerm}
-            onChange={(e) => {
-              setCurrentPage(1);
-              setSearchTerm(e.target.value);
+            value={inputValue}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && inputValue.trim()) {
+                setSearchTerm(inputValue);
+              }
             }}
-            placeholder="Search by invoice ID, customer name, or sales person..."
-            className="pl-8 w-full md:w-[400px] lg:w-[500px] border-gray-300"
+            onChange={(e) => {
+              setInputValue(e.target.value)
+            }}
+            placeholder="Search by invoice ID, customer..."
+            className="pl-8"
           />
+
+          <Button
+            onClick={() => {
+              setCurrentPage(1)     // reset page if you like
+              setSearchTerm(inputValue)
+            }}
+            disabled={!inputValue.trim()}
+          >
+            <Search className="h-4 w-4" /> Search
+          </Button>
         </div>
+
         {/* <Button variant="outline" size="icon">
           <Filter className="h-4 w-4" />
           <span className="sr-only">Filter</span>
-        </Button> */}
+          </Button> */}
         <Select
           value={filter}
           onValueChange={(value) => {
@@ -420,6 +435,19 @@ export function SalesTable() {
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              setCurrentPage(1);
+              setFilter("all");
+              setInputValue("");
+              setSearchTerm("");
+              refetch()
+            }}
+          >
+            <Filter className="h-4 w-4" />
+            clear filters
+          </Button>
       </div>
       <div className="space-y-4">
         {/* Pagination Controls - Top */}
@@ -496,25 +524,13 @@ export function SalesTable() {
                   <TableHead className="bg-background">Customer</TableHead>
                   <TableHead className="bg-background">Sales Person</TableHead>
                   <TableHead className="bg-background">Status</TableHead>
-                  <TableHead className="bg-background">Priority</TableHead>
-                  <TableHead className="text-right bg-background">
-                    Subtotal
-                  </TableHead>
-                  <TableHead className="text-right bg-background">
-                    Tax
-                  </TableHead>
-                  <TableHead className="text-right bg-background">
-                    Discount
-                  </TableHead>
                   <TableHead className="text-right bg-background">
                     Total
                   </TableHead>
                   <TableHead className="text-right bg-background">
                     Pending
                   </TableHead>
-                  <TableHead className="bg-background">Payment Terms</TableHead>
                   <TableHead className="bg-background">Due Date</TableHead>
-                  <TableHead className="bg-background">Delivery Date</TableHead>
                   <TableHead className="bg-background">Sales Date</TableHead>
                   <TableHead className="text-right bg-background">
                     Actions
@@ -555,29 +571,13 @@ export function SalesTable() {
                       </TableCell>
                       <TableCell>{order.salesPersonName}</TableCell>
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
-                      <TableCell>{getPriorityBadge(order.priority)}</TableCell>
-                      <TableCell className="text-right">
-                        AED {order.subtotal.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        AED {order.taxAmount.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {order.discountAmount > 0 ? (
-                          <span className="text-red-600">
-                            -AED {order.discountAmount.toLocaleString()}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
+                    
                       <TableCell className="text-right font-bold">
                         AED {order.totalAmount.toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right font-bold">
                         AED {order.amountPending.toLocaleString()}
                       </TableCell>
-                      <TableCell>{order.paymentTerms}</TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           <span className="text-sm">
@@ -588,14 +588,14 @@ export function SalesTable() {
                             order.status,
                             order.paymentStatus
                           ) && (
-                            <Badge
-                              variant="destructive"
-                              className="text-xs w-fit"
-                            >
-                              <AlertTriangle className="w-3 h-3 mr-1" />
-                              Overdue
-                            </Badge>
-                          )}
+                              <Badge
+                                variant="destructive"
+                                className="text-xs w-fit"
+                              >
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                Overdue
+                              </Badge>
+                            )}
                           {isDueSoon(order.dueDate, order.status) && (
                             <Badge
                               variant="outline"
@@ -607,17 +607,7 @@ export function SalesTable() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {order.deliveryDate ? (
-                          <span className="text-sm">
-                            {new Date(order.deliveryDate).toLocaleDateString()}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">
-                            Not set
-                          </span>
-                        )}
-                      </TableCell>
+                     
                       <TableCell>
                         {new Date(order.createdAt).toLocaleDateString()}
                       </TableCell>

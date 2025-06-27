@@ -146,7 +146,7 @@ export default function SalesOrderViewPage() {
   } = useQuery<SalesOrder>({
     queryKey: [`sales-${params?.id}`],
     queryFn: async () => {
-      const response = await fetch(`https://api.alnubras.co/api/v1/sales/${params?.id}`, { credentials: "include",})
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/sales/${params?.id}`, { credentials: "include",})
       const json = await response.json()
       if (!response.ok) {
         toast.error(json.message ?? "Failed to load sales order")

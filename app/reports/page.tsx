@@ -28,7 +28,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import Link from 'next/link';
 import { DialogDescription } from '@radix-ui/react-dialog';
 
-const BASE_API_URL = 'https://api.alnubras.co/api/v1';
+const BASE_API_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/v1`;
 
 // --- Types ---
 type DatePresetKey =

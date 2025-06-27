@@ -1,5 +1,5 @@
 export const listAllCustomers = async () => {
-  const response = await fetch("https://api.alnubras.co/api/v1/list/customer", {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/list/customer`, {
      credentials: "include",
     headers: {
       "Content-Type": "application/json",

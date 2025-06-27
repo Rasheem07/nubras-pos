@@ -111,7 +111,7 @@ export default function SuppliersPage() {
     const fetchSuppliers = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch("https://api.alnubras.co/api/v1/suppliers", { credentials: "include"})
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/suppliers`, { credentials: "include"})
         if (!response.ok) {
           throw new Error("Failed to fetch suppliers")
         }
@@ -131,7 +131,7 @@ export default function SuppliersPage() {
   const onSubmit = async (data: SupplierFormValues) => {
     setIsSubmitting(true)
     try {
-      const response = await fetch("https://api.alnubras.co/api/v1/suppliers", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/suppliers`, {
         method: "POST",
          credentials: "include",
         headers: {
@@ -149,7 +149,7 @@ export default function SuppliersPage() {
       toast.success(result.message || "Supplier created successfully!")
 
       // Refresh suppliers list
-      const suppliersResponse = await fetch("https://api.alnubras.co/api/v1/suppliers", { credentials: "include" })
+      const suppliersResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/suppliers`, { credentials: "include" })
       if (suppliersResponse.ok) {
         const suppliersData = await suppliersResponse.json()
         setSuppliers(suppliersData)
@@ -170,7 +170,7 @@ export default function SuppliersPage() {
     if (!deleteSupplier) return
 
     try {
-      const response = await fetch(`https://api.alnubras.co/api/v1/suppliers/${deleteSupplier.id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/suppliers/${deleteSupplier.id}`, {
         method: "DELETE",
          credentials: "include",
       })

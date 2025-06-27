@@ -362,7 +362,7 @@ export default function NewQuotationPage() {
 
       console.log("Creating quotation:", createQuotationDto);
 
-      const response = await fetch("https://api.alnubras.co/api/v1/quotations", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/quotations`, {
         method: "POST",
          credentials: "include",
         headers: {

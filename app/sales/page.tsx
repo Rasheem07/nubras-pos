@@ -25,7 +25,7 @@ export default function SalesPage() {
             </Link>
           </Button>
           <Button asChild>
-            <Link href="/terminal">
+            <Link href="/">
               <ShoppingBag className="mr-2 h-4 w-4" />
               New Sale
             </Link>

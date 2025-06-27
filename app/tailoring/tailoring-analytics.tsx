@@ -84,7 +84,7 @@ export function TailoringAnalytics() {
     queryKey: ["tailoringKpis"],
     queryFn: async () => {
       const response = await fetch(
-        "https://api.alnubras.co/api/v1/tailoring/kpis",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/tailoring/kpis`,
         { credentials: "include" }
       );
       const data = await response.json();

@@ -108,7 +108,7 @@ export default function QuickCustomerCreationForm({
 
   const onAddAndSelect = async (data: FormValues) => {
     console.log(data);
-    const response = await fetch("https://api.alnubras.co/api/v1/customers", {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/customers`, {
       method: "POST",
        credentials: "include",
       headers: {

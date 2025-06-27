@@ -1,6 +1,6 @@
 import type { CustomerMeasurement, CustomerGroup, CustomerDetail, Customer, CustomerStats } from "./types/customer"
 
-const API_BASE_URL = "https://api.alnubras.co/api/v1"
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/v1`
 
 // Helper function for fetch requests
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {

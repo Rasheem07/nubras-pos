@@ -84,7 +84,7 @@ export default function CreateTransactionPage() {
     },
   });
 
-  const filteredOrders = orders.filter(
+  const filteredOrders = orders.length > 0 && orders.filter(
     (order) =>
       order.id.toString().includes(searchTerm) ||
       order.customerName.toLowerCase().includes(searchTerm.toLowerCase())

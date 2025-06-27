@@ -1,4 +1,4 @@
-const BASE_URL = "https://api.alnubras.co/api/v1";
+const BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/v1`;
 
 export interface Product {
   id: number;

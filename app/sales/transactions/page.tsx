@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Plus, Edit } from "lucide-react"
+import { Search, Plus, Edit, Notebook, Info } from "lucide-react"
 import Link from "next/link"
 import { transactionApi } from "./api"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -69,18 +70,24 @@ export default function TransactionsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">Transactions</h1>
           <p className="text-muted-foreground">Manage payment transactions</p>
         </div>
-        <Link href="/sales/transactions/create">
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Transaction
-          </Button>
-        </Link>
       </div>
+
+      <Alert className="my-6 bg-yellow-50 border-yellow-200 ">
+        <div className="flex items-center gap-4">
+          <Info className="w-10 h-10 text-yellow-600" />
+          <div>
+            <AlertTitle>Go to <Link href="/sales" className="font-bold text-blue-600 underline underline-offset-4">Sales page</Link> to create new transaction</AlertTitle>
+            <AlertDescription className="text-sm text-muted-foreground mt-2">
+              You can view and manage sales orders and transactions from the Sales page.
+            </AlertDescription>
+          </div>
+        </div>
+      </Alert>
 
       <Card>
         <CardHeader>

@@ -107,7 +107,7 @@ export default function RestockInventoryItemPage() {
       setIsLoading(true)
       try {
         // Fetch item details
-        const itemResponse = await fetch(`https://api.alnubras.co/api/v1/inventory/${itemId}`, {
+        const itemResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/inventory/${itemId}`, {
           credentials: "include"
         })
         if (!itemResponse.ok) {
@@ -118,7 +118,7 @@ export default function RestockInventoryItemPage() {
         setValue("cost", itemData.cost)
 
         // Fetch suppliers
-        const suppliersResponse = await fetch("https://api.alnubras.co/api/v1/suppliers", {
+        const suppliersResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/suppliers`, {
           credentials: "include"
         })
         if (!suppliersResponse.ok) {
@@ -145,7 +145,7 @@ export default function RestockInventoryItemPage() {
   const onSubmit = async (data: RestockFormValues) => {
     setIsSubmitting(true)
     try {
-      const response = await fetch("https://api.alnubras.co/api/v1/inventory/restock", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/inventory/restock`, {
         method: "POST",
         credentials: "include",
         headers: {
